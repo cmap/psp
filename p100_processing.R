@@ -1,14 +1,39 @@
-#MAJOR VERSION 1.1
-#MINOR VERSION 4
-#21-JAN-2015
+#MAJOR VERSION 1.2
+#MINOR VERSION 1
+#17-FEB-2015
 
-P100processGCT <- function (gctFileName,optim=TRUE,fileOutput=TRUE,log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, probeSDCutoff=3, distSDcutoff=3) {
+P100processGCTPanorama <- function (repAnnot, probeAnnot, dataTable, fileStub, optim=TRUE,fileOutput=TRUE,log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, probeSDCutoff=3, distSDcutoff=3) {
+  dimsRA<-dim(repAnnot);
+  dimsPA<-dim(probeAnnot);
+  dimsDT<-dim(dataTable);
+  local_surviving_headers<-repAnnot;
+  local_dt<-dataTable;
+  local_surviving_rowAnnots<-data.frame(id=rownames(probeAnnot),probeAnnot);
+  local_static_headers<-as.data.frame(matrix(data='NA',ncol=dim(local_surviving_rowAnnots)[2],nrow=dim(local_surviving_headers)[1]));
+  rownames(local_static_headers)<-rownames(local_surviving_headers);
+  colnames(local_static_headers)<-colnames(local_surviving_rowAnnots);
+  local_static_headers[,1]<-rownames(local_static_headers);
+  a<-list(surviving_headers=local_surviving_headers,static_headers=local_static_headers,surviving_rowAnnots=local_surviving_rowAnnots,dt=local_dt,colsAnnot=dim(local_static_headers)[2],rowsAnnot=dim(local_static_headers)[1],gctFileName=fileStub);
+  P100processGCT(a,optim=optim,fileOutput=fileOutput,log2=log2,samplePctCutoff=samplePctCutoff, probePctCutoff=probePctCutoff, probeSDCutoff=probeSDCutoff, distSDcutoff=distSDcutoff);
+}
 
+P100processGCTFromFile <- function (gctFileName,optim=TRUE,fileOutput=TRUE,log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, probeSDCutoff=3, distSDcutoff=3) {
   g<-P100_ReadGCT(gctFileName);
-  static_headers<-g$headers[,1:g$colsAnnot];
-  surviving_headers<-g$headers[,(g$colsAnnot+1):(g$colsAnnot+g$colsData)];
-  surviving_rowAnnots<-g$rowAnnot;
-  dt<-g$data;
+  local_static_headers<-g$headers[,1:g$colsAnnot];
+  local_surviving_headers<-g$headers[,(g$colsAnnot+1):(g$colsAnnot+g$colsData)];
+  local_surviving_rowAnnots<-g$rowAnnot;
+  local_dt<-g$data;
+  a<-list(surviving_headers=local_surviving_headers,static_headers=local_static_headers,surviving_rowAnnots=local_surviving_rowAnnots,dt=local_dt,colsAnnot=g$colsAnnot,rowsAnnot=g$rowsAnnot,gctFileName=gctFileName);
+  P100processGCT(a,optim=optim,fileOutput=fileOutput,log2=log2,samplePctCutoff=samplePctCutoff, probePctCutoff=probePctCutoff, probeSDCutoff=probeSDCutoff, distSDcutoff=distSDcutoff);
+}
+
+P100processGCT <- function (g,optim=TRUE,fileOutput=TRUE,log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, probeSDCutoff=3, distSDcutoff=3) {
+
+  static_headers<-g$static_headers;
+  surviving_headers<-g$surviving_headers;
+  surviving_rowAnnots<-g$surviving_rowAnnots;
+  dt<-g$dt;
+  gctFileName=g$gctFileName;
 
   #log2 transform
   if (log2) {
