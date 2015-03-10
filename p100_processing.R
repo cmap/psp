@@ -64,6 +64,59 @@ P100processGCTMaster <- function (gctFileName=NULL,repAnnot=NULL, probeAnnot=NUL
   }
 }
 
+GCPprocessGCTMaster <- function (gctFileName=NULL,repAnnot=NULL, probeAnnot=NULL, dataTable=NULL,
+                                  fileOutput=TRUE,outputFileName=NULL, processMode='full', normalization_peptide_id = 'BI10052',
+                                  log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, probeSDCutoff=3)
+{
+  ######################################################################################
+  #  This function is the major entry point for automated data processing of GCP.      #
+  #  It supports two modes of data input and output.                                   #
+  #  If the parameter 'gctFileName' is not NULL, it will look for a local file of that #
+  #  name.                                                                             #
+  #  If the paramters 'repAnnot', 'probeAnnot', and 'dataTable' are not NULL, it will  #
+  #  assume that these are data objects from Panorama report views and proceed         #
+  #  accordingly.                                                                      #
+  #  Local users andor PANAORAMA should pass these parameters as named arguments!!!    #
+  #  Also, now supporting processMode ('full','quick') switch for less redundancy      #
+  ######################################################################################
+
+  o<-list();
+  
+  #CHECK THAT AT LEAST ONE MODE OF INPUT IS FULLY EMPLOYED
+  if (is.null(gctFileName) && (is.null(repAnnot) || is.null(repAnnot) || is.null(probeAnnot))) {
+    stop('Either provide a gctFileName or data objects from Panorama');
+  }
+  
+  #GET THE DATA (LIST) OBJECT AND SET METHOD SPECIFIC PARAMETERS
+  if (!(is.null(gctFileName))) {
+    #IF FROM LOCAL FILE
+    o<-P100provideGCTlistObjectFromFile(gctFileName);
+    if (is.null(outputFileName)) {
+      outputFileName<-paste(gctFileName,'.processed.gct',sep='');
+    }
+  } else {
+    #IF FROM PANORAMA DATA OBJECTS
+    o<-P100provideGCTlistObjectFromPanorama(repAnnot, probeAnnot, dataTable);
+    if(is.null(outputFileName))
+    {
+      outputFileName <- "${fileout:p100.processed.gct}";
+    }
+  }
+
+  po<-list();
+  #DO THE PROCESSING AND RETURN AN OBJECT READY TO BE WRITTEN TO GCT FILE FORMAT
+  if (processMode == 'full') {
+    po<-GCPprocessGCT(o,log2=log2,samplePctCutoff=samplePctCutoff, probePctCutoff=probePctCutoff, probeSDCutoff=probeSDCutoff, normalization_peptide_id=normalization_peptide_id)
+  } else {
+    stop(paste('That processing mode is not supported: ',as.character(processMode),sep=''));
+  } 
+
+  #WRITE THE GCT FILE (IF FILE WRITING ENABLED)
+  if (fileOutput) {
+    P100writeGCTForProcessedObject(output.name=outputFileName,processedObject=po);
+  }
+}
+
 P100processGCT <- function (g,optim=TRUE,log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, probeSDCutoff=3, distSDcutoff=3) {
 
   static_headers<-g$static_headers;
@@ -127,6 +180,43 @@ P100processGCTquick <- function (g,log2=TRUE) {
           surviving_rowAnnots=surviving_rowAnnots,colsAnnot=g$colsAnnot,rowsAnnot=g$rowsAnnot);
   return(q);
 }
+
+GCPprocessGCT <- function (g,log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, probeSDCutoff=3, normalization_peptide_id = 'BI10052') {
+
+  static_headers<-g$static_headers;
+  surviving_headers<-g$surviving_headers;
+  surviving_rowAnnots<-g$surviving_rowAnnots;
+  dt<-g$dt;
+  #gctFileName=g$gctFileName;
+
+  #log2 transform
+  if (log2) {
+    dt[dt==0]=NA;
+    dt<-log(dt)/log(2);
+    surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"L2X");
+  }
+
+  h<-GCPhistoneNormalize(dt,surviving_rowAnnots,normalization_peptide_id)
+  surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"H3N");
+  surviving_rowAnnots<-h$survivingRows;
+
+  s<-P100filterSamplesForPoorCoverage(h$filteredData, pctFilterCutoff=samplePctCutoff)
+  surviving_headers<-surviving_headers[,s$colsPassing];
+  surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"SF8");
+
+  f<-P100filterProbes(s$filteredData, pctFilterCutoff=probePctCutoff, sdFilterCutoff=probeSDCutoff);
+  surviving_rowAnnots<-surviving_rowAnnots[f$rowsPassing,];
+  surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"PF9");
+
+  n<-P100rowMedianNormalize(f$filteredData);
+  surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"RMN");
+
+  q<-list(inputData=dt,histoneNormedData=h, initialSampleFiltering=s,probeFiltering=f,
+          normalizedData=n,outputData=n$normalizedData,static_headers=static_headers,surviving_headers=surviving_headers,
+          surviving_rowAnnots=surviving_rowAnnots,colsAnnot=g$colsAnnot,rowsAnnot=g$rowsAnnot);
+  return(q);
+}
+
 
 ######################################
 #                                    #
@@ -340,6 +430,27 @@ P100optimizeSampleBalance <- function (dt) {
   return(optim);
 }
 
+GCPhistoneNormalize <- function (dt, surv_rows, norm_peptide_id) {
+  #Filter out columns missing x% of data;
+  retList<-list(filteredData=dt,originalData=dt,normConstants=dt[1,],survivingRows=surv_rows);
+  dt<-as.matrix(dt);
+  ddt<-dim(dt);
+  nRows<-ddt[1];
+  nCols<-ddt[2];
+
+  #Find the norm peptide row:
+  indarr<-surv_rows[,1]==norm_peptide_id;
+  norm_consts<-dt[indarr,];
+  retList$normConstants<-norm_consts;
+  norm_mat<-matrix(data=retList$normConstants,nrow=nRows,ncol=nCols,byrow=TRUE)
+  retList$filteredData<-dt-norm_mat;
+  retList$filteredData<-retList$filteredData[(!indarr),];
+  retList$survivingRows<-retList$survivingRows[(!indarr),];
+
+  return(retList);
+
+}
+
 .getRowMedians <- function(x) {
   x<-as.matrix(x);
   dx<-dim(x);
@@ -389,14 +500,20 @@ P100optimizeSampleBalance <- function (dt) {
 }
 
 genericRowNormalizeByColumnAnnot<-function(dt,columnAnnot,groupingField,subset=NULL) {
+  retList<-list(groupRowMedians=NULL,normalizedData=dt,originalData=dt);
   normGroups<- unique(unlist(columnAnnot[groupingField,]));
+  grm<-matrix(data=FALSE,nrow=length(dt[,1]),ncol=length(normGroups));
+  colnames(grm)<-normGroups;
   for (x in 1:length(normGroups)) {
     dtTemp<-dt[,columnAnnot[groupingField,]==normGroups[x]];
     groupNorm<-apply(dtTemp,1,median,na.rm=TRUE);
+    grm[,x]<-groupNorm;
     dtTemp<-dtTemp-groupNorm;
     dt[,columnAnnot[groupingField,]==normGroups[x]]<-dtTemp;
   }
-  return(dt);
+  retList$groupRowMedians<-grm;
+  retList$normalizedData<-dt;
+  return(retList);
 }
 
 .updateProvenanceCode <- function (static_annot,annot,code) {
