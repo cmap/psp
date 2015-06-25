@@ -66,7 +66,7 @@ P100processGCTMaster <- function (gctFileName=NULL,repAnnot=NULL, probeAnnot=NUL
 
 GCPprocessGCTMaster <- function (gctFileName=NULL,repAnnot=NULL, probeAnnot=NULL, dataTable=NULL,
                                   fileOutput=TRUE,outputFileName=NULL, processMode='full', normalization_peptide_id = 'BI10052',
-                                  log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, probeSDCutoff=3)
+                                  log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, probeSDCutoff=3, probeGroupNormalization=FALSE)
 {
   ######################################################################################
   #  This function is the major entry point for automated data processing of GCP.      #
@@ -106,7 +106,7 @@ GCPprocessGCTMaster <- function (gctFileName=NULL,repAnnot=NULL, probeAnnot=NULL
   po<-list();
   #DO THE PROCESSING AND RETURN AN OBJECT READY TO BE WRITTEN TO GCT FILE FORMAT
   if (processMode == 'full') {
-    po<-GCPprocessGCT(o,log2=log2,samplePctCutoff=samplePctCutoff, probePctCutoff=probePctCutoff, probeSDCutoff=probeSDCutoff, normalization_peptide_id=normalization_peptide_id)
+    po<-GCPprocessGCT(o,log2=log2,samplePctCutoff=samplePctCutoff, probePctCutoff=probePctCutoff, probeSDCutoff=probeSDCutoff, normalization_peptide_id=normalization_peptide_id, probeGroupNormalization=probeGroupNormalization)
   } else {
     stop(paste('That processing mode is not supported: ',as.character(processMode),sep=''));
   } 
@@ -122,6 +122,7 @@ P100processGCT <- function (g,optim=TRUE,log2=TRUE,samplePctCutoff=0.8, probePct
   static_headers<-g$static_headers;
   surviving_headers<-g$surviving_headers;
   surviving_rowAnnots<-g$surviving_rowAnnots;
+  colnames(surviving_rowAnnots)<-static_headers[1,];
   dt<-g$dt;
   #gctFileName=g$gctFileName;
 
@@ -163,6 +164,7 @@ P100processGCTquick <- function (g,log2=TRUE) {
   static_headers<-g$static_headers;
   surviving_headers<-g$surviving_headers;
   surviving_rowAnnots<-g$surviving_rowAnnots;
+  colnames(surviving_rowAnnots)<-static_headers[1,];
   dt<-g$dt;
 
   #log2 transform
@@ -181,11 +183,12 @@ P100processGCTquick <- function (g,log2=TRUE) {
   return(q);
 }
 
-GCPprocessGCT <- function (g,log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, probeSDCutoff=3, normalization_peptide_id = 'BI10052') {
+GCPprocessGCT <- function (g,log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, probeSDCutoff=3, normalization_peptide_id = 'BI10052', probeGroupNormalization=FALSE) {
 
   static_headers<-g$static_headers;
   surviving_headers<-g$surviving_headers;
   surviving_rowAnnots<-g$surviving_rowAnnots;
+  colnames(surviving_rowAnnots)<-static_headers[1,];
   dt<-g$dt;
   #gctFileName=g$gctFileName;
 
@@ -209,7 +212,16 @@ GCPprocessGCT <- function (g,log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, 
   surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"PF9");
 
   n<-P100rowMedianNormalize(f$filteredData);
-  surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"RMN");
+  if (length(unique(surviving_rowAnnots$pr_probe_normalization_group)) > 1) {
+    probeGroupNormalization<-TRUE;
+  }
+
+  if (probeGroupNormalization) {
+    n<-GCPprobeGroupSpecificRowMedianNormalize(data=f$filteredData,ra=surviving_rowAnnots,sth=static_headers,sh=surviving_headers)
+    surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"GMN");
+  } else {
+    surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"RMN");
+  }
 
   q<-list(inputData=dt,histoneNormedData=h, initialSampleFiltering=s,probeFiltering=f,
           normalizedData=n,outputData=n$normalizedData,static_headers=static_headers,surviving_headers=surviving_headers,
@@ -346,6 +358,40 @@ P100rowMedianNormalize <- function (dt) {
   }
   retList$normalizedData<-dt;
   return(retList);
+}
+
+GCPprobeGroupSpecificRowMedianNormalize <- function (data,ra,sth,sh) {
+  colnames(ra)<-sth['pr_id',];
+  probe_normalization_assignments<-as.numeric(ra$pr_probe_normalization_group);
+  probe_normalization_group<-unique(probe_normalization_assignments);
+  num_probe_groups<-length(probe_normalization_group);
+  sample_group_vectors<-sh['det_normalization_group_vector',];
+  sample_group_matrix<-matrix(as.numeric(unlist(strsplit(unlist(sample_group_vectors),split=','))),nrow=num_probe_groups);
+  sample_group_maxes<-apply(sample_group_matrix,1,max);
+  copy_of_data<-data;
+  G<-list();
+
+  for (j in 1:num_probe_groups) {
+    for (k in 1:sample_group_maxes[j]) {
+      if (sample_group_maxes[j] > 1) {
+        G[[j]]<-list();
+      }
+      working_data<-data[probe_normalization_assignments==j,sample_group_matrix[j,]==k];
+      working_data_medians<-apply(working_data,1,median,na.rm=TRUE);
+      working_data<-working_data-working_data_medians;
+      copy_of_data[probe_normalization_assignments==j,sample_group_matrix[j,]==k]<-working_data;
+      if (sample_group_maxes[j] > 1) {
+        #print(c(j,k))
+        #print(working_data_medians);
+        G[[j]][[k]]<-working_data_medians;
+        #print(G);
+      } else {
+        G[[j]]<-working_data_medians;
+      }
+    }
+  }
+  q<-list(originalData=data,normalizedData=copy_of_data,pna=probe_normalization_assignments,sgm=sample_group_matrix,rowMedians=G);
+  return(q);
 }
 
 P100filterSamplesForPoorCoverage <- function (dt, pctFilterCutoff=0.8) {
