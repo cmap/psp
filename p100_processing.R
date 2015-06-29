@@ -66,7 +66,7 @@ P100processGCTMaster <- function (gctFileName=NULL,repAnnot=NULL, probeAnnot=NUL
 
 GCPprocessGCTMaster <- function (gctFileName=NULL,repAnnot=NULL, probeAnnot=NULL, dataTable=NULL,
                                   fileOutput=TRUE,outputFileName=NULL, processMode='full', normalization_peptide_id = 'BI10052',
-                                  log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, probeSDCutoff=3, probeGroupNormalization=FALSE)
+                                  log2=TRUE,samplePctCutoff=0.5, probePctCutoff=0.5, probeSDCutoff=4, probeGroupNormalization=FALSE)
 {
   ######################################################################################
   #  This function is the major entry point for automated data processing of GCP.      #
@@ -205,11 +205,11 @@ GCPprocessGCT <- function (g,log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, 
 
   s<-P100filterSamplesForPoorCoverage(h$filteredData, pctFilterCutoff=samplePctCutoff)
   surviving_headers<-surviving_headers[,s$colsPassing];
-  surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"SF8");
+  surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"SF5");
 
   f<-P100filterProbes(s$filteredData, pctFilterCutoff=probePctCutoff, sdFilterCutoff=probeSDCutoff);
   surviving_rowAnnots<-surviving_rowAnnots[f$rowsPassing,];
-  surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"PF9");
+  surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"PF5");
 
   n<-P100rowMedianNormalize(f$filteredData);
   if (length(unique(surviving_rowAnnots$pr_probe_normalization_group)) > 1) {
@@ -361,7 +361,11 @@ P100rowMedianNormalize <- function (dt) {
 }
 
 GCPprobeGroupSpecificRowMedianNormalize <- function (data,ra,sth,sh) {
-  colnames(ra)<-sth['pr_id',];
+  pr_id_equiv<-'pr_id';
+  if (!('pr_id' %in% rownames(sth))) {
+    pr_id_equiv<-'id';
+  }
+  colnames(ra)<-sth[pr_id_equiv,];
   probe_normalization_assignments<-as.numeric(ra$pr_probe_normalization_group);
   probe_normalization_group<-unique(probe_normalization_assignments);
   num_probe_groups<-length(probe_normalization_group);
