@@ -1,6 +1,6 @@
 #MAJOR VERSION 2.0
-#MINOR VERSION 1
-#04-MAR-2015
+#MINOR VERSION 1.4
+#8-JUL-2015
 
 
 ######################################
@@ -212,7 +212,7 @@ GCPprocessGCT <- function (g,log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, 
   surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"PF5");
 
   n<-P100rowMedianNormalize(f$filteredData);
-  if (length(unique(surviving_rowAnnots$pr_probe_normalization_group)) > 1) {
+  if (length(unique(surviving_rowAnnots$pr_probe_normalization_group)) > 1 || length(unique(t(surviving_headers['det_normalization_group_vector',]))) > 1) {
     probeGroupNormalization<-TRUE;
   }
 
@@ -288,6 +288,13 @@ P100provideGCTlistObjectFromFile <- function (gctFileName) {
   local_surviving_headers<-g$headers[,(g$colsAnnot+1):(g$colsAnnot+g$colsData)];
   local_surviving_rowAnnots<-g$rowAnnot;
   local_dt<-g$data;
+  id_field<-local_static_headers[1,1]
+  colnames(local_static_headers)<-local_static_headers[id_field,]; #NOTE this needs attention pr_id vs. id.  Maybe should check and standardize that 1,1 is always 'id'
+  colnames(local_surviving_rowAnnots)<-colnames(local_static_headers);
+  rownames(local_surviving_rowAnnots)<-local_surviving_rowAnnots[,id_field];
+  colnames(local_surviving_headers)<-local_surviving_headers[id_field,];
+  colnames(local_dt)<-colnames(local_surviving_headers);
+  rownames(local_dt)<-rownames(local_surviving_rowAnnots);
   a<-list(surviving_headers=local_surviving_headers,static_headers=local_static_headers,surviving_rowAnnots=local_surviving_rowAnnots,dt=local_dt,colsAnnot=g$colsAnnot,rowsAnnot=g$rowsAnnot,gctFileName=gctFileName);
   return(a)
 }
