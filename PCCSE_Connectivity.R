@@ -2,7 +2,7 @@
 #MINOR VERSION 1.0
 #8-JUL-2015
 
-ProteomicConnectivityMapFromGCTFiles <- function (...,filter_level=0.7,filter_position='pre') {
+ProteomicConnectivityMapFromGCTFiles <- function (...,filter_level=0.7,filter_position='pre',connection_type='cnxn') {
 	source('U:/code/R/p100_production/p100_processing.R');
 
 	#parse parameters
@@ -56,7 +56,7 @@ ProteomicConnectivityMapFromGCTFiles <- function (...,filter_level=0.7,filter_po
 	tM<-matrix(unlist(strsplit(as.character(cI$intxnName),split=":")),ncol=2,byrow=TRUE);
 	cI$source<-tM[,1];
 	cI$dest<-tM[,2];
-	cI$type<-'cnxn'
+	cI$type<-connection_type;
 
 	if (filter_position=='post') {
 		cI<-cI[which(cI$collapsedScore >= filter_level),];
@@ -65,13 +65,18 @@ ProteomicConnectivityMapFromGCTFiles <- function (...,filter_level=0.7,filter_po
 	#output interaction map
 	dT<-cI[order(cI$collapsedScore,decreasing=TRUE),]
 	stamp<-format(Sys.time(), "%Y-%m-%d_%H-%M-%S");
-	fN<-paste0("network_",stamp,".gct");
+	fN<-paste0("network_",stamp,".txt");
+	afN<-paste0("annot_",stamp,".txt");
 	cfN<-paste0("funccall_",stamp,".txt");
-	write.table(dT,fN,row.names=FALSE,sep="\t");
+	write.table(dT,fN,row.names=FALSE,sep="\t",quote=FALSE);
 	fJ<-paste(c(...),collapse=",");
 	cat('ProteomicConnectivityMapFromGCTFiles(',fJ,',filter_level=',filter_level,',filter_position=\'',filter_position,'\')',file=cfN,sep='');
 	#output annotation file
 	#todo, this could be tricky to make sure all nodes are annotated once and only once.
+	uN<-unique(c(cI$source,cI$dest));
+	SuN<-matrix(unlist(strsplit(uN,split="_")),ncol=2,byrow=TRUE);
+	AT<-data.frame(name=uN,drug=SuN[,1],cell=SuN[,2]);
+	write.table(AT,afN,row.names=FALSE,sep="\t",quote=FALSE);
 
 
 	#return a graph structure?  plot?  return a data frame?

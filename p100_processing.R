@@ -137,7 +137,13 @@ P100processGCT <- function (g,optim=TRUE,log2=TRUE,samplePctCutoff=0.8, probePct
   surviving_headers<-surviving_headers[,s$colsPassing];
   surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"SF8");
 
-  f<-P100filterProbes(s$filteredData, pctFilterCutoff=probePctCutoff, sdFilterCutoff=probeSDCutoff);
+  #check for explicit probe rejection
+  goodProbes<-logical(length=dim(surviving_rowAnnots)[1]);
+  goodProbes[]<-TRUE;
+  if ('pr_probe_suitability_manual' %in% colnames(surviving_rowAnnots)) {
+    goodProbes<-as.logical(surviving_rowAnnots$pr_probe_suitability_manual);
+  }
+  f<-P100filterProbes(s$filteredData, pctFilterCutoff=probePctCutoff, sdFilterCutoff=probeSDCutoff, explicitRejects=goodProbes);
   surviving_rowAnnots<-surviving_rowAnnots[f$rowsPassing,];
   surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"PF9");
 
@@ -151,7 +157,16 @@ P100processGCT <- function (g,optim=TRUE,log2=TRUE,samplePctCutoff=0.8, probePct
   surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"OSF");
 
   n<-P100rowMedianNormalize(b$filteredData);
-  surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"RMN");
+  if (length(unique(surviving_rowAnnots$pr_probe_normalization_group)) > 1 || length(unique(t(surviving_headers['det_normalization_group_vector',]))) > 1) {
+    probeGroupNormalization<-TRUE;
+  }
+
+  if (probeGroupNormalization) {
+    n<-GCPprobeGroupSpecificRowMedianNormalize(data=f$filteredData,ra=surviving_rowAnnots,sth=static_headers,sh=surviving_headers)
+    surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"GMN");
+  } else {
+    surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"RMN");
+  }
 
   q<-list(inputData=dt,initialSampleFiltering=s,probeFiltering=f,optimizationParams=o,secondarySampleCorrectionAndFiltering=b,
           normalizedData=n,outputData=n$normalizedData,static_headers=static_headers,surviving_headers=surviving_headers,
@@ -175,7 +190,17 @@ P100processGCTquick <- function (g,log2=TRUE) {
   }
 
   n<-P100rowMedianNormalize(dt);
-  surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"RMN");
+  if (length(unique(surviving_rowAnnots$pr_probe_normalization_group)) > 1 || length(unique(t(surviving_headers['det_normalization_group_vector',]))) > 1) {
+    probeGroupNormalization<-TRUE;
+  }
+
+  if (probeGroupNormalization) {
+    n<-GCPprobeGroupSpecificRowMedianNormalize(data=f$filteredData,ra=surviving_rowAnnots,sth=static_headers,sh=surviving_headers)
+    surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"GMN");
+  } else {
+    surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"RMN");
+  }
+
 
   q<-list(inputData=dt,
           normalizedData=n,outputData=n$normalizedData,static_headers=static_headers,surviving_headers=surviving_headers,
@@ -206,8 +231,14 @@ GCPprocessGCT <- function (g,log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, 
   s<-P100filterSamplesForPoorCoverage(h$filteredData, pctFilterCutoff=samplePctCutoff)
   surviving_headers<-surviving_headers[,s$colsPassing];
   surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"SF5");
-
-  f<-P100filterProbes(s$filteredData, pctFilterCutoff=probePctCutoff, sdFilterCutoff=probeSDCutoff);
+  
+  #check for explicit probe rejection
+  goodProbes<-logical(length=dim(surviving_rowAnnots)[1]);
+  goodProbes[]<-TRUE;
+  if ('pr_probe_suitability_manual' %in% colnames(surviving_rowAnnots)) {
+    goodProbes<-as.logical(surviving_rowAnnots$pr_probe_suitability_manual);
+  }
+  f<-P100filterProbes(s$filteredData, pctFilterCutoff=probePctCutoff, sdFilterCutoff=probeSDCutoff, explicitRejects=goodProbes);
   surviving_rowAnnots<-surviving_rowAnnots[f$rowsPassing,];
   surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"PF5");
 
@@ -449,8 +480,8 @@ P100filterOutlierSamplesAndApplyCorrections <- function (dt, optData, sdFilterCu
 
 }
 
-P100filterProbes <-function (dt, pctFilterCutoff=0.9, sdFilterCutoff=3) {
-  retList<-list(rowsPassing=NULL,filteredData=dt,originalData=dt);
+P100filterProbes <-function (dt, pctFilterCutoff=0.9, sdFilterCutoff=3, explicitRejects) {
+  retList<-list(rowsPassing=explicitRejects,filteredData=dt,originalData=dt);
   dt<-as.matrix(dt);
   ddt<-dim(dt);
   nRows<-ddt[1];
@@ -459,11 +490,13 @@ P100filterProbes <-function (dt, pctFilterCutoff=0.9, sdFilterCutoff=3) {
   #Filter out rows missing x% of data;
   numNAs<-.countRowNAs(dt);
   pctNotNAs<-1-(numNAs/nCols);
-  retList$rowsPassing<-(pctNotNAs>=pctFilterCutoff);
+  retList$rowsPassing<-(retList$rowsPassing & pctNotNAs>=pctFilterCutoff);
 
   #Filter out rows with high SD - remember each unit is 2 fold, multiplicative! 2,4,8
   rowSDs<-.getRowSDs(dt);
   retList$rowsPassing<-(retList$rowsPassing & rowSDs <= sdFilterCutoff);
+
+  #Filter out probes that are explicitly rejected
 
   retList$filteredData<-dt[retList$rowsPassing,];
   return(retList);
@@ -616,9 +649,14 @@ P100evaluateGCTasPlate <- function (gctFileName,optim=TRUE,fileOutput=TRUE,log2=
 
   qq2<-plotSurvivingRowsLogical(surviving_headers,stage='Filter Poor Coverage')
   #readline(prompt='next');
-
-
-  f<-P100filterProbes(s$filteredData, pctFilterCutoff=probePctCutoff, sdFilterCutoff=probeSDCutoff);
+  
+  #check for explicit probe rejection
+  goodProbes<-logical(length=dim(surviving_rowAnnots)[1]);
+  goodProbes[]<-TRUE;
+  if ('pr_probe_suitability_manual' %in% colnames(surviving_rowAnnots)) {
+    goodProbes<-as.logical(surviving_rowAnnots$pr_probe_suitability_manual);
+  }
+  f<-P100filterProbes(s$filteredData, pctFilterCutoff=probePctCutoff, sdFilterCutoff=probeSDCutoff, explicitRejects=goodProbes);
   surviving_rowAnnots<-surviving_rowAnnots[f$rowsPassing,];
   surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"PF9");
 
