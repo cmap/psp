@@ -117,7 +117,7 @@ GCPprocessGCTMaster <- function (gctFileName=NULL,repAnnot=NULL, probeAnnot=NULL
   }
 }
 
-P100processGCT <- function (g,optim=TRUE,log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, probeSDCutoff=3, distSDcutoff=3) {
+P100processGCT <- function (g,optim=TRUE,log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, probeSDCutoff=3, distSDcutoff=3, probeGroupNormalization=FALSE) {
 
   static_headers<-g$static_headers;
   surviving_headers<-g$surviving_headers;
