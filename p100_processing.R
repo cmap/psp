@@ -162,7 +162,7 @@ P100processGCT <- function (g,optim=TRUE,log2=TRUE,samplePctCutoff=0.8, probePct
   }
 
   if (probeGroupNormalization) {
-    n<-GCPprobeGroupSpecificRowMedianNormalize(data=f$filteredData,ra=surviving_rowAnnots,sth=static_headers,sh=surviving_headers)
+    n<-GCPprobeGroupSpecificRowMedianNormalize(data=b$filteredData,ra=surviving_rowAnnots,sth=static_headers,sh=surviving_headers)
     surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"GMN");
   } else {
     surviving_headers<-.updateProvenanceCode(static_headers,surviving_headers,"RMN");
