@@ -95,3 +95,20 @@ regularizeNamingConvention <- function (tableObject) {
 collapseInteractionScores <- function (comboName,fulldata) {
 	return(mean(fulldata$connectivityScore[which(fulldata$interaction==comboName)]));
 }
+
+PCCSEwriteMergedGCT <- function (output.name,mergedObject) {
+	PCCSEwriteGCT (output.name, mergedObject$surviving_headers, rownames(mergedObject$dt), mergedObject$dt, 1, dim(mergedObject$surviving_headers)[1])
+}
+
+PCCSEwriteGCT <- function (output.name,surviving_headers,surviving_rowAnnots,normalizedData,colsAnnot=1,rowsAnnot) {
+
+  all_data<-c(as.data.frame(surviving_rowAnnots),as.data.frame(normalizedData));
+  line1<-'#1.3';
+  line2<-c(dim(normalizedData),(colsAnnot-1),(rowsAnnot-1));
+  line2<-t(line2);
+
+  write.table(line1,output.name,sep="\t",row.names=FALSE,col.names=FALSE,quote=FALSE)
+  write.table(line2,output.name,sep="\t",row.names=FALSE,col.names=FALSE,append=TRUE,quote=FALSE)
+  write.table(surviving_headers,output.name,sep="\t",row.names=TRUE,col.names=FALSE,append=TRUE,quote=FALSE)
+  write.table(all_data,output.name,sep="\t",row.names=FALSE,col.names=FALSE,append=TRUE,quote=FALSE)
+}

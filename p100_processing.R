@@ -62,6 +62,8 @@ P100processGCTMaster <- function (gctFileName=NULL,repAnnot=NULL, probeAnnot=NUL
   if (fileOutput) {
     P100writeGCTForProcessedObject(output.name=outputFileName,processedObject=po);
   }
+
+  return(po);
 }
 
 GCPprocessGCTMaster <- function (gctFileName=NULL,repAnnot=NULL, probeAnnot=NULL, dataTable=NULL,
@@ -115,6 +117,7 @@ GCPprocessGCTMaster <- function (gctFileName=NULL,repAnnot=NULL, probeAnnot=NULL
   if (fileOutput) {
     P100writeGCTForProcessedObject(output.name=outputFileName,processedObject=po);
   }
+  return(po);
 }
 
 P100processGCT <- function (g,optim=TRUE,log2=TRUE,samplePctCutoff=0.8, probePctCutoff=0.9, probeSDCutoff=3, distSDcutoff=3, probeGroupNormalization=FALSE) {
