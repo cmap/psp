@@ -322,13 +322,20 @@ P100provideGCTlistObjectFromFile <- function (gctFileName) {
   local_surviving_headers<-g$headers[,(g$colsAnnot+1):(g$colsAnnot+g$colsData)];
   local_surviving_rowAnnots<-g$rowAnnot;
   local_dt<-g$data;
-  id_field<-local_static_headers[1,1]
-  colnames(local_static_headers)<-local_static_headers[id_field,]; #NOTE this needs attention pr_id vs. id.  Maybe should check and standardize that 1,1 is always 'id'
-  colnames(local_surviving_rowAnnots)<-colnames(local_static_headers);
-  rownames(local_surviving_rowAnnots)<-local_surviving_rowAnnots[,id_field];
+  id_field<-'id'; #default this to initialze for if statement below (keep in scope)
+  if (g$colsAnnot == 1) {
+    id_field<-local_static_headers[1]; #this only happens when there is no further row annotation;
+    names(local_static_headers)<-local_static_headers;
+  } else {
+    id_field<-local_static_headers[1,1]; #this is the expected normal case
+    colnames(local_static_headers)<-local_static_headers[id_field,];
+  }
+  #colnames(local_static_headers)<-local_static_headers[id_field,]; #NOTE this needs attention pr_id vs. id.  Maybe should check and standardize that 1,1 is always 'id'
+  if (g$colsAnnot > 1) { colnames(local_surviving_rowAnnots)<-colnames(local_static_headers); }
+  if (g$colsAnnot > 1) { rownames(local_surviving_rowAnnots)<-local_surviving_rowAnnots[,id_field]; }
   colnames(local_surviving_headers)<-local_surviving_headers[id_field,];
   colnames(local_dt)<-colnames(local_surviving_headers);
-  rownames(local_dt)<-rownames(local_surviving_rowAnnots);
+  if (g$colsAnnot > 1)  { rownames(local_dt)<-rownames(local_surviving_rowAnnots); } else {rownames(local_dt)<-local_surviving_rowAnnots}
   a<-list(surviving_headers=local_surviving_headers,static_headers=local_static_headers,surviving_rowAnnots=local_surviving_rowAnnots,dt=local_dt,colsAnnot=g$colsAnnot,rowsAnnot=g$rowsAnnot,gctFileName=gctFileName);
   return(a)
 }
@@ -377,7 +384,11 @@ P100writeGCT <- function (output.name,static_headers,surviving_headers,surviving
 
   write.table(line1,output.name,sep="\t",row.names=FALSE,col.names=FALSE,quote=FALSE)
   write.table(line2,output.name,sep="\t",row.names=FALSE,col.names=FALSE,append=TRUE,quote=FALSE)
-  write.table(all_headers,output.name,sep="\t",row.names=FALSE,col.names=FALSE,append=TRUE,quote=FALSE)
+  if (colsAnnot == 1) {
+    write.table(surviving_headers,output.name,sep="\t",row.names=TRUE,col.names=FALSE,append=TRUE,quote=FALSE)
+  } else {
+    write.table(all_headers,output.name,sep="\t",row.names=FALSE,col.names=FALSE,append=TRUE,quote=FALSE)
+  }
   write.table(all_data,output.name,sep="\t",row.names=FALSE,col.names=FALSE,append=TRUE,quote=FALSE)
 }
 
@@ -1043,4 +1054,8 @@ P100overlapNames<-function(somenames) {
   return(b);
 }
 
+.zscore <- function (d) {
+  z<-(d-mean(d,na.rm=TRUE))/sd(d,na.rm=TRUE)
+  return(z)
+}
 

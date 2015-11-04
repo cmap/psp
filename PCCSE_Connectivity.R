@@ -2,8 +2,7 @@
 #MINOR VERSION 1.0
 #8-JUL-2015
 
-ProteomicConnectivityMapFromGCTFiles <- function (...,filter_level=0.7,filter_position='pre',connection_type='cnxn') {
-	source('U:/code/R/p100_production/p100_processing.R');
+ProteomicConnectivityMapFromGCTFiles <- function (...,filter_level=0.7,filter_position='pre',connection_type='cnxn',zscore=FALSE) {
 
 	#parse parameters
 	inpars<-list(...);
@@ -11,11 +10,17 @@ ProteomicConnectivityMapFromGCTFiles <- function (...,filter_level=0.7,filter_po
 	#get first file
 	print("Reading first file...\n");
 	MO<-P100provideGCTlistObjectFromFile(as.character(inpars[1]));
+	if (zscore) {
+		MO$dt<-t(apply(MO$dt,1,.zscore));
+	}
 
 	#merge GCT data tables and annotations
 	if (length(inpars) > 1) {
 		for (j in 2:length(inpars)) {
 			t<-P100provideGCTlistObjectFromFile(as.character(inpars[j]))
+			if (zscore) {
+				t$dt<-t(apply(t$dt,1,.zscore));
+			}
 			MO$dt<-merge(MO$dt,t$dt,by=0,all=TRUE,sort=FALSE);
 			MO$dt<-data.frame(MO$dt[-1],row.names=MO$dt$Row.names);
 			MO$surviving_headers<-merge(MO$surviving_headers,t$surviving_headers,by=0,all=TRUE,sort=FALSE);
@@ -25,6 +30,10 @@ ProteomicConnectivityMapFromGCTFiles <- function (...,filter_level=0.7,filter_po
 			#This is probably not critical for computing the connectivity map, though, so lets ignore for now
 			#MO$surviving_rowAnnots<-merge(MO$surviving_rowAnnots,t$surviving_rowAnnots,by=0,all=TRUE,sort=FALSE);
 		}
+	}
+
+	if (zscore) {
+		MO$surviving_headers<-.updateProvenanceCode(MO$static_headers,MO$surviving_headers,"ZSC");
 	}
 
 	#compute connectivity metric - right now just correlation, but maybe replace with function later
@@ -41,7 +50,7 @@ ProteomicConnectivityMapFromGCTFiles <- function (...,filter_level=0.7,filter_po
 
 	#encode desired connectivity groups
 	annotTable<-t(MO$surviving_headers);
-	connGroupAnnots<-c('pert_iname','cell_id');
+	connGroupAnnots<-c('pert_iname','cell_id','pert_time');
 	grp1<-paste0(connGroupAnnots,".1");
 	grp2<-paste0(connGroupAnnots,".2");
 	M1<-merge(fpC,annotTable[,connGroupAnnots],by.x='Var1',by.y=0,all.x=TRUE,sort=FALSE);
@@ -97,6 +106,7 @@ collapseInteractionScores <- function (comboName,fulldata) {
 }
 
 PCCSEwriteMergedGCT <- function (output.name,mergedObject) {
+
 	PCCSEwriteGCT (output.name, mergedObject$surviving_headers, rownames(mergedObject$dt), mergedObject$dt, 1, dim(mergedObject$surviving_headers)[1])
 }
 
@@ -111,4 +121,53 @@ PCCSEwriteGCT <- function (output.name,surviving_headers,surviving_rowAnnots,nor
   write.table(line2,output.name,sep="\t",row.names=FALSE,col.names=FALSE,append=TRUE,quote=FALSE)
   write.table(surviving_headers,output.name,sep="\t",row.names=TRUE,col.names=FALSE,append=TRUE,quote=FALSE)
   write.table(all_data,output.name,sep="\t",row.names=FALSE,col.names=FALSE,append=TRUE,quote=FALSE)
+}
+
+PCCSEmergeGCTFiles <- function (...,zscore=FALSE) {
+
+	#parse parameters
+	inpars<-list(...);
+	omitnames<-c('pr_probe_normalization_group','pr_probe_suitability_manual');
+
+	#get first file
+	print("Reading first file...\n");
+	MO<-P100provideGCTlistObjectFromFile(as.character(inpars[1]));
+	if (zscore) {
+		MO$dt<-t(apply(MO$dt,1,.zscore));
+	}
+	omitcols<-which(colnames(MO$surviving_rowAnnots) %in% omitnames);
+	MO$surviving_rowAnnots<-MO$surviving_rowAnnots[,-omitcols];
+	MO$static_headers<-MO$static_headers[,-omitcols];
+	MO$colsAnnot<-MO$colsAnnot-length(omitcols);
+
+	#merge GCT data tables and annotations
+	if (length(inpars) > 1) {
+		for (j in 2:length(inpars)) {
+			t<-P100provideGCTlistObjectFromFile(as.character(inpars[j]))
+			if (zscore) {
+				t$dt<-t(apply(t$dt,1,.zscore));
+			}
+			MO$dt<-merge(MO$dt,t$dt,by=0,all=TRUE,sort=FALSE);
+			MO$dt<-data.frame(MO$dt[-1],row.names=MO$dt$Row.names);
+			MO$surviving_headers<-merge(MO$surviving_headers,t$surviving_headers,by=0,all=TRUE,sort=FALSE);
+			MO$surviving_headers<-data.frame(MO$surviving_headers[-1],row.names=MO$surviving_headers$Row.names);
+			
+			omitcols<-which(colnames(t$surviving_rowAnnots) %in% omitnames);
+			t$surviving_rowAnnots<-t$surviving_rowAnnots[,-omitcols];
+			MO$surviving_rowAnnots<-merge(MO$surviving_rowAnnots,t$surviving_rowAnnots,all=TRUE,sort=FALSE);
+			rownames(MO$surviving_rowAnnots)<-MO$surviving_rowAnnots$id;
+			#NOTE: surviving_rowAnnots is a hard case...we don't really want a merge, we just want extension of the data.frame if a new set is added
+			#This is probably not critical for computing the connectivity map, though, so lets ignore for now
+			#MO$surviving_rowAnnots<-merge(MO$surviving_rowAnnots,t$surviving_rowAnnots,by=0,all=TRUE,sort=FALSE);
+		}
+	}
+
+	stamp<-format(Sys.time(), "%Y-%m-%d_%H-%M-%S");
+	fN<-paste0("mergedGCT_",stamp,".gct");
+
+	#maybe need to doublecheck that all rowsAnnot ids match dt ids?
+	MO$outputData<-MO$dt
+    
+	P100writeGCTForProcessedObject(fN,MO);
+	return(MO);
 }
