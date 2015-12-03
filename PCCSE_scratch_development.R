@@ -96,7 +96,8 @@ queryDrugAndPlotPCCSEData <- function(raDataDump, drug, assay="Assay") {
   factorOrder<-sort(levels(factor(union(raDataDump$pert_iname.1,raDataDump$pert_iname.2))));
   print(paste0('FACTOR ORDER SIZE ',length(factorOrder)))
   #wp<-ggplot(raDataDump, aes(factor(workingDrug,levels=factorOrder),connectivityScore));  ####NOT RECOGNIZING factorOrder for some reason?
-  wp<-ggplot(raDataDump, aes(factor(workingDrug),connectivityScore));
+  #wp<-ggplot(raDataDump, aes(factor(workingDrug),connectivityScore));
+  wp<-ggplot(raDataDump, aes(factor(otherDrug),connectivityScore));
   wp + geom_violin() + 
     geom_boxplot(outlier.size=0,width=0.2) + 
     #geom_point( aes(factor(otherDrug,levels=factorOrder),connectivityScore,color=factor(cell_id.1)),data=qd,size=4, shape=124 ) + ####NOT RECOGNIZING factorOrder for some reason?
@@ -114,9 +115,18 @@ queryDrugAndKStest <- function(raDataDump, drug, assay="Assay") {
   for (j in 1:length(od)) {
   	rdf$queryDrug[j]<-drug;
   	rdf$otherDrug[j]<-od[j];
-  	ksr<-ks.test(qd$connectivityScore[which(qd$workingDrug==drug & qd$otherDrug==od[j])],qd$connectivityScore[which(qd$workingDrug==drug)]);
+  	ksr<-ks.test(qd$connectivityScore[which(qd$otherDrug==od[j])],raDataDump$connectivityScore[which(raDataDump$otherDrug==od[j])]);
+  	med.test<-median(qd$connectivityScore[which(qd$otherDrug==od[j])]);
+  	med.bkg<-median(raDataDump$connectivityScore[which(raDataDump$otherDrug==od[j])])
   	rdf$KSstat[j]<-ksr$statistic;
   	rdf$pval[j]<-ksr$p.value;
+  	rdf$med.test[j]<-med.test;
+  	rdf$med.bkg[j]<-med.bkg;
+  	rdf$direction[j]<-(1);
+  	if (med.test < med.bkg) {
+  		rdf$direction[j]<-(-1);
+  	}
+  	rdf$directedKSstat[j]<-rdf$direction[j]*rdf$KSstat[j]
   }
   return(rdf);
 }
@@ -125,10 +135,11 @@ ksTestForAll <- function(raDataDump,assay="Assay") {
 	drugs<-unique(raDataDump$workingDrug);
 	ksTable<-queryDrugAndKStest(raDataDump,drug=drugs[1],assay=assay);
 	for (j in 2:length(drugs)) {
-		ks_temp<-queryDrugAndKStest(raDataDump,drug=drugs[1],assay=assay);
+		ks_temp<-queryDrugAndKStest(raDataDump,drug=drugs[j],assay=assay);
 		ksTable<-rbind(ksTable,ks_temp)
 	}
-	return(ksTable);
+	kso<-order(ksTable$queryDrug,-ksTable$directedKSstat);
+	return(ksTable[kso,]);
 }
 
 replicateRecallPlotPCCSEData <- function(raDataDump, assay="Assay", metric="Pearson of Z-score",colorFactor='cell_id.1') {
@@ -172,4 +183,59 @@ timeSeriesQueryDrugAndPlotPCCSEData <- function(raDataDump, drug, assay="Assay")
     theme(axis.text.x = element_text(angle=60, vjust=1)) + xlab("compound") +
     ggtitle(paste(assay," Query of ",drug," Mapped on cScore Distribution",sep="")) + ylab("cScore Metric = Pearson of Z-score") + coord_flip()
 
+}
+
+KSenabledTimeSeriesQueryDrugAndPlotPCCSEData <- function(raDataDump, drug, presortedKS, assay="Assay") {
+  qd<-raDataDump[which(raDataDump$workingDrug==drug),];
+  FO<-rev(presortedKS$otherDrug[which(presortedKS$queryDrug==drug)]);
+  raDataDump<-raDataDump[order(factor(raDataDump$otherDrug,levels=FO)),]
+  print(paste0('FACTOR ORDER SIZE ',length(FO)))
+  wp<-ggplot(raDataDump, aes(factor(otherDrug,levels=factor(otherDrug)),connectivityScore));  ####NOT RECOGNIZING factorOrder for some reason?
+  #wp<-ggplot(raDataDump, aes(factor(workingDrug),connectivityScore));
+  wp + geom_violin() + 
+    geom_boxplot(outlier.size=0,width=0.2) + 
+    #geom_point( aes(factor(otherDrug,levels=factorOrder),connectivityScore,color=factor(cell_id.1)),data=qd,size=4, shape=124 ) + ####NOT RECOGNIZING factorOrder for some reason?
+    geom_point( aes(factor(otherDrug),connectivityScore,color=factor(time.encoding)),data=qd,size=4, shape=124 ) + 
+    theme(axis.text.x = element_text(angle=60, vjust=1)) + xlab("compound") +
+    ggtitle(paste(assay," Query of ",drug,sep="")) + ylab("cScore Metric = Pearson of Z-score") + coord_flip()
+
+}
+
+KSenabledQueryDrugAndPlotPCCSEData <- function(raDataDump, drug, presortedKS, assay="Assay") {
+  qd<-raDataDump[which(raDataDump$workingDrug==drug),];
+  FO<-rev(presortedKS$otherDrug[which(presortedKS$queryDrug==drug)]);
+  raDataDump<-raDataDump[order(factor(raDataDump$otherDrug,levels=FO)),]
+  print(paste0('FACTOR ORDER SIZE ',length(FO)))
+  wp<-ggplot(raDataDump, aes(factor(otherDrug,levels=factor(otherDrug)),connectivityScore));  ####NOT RECOGNIZING factorOrder for some reason?
+  #wp<-ggplot(raDataDump, aes(factor(workingDrug),connectivityScore));
+  wp + geom_violin() + 
+    geom_boxplot(outlier.size=0,width=0.2) + 
+    #geom_point( aes(factor(otherDrug,levels=factorOrder),connectivityScore,color=factor(cell_id.1)),data=qd,size=4, shape=124 ) + ####NOT RECOGNIZING factorOrder for some reason?
+    geom_point( aes(factor(otherDrug),connectivityScore,color=factor(cell_id.1)),data=qd,size=4, shape=124 ) + 
+    theme(axis.text.x = element_text(angle=60, vjust=1)) + xlab("compound") +
+    ggtitle(paste(assay," Query of ",drug,sep="")) + ylab("cScore Metric = Pearson of Z-score") + coord_flip()
+
+}
+
+
+
+queryDrugResamplingKStest <- function(raDataDump, drug, assay="Assay",iterations=100) {
+  qd<-raDataDump[which(raDataDump$workingDrug==drug),];
+  od<-unique(qd$otherDrug);
+  nod<-length(od)
+  rdf<-data.frame(queryDrug=character(nod),otherDrug=character(nod),KSstat=numeric(nod),pval=numeric(nod),stringsAsFactors=FALSE)
+  for (j in 1:length(od)) {
+  	rdf$queryDrug[j]<-drug;
+  	rdf$otherDrug[j]<-od[j];
+  	rsKandP<-data.frame(statistic=numeric(iterations),p.value=numeric(iterations));
+  	sampleSize<-length(qd$connectivityScore[which(qd$workingDrug==drug & qd$otherDrug==od[j])])
+  	for (k in 1:iterations) {
+	  	ksr<-ks.test(qd$connectivityScore[which(qd$otherDrug==od[j])],sample(raDataDump$connectivityScore[which(raDataDump$otherDrug==od[j])],sampleSize));
+	  	rsKandP$statistic[k]<-ksr$statistic;
+	  	rsKandP$p.value[k]<-ksr$p.value;
+  	}
+  	rdf$KSstat[j]<-mean(rsKandP$statistic);
+  	rdf$pval[j]<-mean(rsKandP$p.value);
+  }
+  return(rdf);
 }
