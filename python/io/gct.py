@@ -3,6 +3,8 @@
 Created on Jan 12, 2012
 provides .gct file io modules
 @author: cflynn
+
+Moved to p100_processing from l1ktools by Lev (2016-02-01).
 '''
 import csv
 import os
@@ -13,8 +15,8 @@ import re
 import numpy
 import tables
 
-import cmap.util.progress as update
-import cmap.io.plategrp as grp
+import utils.progress as update
+import io.plategrp as grp
 import pandas as pd
 
 class GCT(object):
