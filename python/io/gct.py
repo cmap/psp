@@ -15,7 +15,7 @@ import re
 import numpy
 import tables
 
-import utils.progress as update
+# import utils.progress as update
 import io.plategrp as grp
 import pandas as pd
 
@@ -118,8 +118,8 @@ class GCT(object):
         reads tab delimited gct file
         '''
         #open a update indicator
-        if verbose:
-            progress_bar = update.DeterminateProgressBar('GCT_READER')
+        # if verbose:
+        #    progress_bar = update.DeterminateProgressBar('GCT_READER')
 
         #open the file
         f = open(src,'rb')
@@ -354,9 +354,9 @@ class GCT(object):
         read just the matrix data from a gctx file
         '''
         #open an update indicator
-        if verbose:
-            progress_bar = update.DeterminateProgressBar('GCTX_READER')
-            progress_bar.show_message('reading matrix data')
+        # if verbose:
+        #    progress_bar = update.DeterminateProgressBar('GCTX_READER')
+        #    progress_bar.show_message('reading matrix data')
 
         if not src:
             src = self.src
@@ -445,8 +445,8 @@ class GCT(object):
         those columns specified are read.
         '''
         #open an update indicator
-        if verbose:
-            progress_bar = update.DeterminateProgressBar('GCTX_READER')
+        # if verbose:
+        #    progress_bar = update.DeterminateProgressBar('GCTX_READER')
 
         #open the gctx file
         self._open_gctx(src)
@@ -484,8 +484,8 @@ class GCT(object):
         those rows specified are read.
         '''
         #open an update indicator
-        if verbose:
-            progress_bar = update.DeterminateProgressBar('GCTX_READER')
+        # if verbose:
+        #    progress_bar = update.DeterminateProgressBar('GCTX_READER')
 
         #open the gctx file
         self._open_gctx(src)
