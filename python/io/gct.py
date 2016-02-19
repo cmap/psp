@@ -15,8 +15,7 @@ import re
 import numpy
 import tables
 
-# import utils.progress as update
-import io.plategrp as grp
+import plategrp as grp
 import pandas as pd
 
 class GCT(object):
@@ -93,7 +92,6 @@ class GCT(object):
         adds the specified array of data to the desired metadata table
         '''
 
-
         #translate table_name and table_list into a valid SQL command
         command_string = "insert into %s values (" % (table_name,)
         for i in range(len(data_array)):
@@ -117,9 +115,6 @@ class GCT(object):
         '''
         reads tab delimited gct file
         '''
-        #open a update indicator
-        # if verbose:
-        #    progress_bar = update.DeterminateProgressBar('GCT_READER')
 
         #open the file
         f = open(src,'rb')
@@ -161,13 +156,8 @@ class GCT(object):
             row_meta_tmp.insert(0,ii)
             self._add_row_to_meta_table('row', row_meta_tmp)
             self.matrix[ii] = row[int(dims[2])+1:]
-            if verbose:
-                progress_bar.update('reading gct file: ', ii, int(dims[0]))
 
-        if verbose:
-            progress_bar.clear()
-
-        #populate a data frame
+     	#populate a data frame
         if frame:
             self.frame = pd.DataFrame(self.matrix,
                                       index = self.get_row_meta('id'),
@@ -353,10 +343,6 @@ class GCT(object):
         '''
         read just the matrix data from a gctx file
         '''
-        #open an update indicator
-        # if verbose:
-        #    progress_bar = update.DeterminateProgressBar('GCTX_READER')
-        #    progress_bar.show_message('reading matrix data')
 
         if not src:
             src = self.src
@@ -412,9 +398,6 @@ class GCT(object):
                     if i in col_ind_set:
                         self.matrix[p_iter,:] = numpy.take(row,row_inds)
                         p_iter += 1
-                        if p_iter%p_mod == 0:
-                            if verbose:
-                                progress_bar.update("reading matrix data ({0},{1})".format(num_rows,p_max),p_iter,p_max)
 
             else:
                 if n_bycol <= n_byrow:
@@ -435,18 +418,12 @@ class GCT(object):
         #close the gctx file
         self._close_gctx()
 
-        #clear the progress indicator
-        if verbose:
-            progress_bar.clear()
 
     def read_gctx_col_meta(self,src,col_inds=None, verbose=True):
         '''
         read the column meta data from the file given in src.  If col_inds is given, only
         those columns specified are read.
         '''
-        #open an update indicator
-        # if verbose:
-        #    progress_bar = update.DeterminateProgressBar('GCTX_READER')
 
         #open the gctx file
         self._open_gctx(src)
@@ -466,14 +443,8 @@ class GCT(object):
             data = column[col_inds]
             meta_data_array[i+1,:] = [str(x).rstrip() for x in data]
         for i,col_ind in enumerate(col_inds):
-            if verbose:
-                progress_bar.update('reading column meta data', i, num_rows)
             data_list = list(meta_data_array[:,i])
             self._add_row_to_meta_table("col", data_list)
-
-        #clear the update indicator
-        if verbose:
-            progress_bar.clear()
 
         #close the gctx file
         self._close_gctx()
@@ -483,9 +454,6 @@ class GCT(object):
         read the row meta data from the file given in src.  If row_inds is given, only
         those rows specified are read.
         '''
-        #open an update indicator
-        # if verbose:
-        #    progress_bar = update.DeterminateProgressBar('GCTX_READER')
 
         #open the gctx file
         self._open_gctx(src)
@@ -500,16 +468,11 @@ class GCT(object):
         self._add_table_to_meta_db("row", row_headers)
         num_rows = len(row_inds)
         for i,ind in enumerate(row_inds):
-            if verbose:
-                progress_bar.update('reading row meta data', i, num_rows)
             data_list = [ind]
             for column in self.row_data:
                 data_list.append(str(column[ind]).rstrip())
             self._add_row_to_meta_table("row", data_list)
 
-        #clear the update indicator
-        if verbose:
-            progress_bar.clear()
 
         #close the gctx file
         self._close_gctx()
@@ -953,6 +916,6 @@ def parse_gct_dict(file_path):
     return gct_data
 
 if __name__ == '__main__':
-    os.chdir('../../unittest_resources')
+    os.chdir('functional_tests')
     gct_data = parse_gct_dict('gct_v13.gct')
     print sum(gct_data['SAMPLES']['LITMUS001_PC3_96H_X2:J16']['PROBE_VALS'])

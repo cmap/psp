@@ -23,6 +23,8 @@ def log_transform(data, log_base=2):
 	assert isinstance(data, numpy.ndarray), ["data must be a numpy ndarray. "
 		+ "type(data): %s "] % type(data)
 
+	# How to check for NaN / weird entries?
+
 	transformed_data = numpy.log(data) / numpy.log(log_base)
 	return transformed_data
 
