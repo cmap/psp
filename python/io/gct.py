@@ -1,8 +1,10 @@
-#! /usr/bin/env python
 '''
 Created on Jan 12, 2012
 provides .gct file io modules
 @author: cflynn
+
+Modified on Feb 24, 2016 for PSP
+@author: lev
 
 Moved to p100_processing from l1ktools by Lev (2016-02-01).
 '''
@@ -17,6 +19,9 @@ import tables
 
 import plategrp as grp
 import pandas as pd
+
+# TO-DO: Reinstate logging functionality using setup_logger.
+# TO-DO: Implement use of config file.
 
 class GCT(object):
     '''
@@ -111,6 +116,23 @@ class GCT(object):
         self._meta.commit()
         c.close()
 
+    @staticmethod
+    def strlist2floatlist(list_of_str):
+        # Possible NaN strings
+        nan_strings = ["-1.#IND", "1.#QNAN", "1.#IND", "-1.#QNAN", "#N/A","N/A",
+            "NA", "#NA", "NULL", "NaN", "-NaN", "nan", "-nan"]
+        nan_set = set(nan_strings) # convert to a set
+
+        # Iterating over list, if string_item is NaN, set it to None.
+        # Otherwise, convert it to a float.
+        try:
+            list_of_float = [None if str_item in nan_set
+                else float(str_item)
+                for str_item in list_of_str]
+        except Exception:
+            raise(Exception("Unrecognized string in the data: {}".format(str_item)))
+        return list_of_float
+
     def _read_gct(self,src,verbose=True,frame=True):
         '''
         reads tab delimited gct file
@@ -155,9 +177,13 @@ class GCT(object):
             row_meta_tmp = row[:int(dims[2])+1]
             row_meta_tmp.insert(0,ii)
             self._add_row_to_meta_table('row', row_meta_tmp)
-            self.matrix[ii] = row[int(dims[2])+1:]
 
-     	#populate a data frame
+            # Convert to floats and remove NaN values
+            string_row = row[int(dims[2])+1:]
+            float_row = self.strlist2floatlist(string_row)
+            self.matrix[ii] = float_row
+
+        #populate a data frame
         if frame:
             self.frame = pd.DataFrame(self.matrix,
                                       index = self.get_row_meta('id'),
@@ -366,6 +392,7 @@ class GCT(object):
         #check if we're reading just reading the epsilon landmark genes
         #if so, can get the matrix in one read
         if row_inds == range(978):
+            # TO-DO: Potentially have to check for NaN before next line.
             self.matrix = self.matrix_node[col_inds, 0:978]
         #otherwise, figure out which direction reads the fewest elements
         # then read in that orientation
@@ -396,11 +423,13 @@ class GCT(object):
                 p_mod = numpy.round(p_max/50.0)
                 for i,row in enumerate(self.matrix_node.iterrows(start=col_ind_min,stop=col_ind_max+1)):
                     if i in col_ind_set:
+                        # TO-DO: Check for NaN before here.
                         self.matrix[p_iter,:] = numpy.take(row,row_inds)
                         p_iter += 1
 
             else:
                 if n_bycol <= n_byrow:
+                    # TO-DO: Potentially have to check for NaN before next line.
                     self.matrix = self.matrix_node[col_inds,:]
                     self.matrix = self.matrix[:,row_inds]
                 else:
@@ -914,8 +943,3 @@ def parse_gct_dict(file_path):
     #package the data into a single dictionary and return it
     gct_data = {'SAMPLES':samples,'PROBES':probes,'VERSION':version, "SOURCE":file_path}
     return gct_data
-
-if __name__ == '__main__':
-    os.chdir('functional_tests')
-    gct_data = parse_gct_dict('gct_v13.gct')
-    print sum(gct_data['SAMPLES']['LITMUS001_PC3_96H_X2:J16']['PROBE_VALS'])
