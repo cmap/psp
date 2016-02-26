@@ -119,8 +119,8 @@ class GCT(object):
     @staticmethod
     def strlist2floatlist(list_of_str):
         # Possible NaN strings
-        nan_strings = ["-1.#IND", "1.#QNAN", "1.#IND", "-1.#QNAN", "#N/A","N/A",
-            "NA", "#NA", "NULL", "NaN", "-NaN", "nan", "-nan"]
+        nan_strings = ["-1.#IND", "1.#QNAN", "1.#IND", "-1.#QNAN", "#N/A!", "#N/A",
+            "N/A", "NA", "#NA", "NULL", "NaN", "-NaN", "nan", "-nan"]
         nan_set = set(nan_strings) # convert to a set
 
         # Iterating over list, if string_item is NaN, set it to None.
@@ -142,6 +142,9 @@ class GCT(object):
         f = open(src,'rb')
         reader = csv.reader(f, delimiter='\t')
         self.src = src
+
+        if verbose:
+            print("Reading GCT: {}".format(src))
 
         #read the gct file header information and build the empty self.matrix
         #array for later use
@@ -369,7 +372,6 @@ class GCT(object):
         '''
         read just the matrix data from a gctx file
         '''
-
         if not src:
             src = self.src
 
@@ -382,6 +384,9 @@ class GCT(object):
             row_inds = self.get_gctx_rid_inds(src, match_list=rid)
         #open the gctx file
         self._open_gctx(src)
+
+        if verbose:
+            print("Reading GCTX: {}".format(src))
 
         #set up the indices
         if not col_inds:
