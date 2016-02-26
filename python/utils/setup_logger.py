@@ -1,5 +1,9 @@
 __author__ = 'dlahr'
 
+"""
+Moved to PSP from pestle by Lev (2016-02-23).
+"""
+
 import logging
 import logging.handlers
 
