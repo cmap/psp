@@ -17,7 +17,7 @@ import re
 import numpy
 import tables
 
-import plategrp as grp
+import in_out.plategrp as grp
 import pandas as pd
 
 # TO-DO: Reinstate logging functionality using setup_logger.
@@ -34,7 +34,7 @@ class GCT(object):
     requires numpy for matrix operations and pytables for .gctx processing.
 
     example usage:
-    import cmap.io.gct as gct
+    import in_out.gct as gct
     GCTObject = gct.GCT('path_to_gct_file')
     GCTObject.read(row_inds=range(100),col_inds=range(10))
     print(GCTObject.matrix)
