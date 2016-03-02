@@ -22,10 +22,10 @@ class TestGct(unittest.TestCase):
         expected_out = [5.674, -7.263, 0.152]
         actual_out = gct.GCT.strlist2floatlist(list_wo_nan)
 
-        # Convert outputs to ndarrays in order to use np.isclose
+        # Convert outputs to ndarrays in order to use np.allclose
         expected_out_np = np.array(expected_out, dtype=np.float)
         actual_out_np = np.array(actual_out, dtype=np.float)
-        self.assertTrue(all(np.isclose(expected_out_np, actual_out_np, equal_nan=True)),
+        self.assertTrue(np.allclose(expected_out_np, actual_out_np, equal_nan=True),
                         "Expected output: {}, Actual output: {}".format(expected_out, actual_out))
 
         # Case B: NaNs present
@@ -33,10 +33,10 @@ class TestGct(unittest.TestCase):
         expected_out = [None, 5.457, None, None, None]
         actual_out = gct.GCT.strlist2floatlist(list_with_nan)
 
-        # Convert outputs to ndarrays in order to use np.isclose
+        # Convert outputs to ndarrays in order to use np.allclose
         expected_out_np = np.array(expected_out, dtype=np.float)
         actual_out_np = np.array(actual_out, dtype=np.float)
-        self.assertTrue(all(np.isclose(expected_out_np, actual_out_np, equal_nan=True)),
+        self.assertTrue(np.allclose(expected_out_np, actual_out_np, equal_nan=True),
                         "Expected output: {}, Actual output: {}".format(expected_out, actual_out))
 
     def test_read_gct(self):
@@ -57,7 +57,6 @@ class TestGct(unittest.TestCase):
         logger.debug("gct_path: {}".format(gct_path))
         gct_obj = gct.GCT(gct_path)
         gct_obj.read()
-        print gct_obj.frame
 
     def test_read_gctx(self):
         # Very possibly will fail if gctx contains NaNs.
@@ -65,6 +64,7 @@ class TestGct(unittest.TestCase):
         logger.debug("gct_path: {}".format(gct_path))
         gct_obj = gct.GCT(gct_path)
         gct_obj.read(row_inds=range(3), col_inds=range(4))
+
 
 if __name__ == "__main__":
     setup_logger.setup(verbose=True)

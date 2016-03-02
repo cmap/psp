@@ -8,6 +8,7 @@ Modified on Feb 24, 2016 for PSP
 
 Moved to p100_processing from l1ktools by Lev (2016-02-01).
 '''
+
 import csv
 import os
 import sqlite3
@@ -118,6 +119,14 @@ class GCT(object):
 
     @staticmethod
     def strlist2floatlist(list_of_str):
+        """
+        Convert a list of strings to a list of float values. Set NaN strings to None.
+
+        Input
+            list_of_str: list of string (not numpy array)
+        Output
+            list_of_float: list of floats
+        """
         # Possible NaN strings
         nan_strings = ["-1.#IND", "1.#QNAN", "1.#IND", "-1.#QNAN", "#N/A!", "#N/A",
             "N/A", "NA", "#NA", "NULL", "NaN", "-NaN", "nan", "-nan"]
