@@ -34,7 +34,6 @@ import setup_GCToo_logger as setup_logger
 import pandas as pd
 import os
 import GCToo
-import warnings
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
@@ -158,12 +157,6 @@ def assemble_data(full_df, num_col_metadata, num_data_rows, num_row_metadata, nu
     data.set_index("id", inplace=True)
     data.index.name = "rid"
     data.columns.name = "cid"
-
-    # Ignore "deprecated" warning
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        data = data.convert_objects(convert_numeric=True)
-    
     return data
 
 
@@ -175,4 +168,3 @@ def create_gctoo_obj(file_path, version, row_metadata_df, col_metadata_df, data_
                             col_metadata_df=col_metadata_df,
                             data_df=data_df)
     return gctoo_obj
-
