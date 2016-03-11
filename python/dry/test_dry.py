@@ -8,15 +8,22 @@ import os
 import in_out.gct as gct
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
-functional_tests_path = "/Users/lev/code/PSP/python/functional_tests"
+
 
 class TestDry(unittest.TestCase):
+    @classmethod
+    def setUpClass(self):
+        self.func_tests_path = "/Users/lev/code/PSP/python/functional_tests"
+
     def test_determine_assay_type(self):
-        prov_code = "GR1"
-        expected_out = np.array("GR1", dtype=np.str)
-        actual_out = dry.determine_assay_type(prov_code)
-        self.assertTrue(np.array_equal(actual_out, expected_out),
-                        "Expected output: {}, Actual output: {}".format(expected_out, actual_out))
+        col_metadata_df = pd.DataFrame(np.array([["a", "b", "c"], ["PRM+L2X", "PRM+L2X", "PRM+L2X"]]),
+                                       index=["foo", "provenance_code"])
+        allowable_assay_types = ["PRM"]
+        expected_assay_type = ["PRM"]
+        assay_type = dry.determine_assay_type(col_metadata_df, allowable_assay_types)
+        self.assertTrue(expected_assay_type == assay_type,
+                        ("The expected assay type is {}, " +
+                         "but actual assay type is {}.").format(expected_assay_type, assay_type))
 
     def test_update_prov_code(self):
         existing_prov_code = np.array(["PR1"])

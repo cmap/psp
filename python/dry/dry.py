@@ -1,20 +1,91 @@
 import numpy as np
 from scipy.optimize import minimize_scalar
 import pandas as pd
-import in_out.gct as gct
+import in_out.parse_gctoo as parse_gct
+import ConfigParser
+
+# Read config file
+PSP_config_path = "/Users/lev/.PSP_config"
+configParser = ConfigParser.RawConfigParser()
+configParser.read(PSP_config_path)
 
 
-def determine_assay_type(prov_code):
+def main():
+    """The main method.
+
+    Args:
+        args: object with fields as defined in the build_parser() method
+
+    Returns:
+        output files...
     """
-    Convert assay_type from string to numpy array and compare to a list of allowable entries.
+    # Extract what values to consider NaN from config file
+    PSP_nan_values = configParser.get("io", "nan_values")
 
-    Input
-        -prov_code: string
-    Output
-        -assay_type: numpy string array, length=1
+    # Parse the gct file and return gct object
+    gct = parse_gct.parse("/Users/lev/code/PSP/python/functional_tests/p100_prm_plate29_3H.gct",
+                          nan_values=PSP_nan_values)
+    print gct.data_df.iloc[1, 1]
+
+    # Verify that provenance code is the same for all samples
+
+
+
+    # Determine the assay type
+    allowed_assay_types = configParser.get("metadata", "allowed_assay_types")
+    assay_type = determine_assay_type(gct.col_metadata_df, allowed_assay_types)
+
+    prov_code_series = gct.col_metadata_df.loc["provenance_code"]
+
+    print gct.col_metadata_df.loc["provenance_code"]
+    print type(gct.col_metadata_df.loc["provenance_code"])
+    print gct.col_metadata_df.loc["provenance_code"][1]
+    print type(gct.col_metadata_df.loc["provenance_code"][1])
+
+
+    # Check to see if log2 transformation happened
+
+    # If not, perform log2 transformation
+
+
+
+
+    # if args.optim:
+    #     (df, distances) = optimize_sample_balance(df, offset_bounds=(-7, 7))
+    # else:
+    #     (df, distances) = calculate_unoptim_distances(df)
+    #
+    # remove_sample_outliers(df, distances, sd_sample_outlier_cutoff=3)
+
+    # return gct
+
+
+
+
+
+
+def determine_assay_type(col_metadata_df, allowable_assay_types=[]):
+    """Determine assay type for the plate and compare to a list of allowable entries.
+
+    Args:
+        col_metadata_df: pandas dataframe
+        allowable_assay_types: list of strings
+    Returns:
+        assay_type: string
     """
-    allowed_assay_types = np.array(["PR1", "GR1", "DR1"], dtype=np.str)
-    assay_type = np.array(prov_code, dtype=np.str)
+    # Create pandas series of all provenance codes
+    prov_code_series = col_metadata_df.loc["provenance_code"]
+
+    # Split each provenance code string along the separator
+    prov_code_list = prov_code_series.apply(lambda x: x.split("+"))
+
+
+
+
+
+    # Extract assay type from each provenance code
+    #  Verify that the assay type is the same for all samples
+
 
     # Check that assay type is one we expect
     if assay_type not in allowed_assay_types:
@@ -39,7 +110,15 @@ def update_prov_code(new_entry, existing_prov_code):
     return updated_prov_code
 
 
-def parse_prov_code(prov_code):
+def parse_prov_code(col_metadata_df):
+    """Extract the provenance code from the column metadata.
+
+    Args:
+        col_metadata_df: dataframe containing provenance code metadata
+    Returns:
+        prov_code: list of strings
+    """
+
     # Not sure when I'll use this, but seems good to keep
     # prov_code = "PR1+L2X+SF8+PF8.5"
     # expected_out = np.array(["PR1", "L2X", "SF8", "PF8.5"], dtype=np.str)
@@ -48,6 +127,7 @@ def parse_prov_code(prov_code):
     #                 "Expected output: {}, Actual output: {}".format(expected_out, actual_out))
     # # Split along + in case there are other entries in the prov_code already
     # prov_code_chunks = np.array(prov_code.split("+"))
+    # return prov_code
     pass
 
 
@@ -157,10 +237,13 @@ def optimize_sample_balance(df, offset_bounds=(-7, 7)):
         success_bools[sample_ind] = optimization_result.success
 
     # If any samples did not converge, display those sample indices
-    if ~np.all(success_bools):
+    if not np.all(success_bools):
         print(("The following samples " +
                "failed to converge during optimization: \n{}").format(df.loc[:, ~success_bools]))
-    # TO-DO(lev): Should we still apply these offsets?
+
+
+    ### TO-DO(lev): sample should be rejected if no convergence
+
 
     # Apply the optimized offsets
     df_with_offsets = df.add(optimized_offsets)
@@ -201,23 +284,7 @@ def remove_sample_outliers(df, distances, sd_sample_outlier_cutoff):
     return df[:, distances < cutoff]
 
 
-def main():
-    # gct_obj = gct.GCT("/Users/lev/code/PSP/python/functional_tests/test_p100.gct")
-    # print(gct_obj.version)
-    # gct_obj.read(row_inds=range(100),col_inds=range(10))
-    # data = gct_obj.matrix
-    # print(data)
-
-    # if args.optim:
-    #     (df, distances) = optimize_sample_balance(df, offset_bounds=(-7, 7))
-    # else:
-    #     (df, distances) = calculate_unoptim_distances(df)
-    #
-    # remove_sample_outliers(df, distances, sd_sample_outlier_cutoff=3)
-    pass
-
-
-# if __name__ == '__main__':
+if __name__ == '__main__':
 #     args = build_parser().parse_args(sys.argv[1:])
 #     setup_logger.setup(args.verbose, args.log_file)
 #     logger.debug("args:  {}".format(args))
@@ -225,4 +292,4 @@ def main():
 #     make_args_abs_paths(args)
 #     logger.debug("args after make_args_abs_paths args:  {}".format(args))
 #
-#     main(args)
+    main()
