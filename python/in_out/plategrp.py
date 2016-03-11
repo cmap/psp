@@ -4,6 +4,8 @@ Created on Jun 20, 2012
 @author: David Wadden
 '''
 import os, re
+
+
 class GRP:
     '''
     class to read .grp files and return a list
@@ -36,11 +38,11 @@ class GRP:
 
 def write_grp(in_list,out):
     '''
-    standalone mehthods to write .grp files
+    standalone method to write .grp files
     '''
     with open(out, 'w') as f:
         for x in in_list:
-            #print str(x)
+            # print str(x)
             f.write(str(x) + '\n')
 
 def read_grp(in_path):
