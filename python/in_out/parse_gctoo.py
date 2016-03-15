@@ -118,6 +118,7 @@ def parse_into_3_df(file_path, num_data_rows, num_data_cols, num_row_metadata, n
     # Read the gct file beginning with line 3
     full_df = pd.read_csv(file_path, sep="\t", skiprows=2, dtype=str,
                           na_values=nan_values, keep_default_na=False)
+    # N.B. The entries on the 3rd line (rhd and cid) become the column names of full_df.
 
     # Assemble metadata dataframes
     row_metadata = assemble_row_metadata(full_df, num_col_metadata, num_data_rows, num_row_metadata)
@@ -168,3 +169,4 @@ def create_gctoo_obj(file_path, version, row_metadata_df, col_metadata_df, data_
                             col_metadata_df=col_metadata_df,
                             data_df=data_df)
     return gctoo_obj
+

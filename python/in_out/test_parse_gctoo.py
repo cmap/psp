@@ -4,6 +4,8 @@ import setup_GCToo_logger as setup_logger
 import ConfigParser
 
 import os
+import pandas as pd
+import numpy as np
 import parse_gctoo as pg
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
@@ -28,6 +30,13 @@ class TestParseGCToo(unittest.TestCase):
     def setUpClass(self):
         self.gct_filepath = "/Users/lev/code/test_LJP.gct"
         self.gct_dims = [978, 377, 11, 35]
+        self.full_df = pd.DataFrame([["chd1", "", "", "a", "b"],
+                                          ["chd2", "", "", "55", "61"],
+                                          ["chd3", "", "", "nah", "nope"],
+                                          ["rid1", "C", "D", "0.3", "0.2"],
+                                          ["rid2", "1.0", "2.0", np.nan, "0.9"]],
+                                         columns=["id", "rhd1", "rhd2", "cid1", "cid2"])
+        self.full_df_dims = [2, 2, 2, 3]
 
     def test_read_version_and_dims(self):
         version = "#1.3"
@@ -108,8 +117,12 @@ class TestParseGCToo(unittest.TestCase):
     # def test_assemble_col_metadata(self):
     #     pg.assemble_col_metadata(full_df, num_col_metadata, num_row_metadata, num_data_cols)
     #
-    # def test_assemble_data(self):
-    #     pg.assemble_data(full_df, num_col_metadata, num_data_rows, num_row_metadata, num_data_cols)
+    def test_assemble_data(self):
+        dims = self.full_df_dims
+        data = pg.assemble_data(self.full_df, dims[3], dims[0], dims[2], dims[1])
+        self.assertTrue(np.isnan(data.iloc[1, 0]),
+                        ("The 2nd row, 1st column data point should be nan, " +
+                         "not {}").format(data.iloc[1, 0]))
     #
     # def test_create_gctoo_obj(self):
     #     pg.test_create_gctoo_obj(gct_filename, version, row_metadata_df, col_metadata_df, data_df)
