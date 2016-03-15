@@ -59,7 +59,7 @@ class TestDry(unittest.TestCase):
         e_out = pd.DataFrame(np.array([[0.2, 0.1, 0.25],
                                        [0.45, 0.2, -0.1],
                                        [0.02, np.nan, 0.3]], dtype=float))
-        out = dry.filter_samples_by_nan(df, sample_pct_cutoff=0.4)
+        out = dry.filter_samples_by_nan(df, sample_nan_thresh=0.6)
         self.assertTrue(out.shape == e_out.shape,
                         ("expected_out.shape: {} not the same " +
                          "as actual_out.shape: {}").format(e_out.shape, out.shape))
@@ -86,8 +86,8 @@ class TestDry(unittest.TestCase):
         df = pd.DataFrame(np.array([[10, 0.2, 0.1, 0.25],
                                     [np.nan, 0.45, 0.2, -0.1],
                                     [np.nan, 0.02, np.nan, 0.3]], dtype=float))
-        e_out = pd.DataFrame(np.array([[np.nan, 0.45, 0.2, -0.1]], dtype=float))
-        out = dry.filter_probes_by_nan_and_sd(df, probe_pct_cutoff=0.3, probe_sd_cutoff=3)
+        e_out = df.iloc[[1], :]
+        out = dry.filter_probes_by_nan_and_sd(df, probe_nan_thresh=0.6, probe_sd_cutoff=3)
         self.assertTrue(out.shape == e_out.shape,
                         ("expected_out.shape: {} not the same " +
                          "as actual_out.shape: {}").format(e_out.shape, out.shape))

@@ -35,15 +35,15 @@ def build_parser():
     parser.add_argument("-optim", action="store_true",
                         help="whether to perform load balancing optimization")
     parser.add_argument("-optim_bounds", type=tuple, default=(-7,7),
-                        help="bounds over which the optimization should be performed")
+                        help="bounds over which to perform optimization")
     parser.add_argument("-log2", action="store_true",
                         help="whether to perform log2 normalization")
-    parser.add_argument("-sample_pct_cutoff", type=float, default=0.3,
-                        help=("what percent of sample data can be NaN " +
-                              "before being filtered out"))
-    parser.add_argument("-probe_pct_cutoff", type=float, default=0.3,
-                        help=("what percent of probe data can be NaN " +
-                              "before being filtered out"))
+    parser.add_argument("-sample_nan_thresh", type=float, default=0.3,
+                        help=("if < sample_nan_thresh of a sample's data " +
+                              "is non-nan, that sample will be filtered out"))
+    parser.add_argument("-sample_nan_thresh", type=float, default=0.3,
+                        help=("if < probe_nan_thresh of a probe's data " +
+                              "is non-nan, that probe will be filtered out"))
     parser.add_argument("-probe_sd_cutoff", type=float, default=3,
                         help=("maximum SD for a probe " +
                               "before being filtered out"))
@@ -87,8 +87,8 @@ def main(args):
     ### GCP HISTONE NORMALIZE
 
     ### FILTER SAMPLES BY NAN
-    gct.data_df = filter_samples_by_nan(gct.data_df, args.sample_pct_cutoff)
-    prov_code_entry = "SF{:.1f}".format(args.sample_pct_cutoff).split(".")[1]
+    gct.data_df = filter_samples_by_nan(gct.data_df, args.sample_nan_thresh)
+    prov_code_entry = "SF{:.1f}".format(args.sample_nan_thresh).split(".")[1]
     np.append(prov_code, prov_code_entry)
 
     ### FILTER MANUALLY REJECTED PROBES
@@ -97,8 +97,8 @@ def main(args):
     np.append(prov_code, prov_code_entry)
 
     ### FILTER PROBES BY NAN AND SD
-    gct.data_df = filter_probes_by_nan_and_sd(gct.data_df, args.probe_pct_cutoff, args.probe_sd_cutoff)
-    prov_code_entry = "PF{:.1f}".format(probe_pct_cutoff).split(".")[1]
+    gct.data_df = filter_probes_by_nan_and_sd(gct.data_df, args.probe_nan_thresh, args.probe_sd_cutoff)
+    prov_code_entry = "PF{:.1f}".format(probe_nan_thresh).split(".")[1]
     np.append(prov_code, prov_code_entry)
 
     ### CALCULATE DISTANCES
@@ -204,12 +204,12 @@ def log_transform(data_df, log_base=2):
     return out_df
 
 
-def filter_samples_by_nan(data_df, sample_pct_cutoff):
-    """Remove samples (i.e. columns) with more than sample_pct_cutoff NaN values.
+def filter_samples_by_nan(data_df, sample_nan_thresh):
+    """Remove samples (i.e. columns) with less than sample_nan_thresh non-NaN values.
 
     Args:
         data_df: pandas dataframe of floats
-        sample_pct_cutoff: float from 0 to 1
+        sample_nan_thresh: float from 0 to 1
     Returns:
         out_df: pandas dataframe (potentially smaller than original df)
     """
@@ -219,13 +219,11 @@ def filter_samples_by_nan(data_df, sample_pct_cutoff):
     # Number of rows
     num_rows = data_df.shape[0]
 
-    # Percent NaNs per sample
-    pct_nans_per_sample = num_nans / num_rows
-
-    # TO-DO(lev): CHECK THAT IT'S LESS THAN THE CUTOFF, RATHER THAN MORE
+    # Percent non-NaN per sample
+    pct_non_nan_per_sample = 1 - num_nans / num_rows
 
     # Only return samples with fewer % of NaNs than the cutoff
-    out_df = data_df.loc[:, pct_nans_per_sample < sample_pct_cutoff]
+    out_df = data_df.loc[:, pct_non_nan_per_sample > sample_nan_thresh]
     return out_df
 
 
@@ -253,13 +251,13 @@ def manual_probe_rejection(data_df, row_metadata_df):
     out_df = data_df[keep_probe_bool.values]
     return out_df
 
-def filter_probes_by_nan_and_sd(data_df, probe_pct_cutoff, probe_sd_cutoff):
-    """Remove probes (i.e. rows) with more than probe_pct_cutoff NaN values.
+def filter_probes_by_nan_and_sd(data_df, probe_nan_thresh, probe_sd_cutoff):
+    """Remove probes (i.e. rows) with less than probe_nan_thresh non-NaN values.
     Also remove probes with standard deviation higher than probe_sd_cutoff.
 
     Args:
         data_df: pandas dataframe of floats
-        probe_pct_cutoff: float from 0 to 1
+        probe_nan_thresh: float from 0 to 1
         probe_sd_cutoff: float
     Returns:
         out_df: pandas dataframe (potentially smaller than original df)
@@ -274,15 +272,15 @@ def filter_probes_by_nan_and_sd(data_df, probe_pct_cutoff, probe_sd_cutoff):
     # Number of samples
     num_samples = data_df.shape[1]
 
-    # Percent NaNs per probe
-    pct_nans_per_probe = num_nans / num_samples
+    # Percent non-NaN per probe
+    pct_non_nans_per_probe = 1 - num_nans / num_samples
 
     # Probe standard deviations
     probe_sds = data_df.std(axis=1)
 
     # Only return probes with fewer % of NaNs than the cutoff
     # and lower sd than the cutoff
-    probes_to_keep = ((pct_nans_per_probe < probe_pct_cutoff) &
+    probes_to_keep = ((pct_non_nans_per_probe > probe_nan_thresh) &
                       (probe_sds < probe_sd_cutoff))
     out_df = data_df.loc[probes_to_keep, :]
     return out_df
