@@ -10,11 +10,14 @@ import in_out.gct as gct
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
 
+### TO-DO(lev): Test all the do_* methods.
+
 # N.B. e_out is expected_output.
 class TestDry(unittest.TestCase):
-    @classmethod
-    def setUpClass(self):
-        self.func_tests_path = "/Users/lev/code/PSP/python/functional_tests"
+    def test_main(self):
+        # input = unprocessed
+        # check that output = processed gct
+        pass
 
     def test_extract_prov_code(self):
         col_meta_df = pd.DataFrame.from_dict({"foo": ["a", "b", "c"],
@@ -28,55 +31,35 @@ class TestDry(unittest.TestCase):
                         ("The expected provenance code is {}, " +
                          "not {}.").format(e_prov_code, prov_code))
 
-    def test_update_prov_code(self):
-        existing_prov_code = np.array(["PR1"])
-        new_entry = "L2X"
-        e_prov_code = np.array(["PR1", "L2X"])
-        prov_code = dry.update_prov_code(new_entry, existing_prov_code)
-        self.assertTrue(np.array_equal(prov_code, e_prov_code),
-                        ("The expected provenance code is {}, " +
-                         "not {}.").format(e_prov_code, prov_code))
+    def test_check_assay_type(self):
+        assay_type = "aBc"
+        allowed = ["ABC", "aBc", "d"]
+        assay_ok = dry.check_assay_type(assay_type, allowed)
+        self.assertTrue(assay_ok)
+
+    def test_do_log_transform_if_needed(self):
+        pass
 
     def test_log_transform(self):
         in_df = pd.DataFrame(np.array([[10, -3, 1.2],
-                                         [0.45, 0.2, 0],
-                                         [4.5, np.nan, 0.3]], dtype=float))
+                                       [0.45, 0.2, 0],
+                                       [4.5, np.nan, 0.3]], dtype=float))
         e_df = pd.DataFrame(np.array([[3.322, np.nan, 0.263],
-                                              [-1.152, -2.322, np.nan],
-                                              [2.170, np.nan, -1.737]], dtype=float))
+                                      [-1.152, -2.322, np.nan],
+                                      [2.170, np.nan, -1.737]], dtype=float))
         out_df = dry.log_transform(in_df)
         self.assertTrue(np.allclose(out_df, e_df, atol=1e-3, equal_nan=True),
                         ("\nExpected output:\n{} " +
                          "\nActual output:\n{}").format(e_df, out_df))
 
-    def test_manual_probe_rejection(self):
-        row_meta_df = pd.DataFrame({"foo": ["a", "b", "c"],
-                                    "pr_probe_suitability_manual": ["TRUE", "TRUE", "FALSE"],
-                                    "bar": ["d", "e", "f"]})
-        data_df = pd.DataFrame(np.array([[10, -3, 1.2],
-                                         [0.45, 0.2, 0],
-                                         [4.5, np.nan, 0.3]], dtype=float))
-        e_meta_out = pd.DataFrame({"foo": ["a", "b"],
-                                   "pr_probe_suitability_manual": ["TRUE", "TRUE"],
-                                   "bar": ["d", "e"]})
-        e_data_out = pd.DataFrame(np.array([[10, -3, 1.2], [0.45, 0.2, 0]], dtype=float))
-        (data_out, meta_out) = dry.manual_probe_rejection(data_df, row_meta_df)
-
-        self.assertTrue(np.array_equal(meta_out, e_meta_out),
-                        ("\nExpected meta_out:\n{} " +
-                         "\nActual meta_out:\n{}").format(e_meta_out, meta_out))
-        self.assertTrue(np.allclose(data_out, e_data_out, atol=1e-3, equal_nan=True),
-                        ("\nExpected data_out:\n{} " +
-                         "\nActual data_out:\n{}").format(e_data_out, data_out))
-
-    def test_filter_samples(self):
+    def test_filter_samples_by_nan(self):
         df = pd.DataFrame(np.array([[0.5, 0.2, 0.1, 0.25],
                                     [np.nan, 0.45, 0.2, -0.1],
                                     [np.nan, 0.02, np.nan, 0.3]], dtype=float))
         e_out = pd.DataFrame(np.array([[0.2, 0.1, 0.25],
                                        [0.45, 0.2, -0.1],
                                        [0.02, np.nan, 0.3]], dtype=float))
-        out = dry.filter_samples(df, sample_pct_cutoff=0.4)
+        out = dry.filter_samples_by_nan(df, sample_pct_cutoff=0.4)
         self.assertTrue(out.shape == e_out.shape,
                         ("expected_out.shape: {} not the same " +
                          "as actual_out.shape: {}").format(e_out.shape, out.shape))
@@ -85,17 +68,32 @@ class TestDry(unittest.TestCase):
                         ("\nExpected output:\n{} " +
                          "\nActual output:\n{}").format(e_out, out))
 
-    def test_filter_probes(self):
+    def test_manual_probe_rejection(self):
+        row_meta_df = pd.DataFrame({"foo": ["a", "b", "c"],
+                                    "pr_probe_suitability_manual": ["TRUE", "TRUE", "FALSE"],
+                                    "bar": ["d", "e", "f"]})
+        data_df = pd.DataFrame(np.array([[10, -3, 1.2],
+                                         [0.45, 0.2, 0],
+                                         [4.5, np.nan, 0.3]], dtype=float))
+        e_df = pd.DataFrame(np.array([[10, -3, 1.2], [0.45, 0.2, 0]], dtype=float))
+        out_df = dry.manual_probe_rejection(data_df, row_meta_df)
+
+        self.assertTrue(np.allclose(out_df, e_df, atol=1e-3, equal_nan=True),
+                        ("\nExpected df:\n{} " +
+                         "\nActual df:\n{}").format(e_df, out_df))
+
+    def test_filter_probes_by_nan_and_sd(self):
         df = pd.DataFrame(np.array([[10, 0.2, 0.1, 0.25],
                                     [np.nan, 0.45, 0.2, -0.1],
                                     [np.nan, 0.02, np.nan, 0.3]], dtype=float))
         e_out = pd.DataFrame(np.array([[np.nan, 0.45, 0.2, -0.1]], dtype=float))
-        out = dry.filter_probes(df, probe_pct_cutoff=0.3, probe_sd_cutoff=3)
+        out = dry.filter_probes_by_nan_and_sd(df, probe_pct_cutoff=0.3, probe_sd_cutoff=3)
         self.assertTrue(out.shape == e_out.shape,
                         ("expected_out.shape: {} not the same " +
                          "as actual_out.shape: {}").format(e_out.shape, out.shape))
         self.assertTrue(np.allclose(out, e_out, equal_nan=True),
-                        "\nExpected output:\n{} \nActual output:\n{}".format(e_out, out))
+                        ("\nExpected output:\n{} " +
+                         "\nActual output:\n{}").format(e_out, out))
 
     def test_distance_function(self):
         offset = 0.5
@@ -107,16 +105,19 @@ class TestDry(unittest.TestCase):
                         ("\nExpected output: {} " +
                          "\nActual output: {}").format(e_out, out))
 
-    def test_optimize_sample_balance(self):
+    def test_calculate_distances_and_optimize_if_needed(self):
+        pass
+
+    def test_calculate_distances_and_optimize(self):
         df = pd.DataFrame(np.array([[10, -3, 1.2],
                                     [0.45, 0.2, -0.1],
                                     [4.5, -4, 0.3]], dtype=float))
         e_df = pd.DataFrame(np.array([[5.58, -0.16, 1.30],
-                                                          [-3.96, 3.03, 0],
-                                                          [0.08, -1.16, 0.40]],
-                                                         dtype=float))
+                                      [-3.96, 3.03, 0],
+                                      [0.08, -1.16, 0.40]],
+                                     dtype=float))
         e_dists = np.array([36.62, 12.04, 0.06], dtype=float)
-        (out_df, dists, success_bools) = dry.optimize_sample_balance(df)
+        (out_df, dists, success_bools) = dry.calculate_distances_and_optimize(df, (-7,7))
         self.assertTrue(np.allclose(dists, e_dists, atol=1e-2),
                         ("\nExpected distances:\n{} " +
                          "\nActual distances:\n{}").format(e_dists, dists))
@@ -126,6 +127,12 @@ class TestDry(unittest.TestCase):
         self.assertTrue(~all(success_bools),
                         "All samples should have converged.")
 
+    def test_calculate_distances(self):
+        pass
+
+    def test_distance_function(self):
+        pass
+
     def test_remove_sample_outliers(self):
         df = pd.DataFrame(np.array([[10, -3, 1.2, 0.6],
                                     [0.45, 0.2, 0, 0.2],
@@ -133,15 +140,11 @@ class TestDry(unittest.TestCase):
         dists = np.array([0.2, 5, 0.5, 0.4], dtype=float)
         bools = np.array([True, True, True, False], dtype=bool)
         out = dry.remove_sample_outliers(df, dists, bools,
-                                                sd_sample_outlier_cutoff=1)
+                                         sd_sample_outlier_cutoff=1)
         e_out = df.iloc[:, [0, 2]]
-        self.assertTrue(out.shape == e_out.shape,
-                        ("expected_out.shape: {} not the same " +
-                         "as actual_out.shape: {}").format(e_out.shape,
-                                                           out.shape))
-
-    def test_main(self):
-        dry.main()
+        self.assertTrue(out.shape == e_out.shape, (
+            "expected_out.shape: {} not the same " +
+            "as actual_out.shape: {}").format(e_out.shape, out.shape))
 
 
 if __name__ == "__main__":
