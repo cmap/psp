@@ -77,6 +77,8 @@ def main(args):
     prov_code = extract_prov_code(gct.col_metadata_df)
     assay_type = prov_code[0]
 
+    # TO-DO(lev): check prov code only has allowed values
+
     # Make sure assay_type is one of the allowed values
     allowed_assay_types = eval(configParser.get("metadata", "allowed_assay_types"))
     assay_ok = check_assay_type(assay_type, allowed_assay_types)
@@ -117,7 +119,7 @@ def main(args):
 
     # Save output QC figures
 
-    # Reinsert prov code
+    # Reinsert prov code (check that it only inserted allowed values)
     # Save gct
 
     # return gct
@@ -426,9 +428,6 @@ def remove_sample_outliers(data_df, distances, success_bools, sd_sample_outlier_
     # those that didn't converge during optimization
     out_df = data_df.iloc[:, np.logical_and(distances < cutoff, success_bools)]
     return out_df
-
-
-# TO-DO(lev): check that prov_code has all allowed entries (during import and writing)
 
 
 if __name__ == '__main__':
