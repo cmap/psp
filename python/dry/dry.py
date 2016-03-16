@@ -32,10 +32,6 @@ def build_parser():
     parser.add_argument("-process_mode", choices=["full", "quick"],
                         default="full",
                         help="whether to run a quick version of the process")
-    parser.add_argument("-optim", action="store_true",
-                        help="whether to perform load balancing optimization")
-    parser.add_argument("-optim_bounds", type=tuple, default=(-7,7),
-                        help="bounds over which to perform optimization")
     parser.add_argument("-log2", action="store_true",
                         help="whether to perform log2 normalization")
     parser.add_argument("-sample_nan_thresh", type=float, default=0.3,
@@ -54,6 +50,18 @@ def build_parser():
                         help="whether to actually run the command")
     parser.add_argument("-verbose", "-v", action="store_true", default=False,
                         help="increase the number of messages reported")
+
+    # P100-specific arguments
+    parser.add_argument("-optim", action="store_true",
+                        help="whether to perform load balancing optimization")
+    parser.add_argument("-optim_bounds", type=tuple, default=(-7,7),
+                        help="bounds over which to perform optimization")
+
+    # GCP-specific arguments
+    parser.add_argument("-normalization_peptide_id", type=str, default="BI10052",
+                        help=("which peptide to normalize to"))
+    parser.add_argument("-probe_group_normalize", action="store_true",
+                        help="whether to perform probe group normalization")
 
     return parser
 
@@ -113,9 +121,12 @@ def main(args):
     prov_code_entry = "OSF"
     np.append(prov_code, prov_code_entry)
 
-    # Row median normalize
+    ### ROW MEDIAN NORMALIZE
+    gct.data_df = row_median_normalize(gct.data_df)
+    prov_code_entry = "RMN"
+    np.append(prov_code, prov_code_entry)
 
-    # Probe-group specific normalization
+    ### PROBE-GROUP SPECIFIC NORMALIZe
 
     # Save output QC figures
 
@@ -226,6 +237,7 @@ def filter_samples_by_nan(data_df, sample_nan_thresh):
 
     # Only return samples with fewer % of NaNs than the cutoff
     out_df = data_df.loc[:, pct_non_nan_per_sample > sample_nan_thresh]
+    assert not out_df.empty, "All samples were filtered out. Try reducing the threshold."
     return out_df
 
 
@@ -251,6 +263,7 @@ def manual_probe_rejection(data_df, row_metadata_df):
 
     # Return the good probes
     out_df = data_df[keep_probe_bool.values]
+    assert not out_df.empty, "All probes were filtered out!"
     return out_df
 
 def filter_probes_by_nan_and_sd(data_df, probe_nan_thresh, probe_sd_cutoff):
@@ -280,11 +293,13 @@ def filter_probes_by_nan_and_sd(data_df, probe_nan_thresh, probe_sd_cutoff):
     # Probe standard deviations
     probe_sds = data_df.std(axis=1)
 
-    # Only return probes with fewer % of NaNs than the cutoff
+    # Only return probes with fewer % of NaNs than the threshold
     # and lower sd than the cutoff
     probes_to_keep = ((pct_non_nans_per_probe > probe_nan_thresh) &
                       (probe_sds < probe_sd_cutoff))
     out_df = data_df.loc[probes_to_keep, :]
+    assert not out_df.empty, ("All probes were filtered out. " +
+                              "Try reducing the NaN threshold and/or SD cutoff.")
     return out_df
 
 
@@ -427,6 +442,18 @@ def remove_sample_outliers(data_df, distances, success_bools, sd_sample_outlier_
     # Remove samples whose distance metric is greater than the cutoff OR
     # those that didn't converge during optimization
     out_df = data_df.iloc[:, np.logical_and(distances < cutoff, success_bools)]
+    assert not out_df.empty, "All samples were filtered out. Try reducing the SD cutoff."
+    return out_df
+
+def row_median_normalize(data_df):
+    """Subtract the row median from values.
+
+    Args:
+        data_df: dataframe of floats
+    Returns:
+        out_df: dataframe of floats
+    """
+    out_df = data_df.subtract(data_df.median(axis=1), axis=0)
     return out_df
 
 

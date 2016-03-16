@@ -147,6 +147,19 @@ class TestDry(unittest.TestCase):
             "as actual_out.shape: {}").format(e_out.shape, out.shape))
 
 
+    def test_row_median_normalize(self):
+        df = pd.DataFrame(np.array([[10, -3, 1.2, 0.6],
+                                    [0.45, 0.2, 0, 0.2],
+                                    [4.5, np.nan, 0.3, 0.4]], dtype=float))
+        e_df = pd.DataFrame(np.array([[9.1, -3.9, 0.3, -0.3],
+                                    [0.25, 0, -0.2, 0],
+                                    [4.1, np.nan, -0.1, 0]], dtype=float))
+        out_df = dry.row_median_normalize(df)
+        self.assertTrue(np.allclose(out_df, e_df, atol=1e-2, equal_nan=True),
+                        ("\nExpected out_df:\n{} " +
+                         "\nActual out_df:\n{}").format(e_df, out_df))
+
+
 if __name__ == "__main__":
     setup_logger.setup(verbose=True)
     unittest.main()
