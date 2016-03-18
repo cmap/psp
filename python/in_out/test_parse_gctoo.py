@@ -50,8 +50,8 @@ class TestParseGCToo(unittest.TestCase):
 
         (actual_version, n_rows, n_cols, n_metarows, n_metacols) = pg.read_version_and_dims(fname)
         self.assertEqual(actual_version, version)
-        self.assertEqual(n_rows, dims[0])
-        self.assertEqual(n_metacols, dims[3])
+        self.assertEqual(n_rows, int(dims[0]))
+        self.assertEqual(n_metacols, int(dims[3]))
 
         # Remove the file I created
         os.remove(fname)
@@ -75,6 +75,9 @@ class TestParseGCToo(unittest.TestCase):
                         ("row_metadata.shape = {} " +
                          "but expected it to be ({}, {})").format(row_metadata.shape,
                                                                   dims[0], dims[1]))
+
+        # Type-check the data
+        self.assertTrue(isinstance(data.iloc[0, 0], float), "The data should be a float, not a string.")
 
         # Check a few values
         correct_val = 11.3819

@@ -56,6 +56,13 @@ def parse(file_path, nan_values=None):
     if nan_values is None:
         nan_values = default_nan_values
 
+    # Verify that the gct path exists
+    if not os.path.exists(file_path):
+        err_msg = "The given path to the gct file cannot be found. gct_path: {}"
+        logger.error(err_msg.format(file_path))
+        raise(Exception(err_msg.format(file_path)))
+    logger.info("Reading GCT: {}".format(file_path))
+
     # Read version and dimensions
     (version, num_data_rows, num_data_cols,
      num_row_metadata, num_col_metadata) = read_version_and_dims(file_path)
@@ -72,14 +79,6 @@ def parse(file_path, nan_values=None):
 
 
 def read_version_and_dims(file_path):
-    # Verify that the gct path exists
-    if not os.path.exists(file_path):
-        err_msg = "The given path to the gct file cannot be found. gct_path: {}"
-        logger.error(err_msg.format(file_path))
-        raise(Exception(err_msg.format(file_path)))
-
-    logger.info("Reading GCT: {}".format(file_path))
-
     # Open file
     f = open(file_path, "rb")
 
@@ -156,9 +155,13 @@ def assemble_data(full_df, num_col_metadata, num_data_rows, num_row_metadata, nu
     data_col_inds = [0] + range(1 + num_row_metadata, 1 + num_row_metadata + num_data_cols)
     data = full_df.iloc[data_row_inds, data_col_inds]
     data.set_index("id", inplace=True)
+    data = data.astype(float)  # convert from str to floats
     data.index.name = "rid"
     data.columns.name = "cid"
     return data
+
+    # Instead maybe this:
+    # data = data.apply(lambda x: pd.to_numeric(x, errors='force'))
 
 
 def create_gctoo_obj(file_path, version, row_metadata_df, col_metadata_df, data_df):
