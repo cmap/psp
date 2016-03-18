@@ -3,6 +3,7 @@ import utils.setup_logger as setup_logger
 import ConfigParser
 import argparse
 import sys
+import os
 
 import numpy as np
 from scipy.optimize import minimize_scalar
@@ -10,12 +11,6 @@ import pandas as pd
 import in_out.parse_gctoo as parse_gctoo
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
-
-# Read config file
-PSP_config_path = "/Users/lev/.PSP_config"
-configParser = ConfigParser.RawConfigParser()
-configParser.read(PSP_config_path)
-
 
 def build_parser():
     parser = argparse.ArgumentParser(description=__doc__,
@@ -29,6 +24,9 @@ def build_parser():
                         help="directory where to save the output files")
     parser.add_argument("-out_name", default=None,
                         help="basename of the output files")
+    parser.add_argument("-PSP_config_path",
+                        default="/Users/lev/.PSP_config",
+                        help="path to PSP config file")
     parser.add_argument("-process_mode", choices=["full", "quick"],
                         default="full",
                         help="whether to run a quick version of the process")
@@ -37,7 +35,7 @@ def build_parser():
     parser.add_argument("-sample_nan_thresh", type=float, default=0.3,
                         help=("if < sample_nan_thresh of a sample's data " +
                               "is non-nan, that sample will be filtered out"))
-    parser.add_argument("-sample_nan_thresh", type=float, default=0.3,
+    parser.add_argument("-probe_nan_thresh", type=float, default=0.3,
                         help=("if < probe_nan_thresh of a probe's data " +
                               "is non-nan, that probe will be filtered out"))
     parser.add_argument("-probe_sd_cutoff", type=float, default=3,
@@ -46,8 +44,6 @@ def build_parser():
     parser.add_argument("-dist_sd_cutoff", type=float, default=3,
                         help=("maximum SD for a sample's distance metric " +
                               "before being filtered out"))
-    parser.add_argument("-run", action="store_true", default=False,
-                        help="whether to actually run the command")
     parser.add_argument("-verbose", "-v", action="store_true", default=False,
                         help="increase the number of messages reported")
 
@@ -67,74 +63,150 @@ def build_parser():
 
 
 def main(args):
-    """The main method. Writes processed gct to a file and produces QC figures.
+    """THE MAIN METHOD. Writes processed gct to a file and produces QC figures.
 
     Args:
-        args: object with fields as defined in build_parser()
+        args: argparse.Namespace object with fields as defined in build_parser()
     Returns:
         out_gct: gct object post-processing
     """
-    # Extract what values to consider NaN from config file
+    # 1) Read gct and extract provenance code
+    (gct, prov_code) = read_gct_and_check_provenance_code(
+        args.PSP_config_path, args.gct_path)
+    print gct.data_df.shape
+
+    # 2) Log transform and, if GCP, histone normalize data
+    (gct.data_df, prov_code) = log_and_gcp_histone_normalize(
+        gct.data_df, args.normalization_peptide_id, prov_code)
+    print gct.data_df.shape
+
+    # 3) Filter out samples
+    (gct.data_df, prov_code) = filter_samples(
+        gct.data_df, args.sample_nan_thresh, args.optim, args.optim_bounds,
+        args.dist_sd_cutoff, prov_code)
+    print gct.data_df.shape
+
+    # 4) Filter out probes
+    (gct.data_df, prov_code) = filter_probes(
+        gct.data_df, gct.row_metadata_df, prov_code, args.probe_nan_thresh,
+        args.probe_sd_cutoff)
+    print gct.data_df.shape
+
+    # 5) Row median and probe-group specific normalize
+    (gct.data_df, prov_code) = row_median_and_probe_group_normalize(gct.data_df, prov_code)
+    print gct.data_df.shape
+    print prov_code
+
+    # 6) Produce QC figures
+
+    # 7) Create processed gct object
+        # a) Reinsert prov code (check that it only inserted allowed values)
+        # b) Return gct object
+
+    # 8) Save processed gct object to file
+
+
+# tested #
+def read_gct_and_check_provenance_code(PSP_config_path, gct_path):
+    """ Create gct object and check that provenance code is non-empty and the same for all samples."""
+
+    # Read from config file
+    PSP_config_path_full = os.path.expanduser(PSP_config_path)
+    configParser = ConfigParser.RawConfigParser()
+    configParser.read(PSP_config_path_full)
+
+    # Extract what values to consider NaN
     # N.B. eval used to convert string from config file to list
     PSP_nan_values = eval(configParser.get("io", "nan_values"))
 
     # Parse the gct file and return gct object
-    gct = parse_gctoo.parse(args.gct_path, nan_values=PSP_nan_values)
+    gct = parse_gctoo.parse(gct_path, nan_values=PSP_nan_values)
 
     # Extract the plate's provenance code and assay type
     prov_code = extract_prov_code(gct.col_metadata_df)
     assay_type = prov_code[0]
 
-    # TO-DO(lev): check prov code only has allowed values
+    # TO-DO(lev): check that prov code only has allowed values
 
     # Make sure assay_type is one of the allowed values
     allowed_assay_types = eval(configParser.get("metadata", "allowed_assay_types"))
-    assay_ok = check_assay_type(assay_type, allowed_assay_types)
+    check_assay_type(assay_type, allowed_assay_types)
 
+    return gct, prov_code
+
+
+def log_and_gcp_histone_normalize(data_df, normalization_peptide_id, prov_code):
+    """Perform log transformation and, if GCP assay, histone normalization.
+
+    Args:
+        data_df: dataframe of floats
+        normalization_peptide_id: string of peptide to normalize to
+        prov_code: list of strings
+    Returns:
+        out_df: dataframe of floats with one row removed if histone normalized
+        prov_code: updated provenance code
+    """
     ### LOG TRANSFORM
-    (gct.data_df, prov_code) = do_log_transform_if_needed(gct.data_df, prov_code)
+    (log_transformed_df, prov_code) = do_log_transform_if_needed(data_df, prov_code)
 
-    ### GCP HISTONE NORMALIZE
+    ### GCP HISTONE NORMALIZE (if GCP)
+    (out_df, prov_code) = do_gcp_histone_normalize_if_needed(
+        log_transformed_df, normalization_peptide_id, prov_code)
+
+    return out_df, prov_code
+
+
+def filter_samples(data_df, sample_nan_thresh, optim, optim_bounds, dist_sd_cutoff, prov_code):
 
     ### FILTER SAMPLES BY NAN
-    gct.data_df = filter_samples_by_nan(gct.data_df, args.sample_nan_thresh)
-    prov_code_entry = "SF{:.1f}".format(args.sample_nan_thresh).split(".")[1]
-    np.append(prov_code, prov_code_entry)
+    data_df = filter_samples_by_nan(data_df, sample_nan_thresh)
+    thresh_digit = ("{:.1f}".format(sample_nan_thresh)).split(".")[1]
+    prov_code_entry = "SF{}".format(thresh_digit)
+    prov_code = np.append(prov_code, prov_code_entry)
 
-    ### FILTER MANUALLY REJECTED PROBES
-    gct.data_df= manual_probe_rejection(gct.data_df, gct.row_metadata_df)
-    prov_code_entry = "MPR"
-    np.append(prov_code, prov_code_entry)
-
-    ### FILTER PROBES BY NAN AND SD
-    gct.data_df = filter_probes_by_nan_and_sd(gct.data_df, args.probe_nan_thresh, args.probe_sd_cutoff)
-    prov_code_entry = "PF{:.1f}".format(probe_nan_thresh).split(".")[1]
-    np.append(prov_code, prov_code_entry)
-
+    # TO-DO(lev): should only happen for P100?
     ### CALCULATE DISTANCES
     (data_df, dists, success_bools, prov_code) = (
         calculate_distances_and_optimize_if_needed(
-            gct.data_df, assay_type, args.optim, args.optim_bounds, prov_code))
+            data_df, optim, optim_bounds, prov_code))
 
+    # TO-DO(lev): should only happen for P100?
     ### REMOVE SAMPLE OUTLIERS
-    gct.data_df = remove_sample_outliers(gct.data_df, dists, success_bools, args.sd_sample_outlier_cutoff)
+    data_df = remove_sample_outliers(data_df, dists, success_bools, dist_sd_cutoff)
     prov_code_entry = "OSF"
-    np.append(prov_code, prov_code_entry)
+    prov_code = np.append(prov_code, prov_code_entry)
+
+    return data_df, prov_code
+
+
+def filter_probes(data_df, row_metadata_df, prov_code, probe_nan_thresh, probe_sd_cutoff):
+
+    ### FILTER MANUALLY REJECTED PROBES
+    data_df = manual_probe_rejection(data_df, row_metadata_df)
+    prov_code_entry = "MPR"
+    prov_code = np.append(prov_code, prov_code_entry)
+
+    ### FILTER PROBES BY NAN AND SD
+    data_df = filter_probes_by_nan_and_sd(data_df, probe_nan_thresh, probe_sd_cutoff)
+    thresh_digit = ("{:.1f}".format(probe_nan_thresh)).split(".")[1]
+    prov_code_entry = "PF{}".format(thresh_digit)
+    prov_code = np.append(prov_code, prov_code_entry)
+
+    return data_df, prov_code
+
+
+def row_median_and_probe_group_normalize(data_df, prov_code):
 
     ### ROW MEDIAN NORMALIZE
-    gct.data_df = row_median_normalize(gct.data_df)
+    data_df = row_median_normalize(data_df)
     prov_code_entry = "RMN"
-    np.append(prov_code, prov_code_entry)
+    prov_code = np.append(prov_code, prov_code_entry)
 
-    ### PROBE-GROUP SPECIFIC NORMALIZe
+    ### PROBE-GROUP SPECIFIC NORMALIZE
 
-    # Save output QC figures
+    return data_df, prov_code
 
-    # Reinsert prov code (check that it only inserted allowed values)
-    # Save gct
-
-    # return gct
-
+# tested #
 def extract_prov_code(col_metadata_df):
     """Extract the provenance code from the column metadata.
     Also verify that it is the same for all samples.
@@ -159,7 +231,7 @@ def extract_prov_code(col_metadata_df):
 
     if all_same:
         prov_code = prov_code_list_series.iloc[0]
-        assert prov_code != [""], "Provenance code should not be empty."
+        assert prov_code != [""], "Provenance code is empty!"
         return prov_code
     else:
         err_msg = ("All columns should have the same provenance code, " +
@@ -167,6 +239,7 @@ def extract_prov_code(col_metadata_df):
         logger.error(err_msg.format(np.unique(prov_code_list_series.values)))
         raise(Exception(err_msg.format(np.unique(prov_code_list_series.values))))
 
+# tested #
 def check_assay_type(assay_type, allowed_assay_types):
     """Verify that assay is one of the allowed types.
 
@@ -194,18 +267,18 @@ def do_log_transform_if_needed(data_df, prov_code):
         return data_df, prov_code
     else:
         # Perform log2 transformation and update provenance code
-        out_df = log_transform(data_df)
+        out_df = log_transform(data_df, log_base=2)
         prov_code_entry = "L2X"
-        np.append(prov_code, prov_code_entry)
+        prov_code = np.append(prov_code, prov_code_entry)
         return out_df, prov_code
 
-
-def log_transform(data_df, log_base=2):
+# tested #
+def log_transform(data_df, log_base):
     """Take the log of each value in a pandas dataframe.
 
     Args:
         data_df: pandas dataframe of floats
-        log_base: the base of the logarithm (default = 2).
+        log_base: the base of the logarithm
     Returns:
         out_df: pandas dataframe with log transformed values
     """
@@ -217,6 +290,43 @@ def log_transform(data_df, log_base=2):
     return out_df
 
 
+def do_gcp_histone_normalize_if_needed(data_df, normalization_peptide_id, prov_code):
+    """If GCP assay, call gcp_histone_normalize. """
+
+    assay_type = prov_code[0]
+    if assay_type in ["GR1"]:
+        data_df = gcp_histone_normalize(data_df, normalization_peptide_id)
+        prov_code_entry = "H3N"
+        prov_code = np.append(prov_code, prov_code_entry)
+    return data_df, prov_code
+
+# tested #
+def gcp_histone_normalize(data_df, normalization_peptide_id):
+    """Subtract values of normalization_peptide_id from all values.
+    Also, remove the row of data corresponding to the normalization histone.
+
+    Args:
+        data_df: dataframe of floats
+        normalization_peptide_id: string
+    Returns:
+        out_df: dataframe of floats with one row removed
+    """
+    # Verify that normalization peptide is in the data
+    assert normalization_peptide_id in data_df.index, (
+        ("The normalization peptide is not in this dataset. " +
+         "normalization_peptide_id: {}".format(normalization_peptide_id)))
+
+    # Calculate normalization values
+    norm_values = data_df.loc[normalization_peptide_id, :]
+
+    # Drop the normalization peptide row
+    data_df.drop(normalization_peptide_id, inplace=True)
+
+    # Subtract the normalization values from all rows
+    out_df = data_df - norm_values
+    return out_df
+
+# tested #
 def filter_samples_by_nan(data_df, sample_nan_thresh):
     """Remove samples (i.e. columns) with less than sample_nan_thresh non-NaN values.
 
@@ -240,7 +350,7 @@ def filter_samples_by_nan(data_df, sample_nan_thresh):
     assert not out_df.empty, "All samples were filtered out. Try reducing the threshold."
     return out_df
 
-
+# tested #
 def manual_probe_rejection(data_df, row_metadata_df):
     """Remove probes that were manually selected for rejection.
 
@@ -266,6 +376,7 @@ def manual_probe_rejection(data_df, row_metadata_df):
     assert not out_df.empty, "All probes were filtered out!"
     return out_df
 
+# tested #
 def filter_probes_by_nan_and_sd(data_df, probe_nan_thresh, probe_sd_cutoff):
     """Remove probes (i.e. rows) with less than probe_nan_thresh non-NaN values.
     Also remove probes with standard deviation higher than probe_sd_cutoff.
@@ -302,15 +413,16 @@ def filter_probes_by_nan_and_sd(data_df, probe_nan_thresh, probe_sd_cutoff):
                               "Try reducing the NaN threshold and/or SD cutoff.")
     return out_df
 
-
-def calculate_distances_and_optimize_if_needed(data_df, assay_type, optim_bool, offset_bounds, prov_code):
+# tested #
+def calculate_distances_and_optimize_if_needed(data_df, optim_bool, optim_bounds, prov_code):
     """If P100 assay and optim=True, call calculate_distances_and_optimize.
     Otherwise, call calculate_distances.
     """
-    if assay_type in ["PR1", "DIA1"] and args.optim:
-        (data_df, dists, success_bools) = calculate_distances_and_optimize(data_df, offset_bounds)
+    assay_type = prov_code[0]
+    if assay_type in ["PR1", "DIA1"] and optim_bool:
+        (data_df, dists, success_bools) = calculate_distances_and_optimize(data_df, optim_bounds)
         prov_code_entry = "LLB"
-        np.append(prov_code, prov_code_entry)
+        prov_code = np.append(prov_code, prov_code_entry)
     else:
         # Simply calculate distance metric for each sample
         dists = calculate_distances_only(data_df)
@@ -320,17 +432,19 @@ def calculate_distances_and_optimize_if_needed(data_df, assay_type, optim_bool, 
 
     return data_df, dists, success_bools, prov_code
 
-
-def calculate_distances_and_optimize(data_df, offset_bounds):
+# tested #
+def calculate_distances_and_optimize(data_df, optim_bounds):
     """For each sample, perform optimized load balancing.
 
     This means finding an offset for each sample that minimizes
     the distance metric. The distance metric is the sum of the
     distances from each probe measurement to its median.
 
+    N.B. Only uses the non-NaN values from each sample.
+
     Args:
         data_df: pandas dataframe of floats
-        offset_bounds: tuple of floats
+        optim_bounds: tuple of floats
 
     Returns:
         out_df: pandas dataframe with offsets applied
@@ -350,11 +464,11 @@ def calculate_distances_and_optimize(data_df, offset_bounds):
 
     # For each sample, perform optimization
     for sample_ind in range(num_samples):
-        sample_vals = data_df.loc[:, sample_ind]
+        sample_vals = data_df.iloc[:, sample_ind].values
 
         # Calculate optimized distances
         optimization_result = minimize_scalar(distance_function, args=(sample_vals, probe_medians),
-                                              method="bounded", bounds=offset_bounds)
+                                              method="bounded", bounds=optim_bounds)
 
         # Return offset, optimized distance, and a flag indicating if the
         # solution converged
@@ -374,9 +488,11 @@ def calculate_distances_and_optimize(data_df, offset_bounds):
     # and Boolean array of samples that converged
     return df_with_offsets, optimized_distances, success_bools
 
-
-def calculate_distances(data_df):
+# tested #
+def calculate_distances_only(data_df):
     """For each sample, calculate distance metric.
+
+    N.B. Only uses the non-NaN values from each sample.
 
     Args:
         data_df: pandas dataframe of floats
@@ -392,16 +508,18 @@ def calculate_distances(data_df):
 
     # For each sample, calculate distance
     for sample_ind in range(num_samples):
-        sample_vals = data_df.loc[:, sample_ind]
+        sample_vals = data_df.iloc[:, sample_ind].values
 
         # Calculate unoptimized distances
         dists[sample_ind] = distance_function(0, sample_vals, probe_medians)
 
     return dists
 
-
+# tested #
 def distance_function(offset, values, medians):
     """This function calculates the distance metric.
+
+    N.B. Only uses the non-NaN values.
 
     Args:
         offset: float
@@ -410,12 +528,17 @@ def distance_function(offset, values, medians):
     Returns:
         dist: float
     """
-    dist = sum(np.square((offset + values) - medians))
+    non_nan_idx = ~np.isnan(values)
+    assert np.size(non_nan_idx) != 0, "All values in this sample are NaN!"
+
+    non_nan_values = values[non_nan_idx]
+    non_nan_medians = medians[non_nan_idx]
+    dist = sum(np.square((offset + non_nan_values) - non_nan_medians))
     return dist
 
-
-def remove_sample_outliers(data_df, distances, success_bools, sd_sample_outlier_cutoff):
-    """Calculate sample outlier cutoff and remove outlier samples.
+# tested #
+def remove_sample_outliers(data_df, distances, success_bools, dist_sd_cutoff):
+    """Calculate distance cutoff for outlier samples and remove outliers.
 
     Samples are considered outliers if their distance is above the cutoff
     OR if the optimization process didn't converge for them.
@@ -424,7 +547,7 @@ def remove_sample_outliers(data_df, distances, success_bools, sd_sample_outlier_
         data_df: pandas dataframe of floats
         distances: numpy array of floats with length = num_samples
         success_bools: numpy array of bools with length = num_samples
-        sd_sample_outlier_cutoff: float
+        dist_sd_cutoff: float
     Returns:
         out_df: pandas dataframe (potentially smaller than original df)
     """
@@ -437,7 +560,7 @@ def remove_sample_outliers(data_df, distances, success_bools, sd_sample_outlier_
 
     # Calculate the distance cutoff
     cutoff = np.mean(distances) + np.multiply(np.std(distances),
-                                              sd_sample_outlier_cutoff)
+                                              dist_sd_cutoff)
 
     # Remove samples whose distance metric is greater than the cutoff OR
     # those that didn't converge during optimization
@@ -445,6 +568,7 @@ def remove_sample_outliers(data_df, distances, success_bools, sd_sample_outlier_
     assert not out_df.empty, "All samples were filtered out. Try reducing the SD cutoff."
     return out_df
 
+# tested #
 def row_median_normalize(data_df):
     """Subtract the row median from values.
 
