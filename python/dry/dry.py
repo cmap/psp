@@ -19,6 +19,10 @@ def build_parser():
     # Required argument
     parser.add_argument("gct_path", help="filepath to gct file", type=str)
 
+
+    # Add argument "force-assay"
+    # Use config file
+
     # Optional arguments
     parser.add_argument("-out_path", default=None,
                         help="directory where to save the output files")
@@ -98,6 +102,8 @@ def main(args):
     print prov_code
 
     # 6) Produce QC figures
+    # Does Plato handle non-384 well plates?
+    # One pixel is value, one pixel is error-bar?
 
     # 7) Create processed gct object
         # a) Reinsert prov code (check that it only inserted allowed values)
@@ -178,7 +184,7 @@ def filter_samples(data_df, sample_nan_thresh, optim, optim_bounds, dist_sd_cuto
 
     return data_df, prov_code
 
-
+# probably need to separate this into diff fcns
 def filter_probes(data_df, row_metadata_df, prov_code, probe_nan_thresh, probe_sd_cutoff):
 
     ### FILTER MANUALLY REJECTED PROBES
@@ -294,6 +300,9 @@ def do_gcp_histone_normalize_if_needed(data_df, normalization_peptide_id, prov_c
     """If GCP assay, call gcp_histone_normalize. """
 
     assay_type = prov_code[0]
+
+
+    # TO-DO(lev): move this to config file too
     if assay_type in ["GR1"]:
         data_df = gcp_histone_normalize(data_df, normalization_peptide_id)
         prov_code_entry = "H3N"

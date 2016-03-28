@@ -1,3 +1,12 @@
+import logging
+import setup_GCToo_logger as setup_logger
+import pandas as pd
+import os.path
+import GCToo
+
+__author__ = "Lev Litichevskiy"
+__email__ = "lev@broadinstitute.org"
+
 """Reads in a gct file as a gctoo object.
 
 The main method is parse. parse_into_3_dfs creates the row
@@ -21,23 +30,20 @@ Example GCT:
 |h |      (blank)        |      col_metadata      |
 |d |                     |                        |
 |  |                     |                        |
-----------------------------------------------------
+---------------------------------------------------
 |  |                     |                        |
 |r |                     |                        |
 |i |    row_metadata     |          data          |
 |d |                     |                        |
 |  |                     |                        |
-----------------------------------------------------
-"""
-import logging
-import setup_GCToo_logger as setup_logger
-import pandas as pd
-import os
-import GCToo
+---------------------------------------------------
 
-__author__ = "Lev Litichevskiy"
-__email__ = "lev@broadinstitute.org"
+N.B. col_metadata_df is stored as the transpose of how it looks in the gct file.
+That is, col_metadata_df.shape = (num_cid, num_chd).
+"""
+
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
+setup_logger.setup(verbose=True)
 
 
 def parse(file_path, nan_values=None):
@@ -83,10 +89,10 @@ def read_version_and_dims(file_path):
     f = open(file_path, "rb")
 
     # Get version from the first line
-    version = f.readline().strip()
+    version = f.readline().strip().lstrip("#")
 
-    # Check that the version is v1.3
-    if version != "#1.3":
+    # Check that the version is 1.3
+    if version != "1.3":
         err_msg = "Only GCT v1.3 is currently supported. version: {}"
         logger.error(err_msg.format(version))
         raise(Exception(err_msg.format(version)))
@@ -119,6 +125,10 @@ def parse_into_3_df(file_path, num_data_rows, num_data_cols, num_row_metadata, n
                           na_values=nan_values, keep_default_na=False)
     # N.B. The entries on the 3rd line (rhd and cid) become the column names of full_df.
 
+    # TO-DO(lev): this method saves everything as a string.
+    # Only later do I convert data to floats. Is this okay?
+    # I.e. should we instead save some metadata as floats?
+
     # Assemble metadata dataframes
     row_metadata = assemble_row_metadata(full_df, num_col_metadata, num_data_rows, num_row_metadata)
     col_metadata = assemble_col_metadata(full_df, num_col_metadata, num_row_metadata, num_data_cols)
@@ -147,7 +157,7 @@ def assemble_col_metadata(full_df, num_col_metadata, num_row_metadata, num_data_
     col_metadata.set_index("id", inplace=True)
     col_metadata.index.name = "chd"
     col_metadata.columns.name = "cid"
-    return col_metadata
+    return col_metadata.T  # transpose so that cid is the index
 
 
 def assemble_data(full_df, num_col_metadata, num_data_rows, num_row_metadata, num_data_cols):
@@ -159,9 +169,6 @@ def assemble_data(full_df, num_col_metadata, num_data_rows, num_row_metadata, nu
     data.index.name = "rid"
     data.columns.name = "cid"
     return data
-
-    # Instead maybe this:
-    # data = data.apply(lambda x: pd.to_numeric(x, errors='force'))
 
 
 def create_gctoo_obj(file_path, version, row_metadata_df, col_metadata_df, data_df):
