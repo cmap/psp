@@ -48,6 +48,8 @@ def build_parser():
                         help="whether to run a quick version of the process")
     parser.add_argument("-log2", action="store_true",
                         help="whether to perform log2 normalization")
+    parser.add_argument("-subset_normalize_bool", action="store_true",
+                        help="whether to perform subset-specific normalization")
 
     # TODO(lev): defaults should be different depending on the assay. How to do this...?
 
@@ -77,8 +79,6 @@ def build_parser():
     # GCP-specific arguments
     parser.add_argument("-normalization_peptide_id", type=str, default="BI10052",
                         help=("which peptide to normalize to"))
-    parser.add_argument("-subset_normalize_bool", action="store_true",
-                        help="whether to perform probe group normalization")
 
     # TODO(lev): add argument "force_assay"? (JJ's suggestion)
 
@@ -86,10 +86,10 @@ def build_parser():
 
 
 def main(args):
-    """THE MAIN METHOD. Filters and normalizes data and save result as a gct file.
+    """THE MAIN METHOD. Filter and normalize data and save result as a gct file.
 
     Args:
-        args (argparse.Namespace): fields as defined in build_parser()
+        args (argparse.Namespace object): fields as defined in build_parser()
     Returns:
         out_gct (GCToo): output gct object
     """
@@ -144,7 +144,7 @@ def main(args):
     (gct.data_df, offsets, dists, success_bools, prov_code) = calculate_distances_and_optimize_if_needed(gct.data_df, args.optim, args.optim_bounds, prov_code)
 
     ### REMOVE SAMPLE OUTLIERS
-    gct.data_df = remove_sample_outliers(gct.data_df, dists, success_bools, args.dist_sd_cutoff)
+    (gct.data_df, offsets_of_remaining_data) = remove_sample_outliers(gct.data_df, offsets, dists, success_bools, args.dist_sd_cutoff)
     prov_code_entry = "OSF"
     prov_code.append(prov_code_entry)
 
@@ -172,7 +172,7 @@ def main(args):
 
     # 7) Create processed gct object
     out_gct = create_output_gct(gct.data_df, gct.row_metadata_df, gct.col_metadata_df,
-                                offsets, prov_code, args.prov_code_delimiter)
+                                offsets_of_remaining_data, prov_code, args.prov_code_delimiter)
 
     # 8) Save processed gct object to file
     out_fname = os.path.join(args.out_path, args.out_name)
@@ -241,13 +241,13 @@ def filter_samples(data_df, sample_nan_thresh, optim, optim_bounds, dist_sd_cuto
 
     # TODO(lev): should only happen for P100?
     ### CALCULATE DISTANCES
-    (data_df, dists, success_bools, prov_code) = (
+    (data_df, offsets, dists, success_bools, prov_code) = (
         calculate_distances_and_optimize_if_needed(
             data_df, optim, optim_bounds, prov_code))
 
     # TODO(lev): should only happen for P100?
     ### REMOVE SAMPLE OUTLIERS
-    data_df = remove_sample_outliers(data_df, dists, success_bools, dist_sd_cutoff)
+    (data_df, offsets_of_remaining_data) = remove_sample_outliers(data_df, offsets, dists, success_bools, dist_sd_cutoff)
     prov_code_entry = "OSF"
     prov_code.append(prov_code_entry)
 
@@ -294,7 +294,7 @@ def create_output_gct(data_df, row_df, col_df, offsets, prov_code, prov_code_del
     a column metadata header.
 
     Args:
-        data_df (pandas df)
+        data_df (pandas df): has some probes and samples removed
         row_df  (pandas df)
         col_df (pandas df)
         offsets (numpy array or None): if optim, then type will be numpy array; otherwise None
@@ -306,10 +306,6 @@ def create_output_gct(data_df, row_df, col_df, offsets, prov_code, prov_code_del
     PROV_CODE_FIELD = "provenance_code"
 
     # TODO(lev): clean this up. How do I make sure that len(offsets) == data_df.shape[1] ??
-
-    # Insert offsets as string field in col_metadata_df unless it's None
-    if offsets is not None:
-        col_df["optimization_offset"] = offsets.astype(str)
 
     # Get remaining rows and samples from data_df
     rows = data_df.index.values
@@ -334,6 +330,11 @@ def create_output_gct(data_df, row_df, col_df, offsets, prov_code, prov_code_del
     assert data_df.shape[0] == out_row_df.shape[0]
     assert data_df.shape[1] == out_col_df.shape[0]
 
+    # Insert offsets as string field in col_metadata_df unless it's None
+    if offsets is not None:
+        assert len(offsets) == out_col_df.shape[0]
+        out_col_df["optimization_offset"] = offsets.astype(str)
+
     # TODO(lev): check that only acceptable values were inserted
 
     # Convert provenance code to delimiter separated string
@@ -342,7 +343,7 @@ def create_output_gct(data_df, row_df, col_df, offsets, prov_code, prov_code_del
     # Update the provenance code in col_metadata_df
     out_col_df.loc[:, PROV_CODE_FIELD] = prov_code_str
 
-        # Insert component dfs into gct object
+    # Insert component dfs into gct object
     out_gct = GCToo.GCToo(row_metadata_df=out_row_df,
                           col_metadata_df=out_col_df,
                           data_df=data_df)
@@ -692,19 +693,22 @@ def distance_function(offset, values, medians):
     return dist
 
 # tested #
-def remove_sample_outliers(data_df, distances, success_bools, dist_sd_cutoff):
+def remove_sample_outliers(data_df, offsets, distances, success_bools, dist_sd_cutoff):
     """Calculate distance cutoff for outlier samples and remove outliers.
 
     Samples are considered outliers if their distance is above the cutoff
-    OR if the optimization process didn't converge for them.
+    OR if the optimization process didn't converge for them. Return only the
+    offsets of samples that were not removed.
 
     Args:
-        data_df: pandas dataframe of floats
-        distances: numpy array of floats with length = num_samples
-        success_bools: numpy array of bools with length = num_samples
-        dist_sd_cutoff: float
+        data_df (pandas df)
+        offsets (numpy array of floats): length = num_samples
+        distances (numpy array of floats): length = num_samples
+        success_bools (numpy array of bools): length = num_samples
+        dist_sd_cutoff (float)
     Returns:
-        out_df: pandas dataframe (potentially smaller than original df)
+        out_df (pandas df): potentially smaller than original df
+        out_offsets (numpy array of floats): length = num_remaining_samples
     """
     assert len(distances) == data_df.shape[1], (
         "len(distances): {} does not equal " +
@@ -719,9 +723,12 @@ def remove_sample_outliers(data_df, distances, success_bools, dist_sd_cutoff):
 
     # Remove samples whose distance metric is greater than the cutoff OR
     # those that didn't converge during optimization
-    out_df = data_df.iloc[:, np.logical_and(distances < cutoff, success_bools)]
-    assert not out_df.empty, "All samples were filtered out. Try reducing the SD cutoff."
-    return out_df
+    samples_to_keep = np.logical_and(distances < cutoff, success_bools)
+    out_df = data_df.iloc[:, samples_to_keep]
+    out_offsets = offsets[samples_to_keep]
+    assert not out_df.empty, "All samples were filtered out. Try increasing the SD cutoff."
+
+    return out_df, out_offsets
 
 # tested #
 def row_median_normalize(data_df):

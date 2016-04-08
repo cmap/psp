@@ -49,12 +49,17 @@ class TestDry(unittest.TestCase):
         self.assertTrue(np.array_equal(e_gct.row_metadata_df, out_gct.row_metadata_df),
                          ("\nExpected row_metadata_df:\n{} " +
                          "\nActual row_metadata_df:\n{}").format(e_gct.row_metadata_df, out_gct.row_metadata_df))
-        self.assertTrue(np.array_equal(e_gct.col_metadata_df, out_gct.col_metadata_df),
-                        ("\nExpected col_metadata_df:\n{} " +
-                         "\nActual col_metadata_df:\n{}").format(e_gct.col_metadata_df, out_gct.col_metadata_df))
 
-        print("Mean difference between gcts: {}".format(np.mean(e_gct.data_df.values - out_gct.data_df.values)))
-        print("Mean absolute difference between gcts: {}".format(np.mean(np.absolute(e_gct.data_df.values - out_gct.data_df.values))))
+        # Column metadata should have one more header
+        self.assertEqual(e_gct.col_metadata_df.shape[1] + 1, out_gct.col_metadata_df.shape[1],
+                         ("Actual col_metadata_df should have one more header" +
+                          "than e_col_metadata_df.\n" +
+                          "e_gct.col_metadata_df.shape: {}, " +
+                          "out_gct.col_metadata_df.shape: {}").format(e_gct.col_metadata_df.shape,
+                                                                      out_gct.col_metadata_df.shape[1]))
+
+        logger.info("Mean difference between gcts: {}".format(np.mean(e_gct.data_df.values - out_gct.data_df.values)))
+        logger.info("Mean absolute difference between gcts: {}".format(np.mean(np.absolute(e_gct.data_df.values - out_gct.data_df.values))))
 
 
 
@@ -262,14 +267,19 @@ class TestDry(unittest.TestCase):
         df = pd.DataFrame(np.array([[10, -3, 1.2, 0.6],
                                     [0.45, 0.2, 0, 0.2],
                                     [4.5, np.nan, 0.3, 0.4]], dtype=float))
+        offsets = np.array([1, 2, 3, 4])
         dists = np.array([0.2, 5, 0.5, 0.4], dtype=float)
         bools = np.array([True, True, True, False], dtype=bool)
-        out = dry.remove_sample_outliers(df, dists, bools,
+        (out, out_offsets) = dry.remove_sample_outliers(df, offsets, dists, bools,
                                          dist_sd_cutoff=1)
         e_out = df.iloc[:, [0, 2]]
+        e_out_offsets = np.array([1, 3])
         self.assertTrue(out.shape == e_out.shape, (
             "expected_out.shape: {} not the same " +
             "as actual_out.shape: {}").format(e_out.shape, out.shape))
+        self.assertTrue(np.array_equal(out_offsets, e_out_offsets),
+                        ("\nExpected out:\n{} " +
+                         "\nActual out:\n{}").format(e_out_offsets, out_offsets))
 
 
     def test_row_median_normalize(self):
