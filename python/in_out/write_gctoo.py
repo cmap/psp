@@ -44,14 +44,17 @@ Example GCT:
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 setup_logger.setup(verbose=True)
 
+# Only writes GCT v1.3
+VERSION = "1.3"
 
-def write(gctoo, out_fname, data_null="NaN", data_float_format=None):
+def write(gctoo, out_fname, data_null="NaN", filler_null="-666", data_float_format=None):
     """Write a gctoo object to a gct file.
 
     Args:
         gctoo (gctoo object)
         out_fname (string): filename for output gct file
         data_null (string): how to represent missing values in the data (default = "NaN")
+        filler_null (string): what value to fill the top-left filler block with (default = "-666")
         data_float_format (string): how many decimal points to keep in representing data (default = None will keep all digits)
     Returns:
         nothing
@@ -63,10 +66,10 @@ def write(gctoo, out_fname, data_null="NaN", data_float_format=None):
     dims_ints = [gctoo.data_df.shape[0], gctoo.data_df.shape[1],
                  gctoo.row_metadata_df.shape[1], gctoo.col_metadata_df.shape[1]]
     dims = [str(dim) for dim in dims_ints]
-    write_version_and_dims(gctoo.version, dims, f)
+    write_version_and_dims(VERSION, dims, f)
 
     # Convert 3 component dataframes into correct form
-    full_df = assemble_full_df(gctoo.row_metadata_df, gctoo.col_metadata_df, gctoo.data_df, data_null)
+    full_df = assemble_full_df(gctoo.row_metadata_df, gctoo.col_metadata_df, gctoo.data_df, data_null, filler_null)
 
     # Write remainder of gct
     write_full_df(full_df, f, data_null, data_float_format)
@@ -79,7 +82,7 @@ def write_version_and_dims(version, dims, f):
     """Write first two lines of gct file.
 
     Args:
-        version (string)
+        version (string): 1.3 by default
         dims (list of strings): length = 4
         f (file handle): handle of output file
     Returns:
@@ -89,7 +92,7 @@ def write_version_and_dims(version, dims, f):
     f.write((dims[0] + "\t" + dims[1] + "\t" + dims[2] + "\t" + dims[3] + "\n"))
 
 
-def assemble_full_df(row_metadata_df, col_metadata_df, data_df, data_null):
+def assemble_full_df(row_metadata_df, col_metadata_df, data_df, data_null, filler_null):
     """Assemble 3 component dataframes into the correct form for gct files.
 
     Args:
@@ -97,6 +100,7 @@ def assemble_full_df(row_metadata_df, col_metadata_df, data_df, data_null):
         col_metadata_df (pandas df)
         data_df (pandas df)
         data_null (string): how to represent missing values in the data
+        filler_null (string): what value to fill the top-left filler block with
 
     Returns:
         full_df (pandas df): shape = (n_chd + n_rid, 1 + n_rhd + n_cid),
@@ -111,7 +115,7 @@ def assemble_full_df(row_metadata_df, col_metadata_df, data_df, data_null):
 
     # Create nan array to fill the blank top-left quadrant
     filler = np.full((col_metadata_df.shape[1], row_metadata_df.shape[1]),
-                     data_null, dtype="S8")
+                     filler_null, dtype="S8")
 
     # TOP HALF: horz concatenate chd, filler, and col_metadata, which must be transposed
     filler_and_col_metadata = np.hstack((filler, col_metadata_df.T.values))
