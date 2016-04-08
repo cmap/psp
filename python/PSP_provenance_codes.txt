@@ -1,0 +1,9 @@
+Code	Description
+L2X	log2-transform
+RMN	row median normalization
+SSN     subset normalization
+SF#	filter out samples where less than # of the data is non-NaN (i.e. SF8 = 80% probes present = passing)
+PF#	filter out probes where less than # of the data is non-NaN (i.e. PF8 = 80% samples present = passing)
+LLB	linear-optimization load balancing, based on minimizing distance to median sample
+OF#	outlier sample filtering, if sample is far away from median even after load balancing operations (# sd away from mean distance)
+MPR     manual probe rejection, probes manually selected for rejection by user are filtered out
