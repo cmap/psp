@@ -133,8 +133,9 @@ def main(args):
 
     ### FILTER PROBES BY NAN AND SD
     gct.data_df = filter_probes_by_nan_and_sd(gct.data_df, args.probe_nan_thresh, args.probe_sd_cutoff)
-    thresh_digit = ("{:.1f}".format(args.probe_nan_thresh)).split(".")[1]
-    prov_code_entry = "PF{}".format(thresh_digit)
+    # thresh_digit = ("{:.1f}".format(args.probe_nan_thresh)).split(".")[1]
+    # prov_code_entry = "PF{}".format(thresh_digit)
+    prov_code_entry = "OSF"
     prov_code.append(prov_code_entry)
 
     ##########
@@ -145,7 +146,8 @@ def main(args):
 
     ### REMOVE SAMPLE OUTLIERS
     (gct.data_df, offsets_of_remaining_data) = remove_sample_outliers(gct.data_df, offsets, dists, success_bools, args.dist_sd_cutoff)
-    prov_code_entry = "OSF"
+    cutoff_digit = ("{:.1f}".format(args.dist_sd_cutoff)).split(".")[1]
+    prov_code_entry = "OF{}".format(cutoff_digit)
     prov_code.append(prov_code_entry)
 
     ##########
@@ -766,6 +768,7 @@ def subset_normalize(data_df, row_metadata_df, col_metadata_df, prov_code):
     data_df = iterate_over_norm_ndarray_and_normalize(data_df, norm_ndarray)
 
     # Update provenance code
+    # prov_code_entry = "SSN"
     prov_code_entry = "GMN"
     prov_code.append(prov_code_entry)
 

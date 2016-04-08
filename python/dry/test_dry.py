@@ -3,6 +3,7 @@ import logging
 import setup_GCToo_logger as setup_logger
 import ConfigParser
 import os
+import sys
 
 import in_out.parse_gctoo as parse_gctoo
 import numpy as np
@@ -20,27 +21,34 @@ DEFAULT_PSP_CONFIG_PATH = "~/.PSP_config"
 # N.B. e_out is expected_output.
 class TestDry(unittest.TestCase):
 
-    def test_main(self):
+    def test_p100_main(self):
         # Get input asset from config file
         configParser = ConfigParser.RawConfigParser()
         configParser.read(os.path.expanduser(DEFAULT_PSP_CONFIG_PATH))
-        input_gct_path = configParser.get("tests", "input_gct_path")
+        input_gct_path = configParser.get("tests", "input_p100_gct_path")
 
-        args_string = ("{} -out_path ./ " +
-                       "-out_name example_p100.gct " +
+        # Write output to the functional tests directory
+        functional_tests_dir = configParser.get("tests", "functional_tests_dir")
+
+        # Specify output file name
+        OUT_NAME = "test_dry_p100_output.gct"
+
+        args_string = ("{} -out_path {} " +
+                       "-out_name {} " +
                        "-PSP_config_path {} " +
                        "-sample_nan_thresh {} " +
                        "-probe_nan_thresh {} " +
                        "-probe_sd_cutoff {} " +
                        "-dist_sd_cutoff {} " +
                        # "-subset_normalize_bool " +
-                       "-optim -v").format(input_gct_path, DEFAULT_PSP_CONFIG_PATH,
+                       "-optim -v").format(input_gct_path, functional_tests_dir,
+                                           OUT_NAME, DEFAULT_PSP_CONFIG_PATH,
                                            0.8, 0.9, 3, 3)
         args = dry.build_parser().parse_args(args_string.split())
         out_gct = dry.main(args)
 
         # Read in output gct created by JJ's code
-        e_output_gct_path = "/Users/lev/code/PSP/python/functional_tests/p100_prm_plate29_3H_processed.gct"
+        e_output_gct_path = configParser.get("tests", "output_p100_gct_path")
         e_gct = parse_gctoo.parse(e_output_gct_path)
 
         self.assertTrue(np.allclose(out_gct.data_df, e_gct.data_df, atol=1e-1, equal_nan=True),
@@ -61,17 +69,131 @@ class TestDry(unittest.TestCase):
         logger.info("Mean difference between gcts: {}".format(np.mean(e_gct.data_df.values - out_gct.data_df.values)))
         logger.info("Mean absolute difference between gcts: {}".format(np.mean(np.absolute(e_gct.data_df.values - out_gct.data_df.values))))
 
+        # Clean up
+        # os.remove(os.path.join(functional_tests_dir, OUT_NAME))
 
+
+
+    # TODO(lev): DEBUG THIS ONE!
+
+
+
+    def test_GCP_main(self):
+        # Get input asset from config file
+        configParser = ConfigParser.RawConfigParser()
+        configParser.read(os.path.expanduser(DEFAULT_PSP_CONFIG_PATH))
+        input_gct_path = configParser.get("tests", "input_GCP_gct_path")
+
+        # Write output to the functional tests directory
+        functional_tests_dir = configParser.get("tests", "functional_tests_dir")
+
+        # Specify output file name
+        OUT_NAME = "test_dry_GCP_output.gct"
+
+        args_string = ("{} -out_path {} " +
+                       "-out_name {} " +
+                       "-PSP_config_path {} " +
+                       "-sample_nan_thresh {} " +
+                       "-probe_nan_thresh {} " +
+                       "-probe_sd_cutoff {} " +
+                       # "-subset_normalize_bool " +
+                       "-optim -v").format(input_gct_path, functional_tests_dir,
+                                           OUT_NAME, DEFAULT_PSP_CONFIG_PATH,
+                                           0.5, 0.5, 4)
+        args = dry.build_parser().parse_args(args_string.split())
+        out_gct = dry.main(args)
+
+        # Read in output gct created by JJ's code
+        e_output_gct_path = configParser.get("tests", "output_GCP_gct_path")
+        e_gct = parse_gctoo.parse(e_output_gct_path)
+
+        self.assertTrue(np.allclose(out_gct.data_df, e_gct.data_df, atol=1e-1, equal_nan=True),
+                        ("\nExpected data_df:\n{} " +
+                         "\nActual data_df:\n{}").format(e_gct.data_df, out_gct.data_df))
+        self.assertTrue(np.array_equal(e_gct.row_metadata_df, out_gct.row_metadata_df),
+                         ("\nExpected row_metadata_df:\n{} " +
+                         "\nActual row_metadata_df:\n{}").format(e_gct.row_metadata_df, out_gct.row_metadata_df))
+
+        # Column metadata should have one more header
+        self.assertEqual(e_gct.col_metadata_df.shape[1] + 1, out_gct.col_metadata_df.shape[1],
+                         ("Actual col_metadata_df should have one more header" +
+                          "than e_col_metadata_df.\n" +
+                          "e_gct.col_metadata_df.shape: {}, " +
+                          "out_gct.col_metadata_df.shape: {}").format(e_gct.col_metadata_df.shape,
+                                                                      out_gct.col_metadata_df.shape[1]))
+
+        logger.info("Mean difference between gcts: {}".format(np.mean(e_gct.data_df.values - out_gct.data_df.values)))
+        logger.info("Mean absolute difference between gcts: {}".format(np.mean(np.absolute(e_gct.data_df.values - out_gct.data_df.values))))
+
+        # Clean up
+        # os.remove(os.path.join(functional_tests_dir, OUT_NAME))
+
+
+   # TODO(lev): DEBUG THIS ONE!
+
+
+
+
+    def test_p100_subset_main(self):
+        # Get input asset from config file
+        configParser = ConfigParser.RawConfigParser()
+        configParser.read(os.path.expanduser(DEFAULT_PSP_CONFIG_PATH))
+        input_gct_path = configParser.get("tests", "input_p100_subsets_gct_path")
+
+        # Write output to the functional tests directory
+        functional_tests_dir = configParser.get("tests", "functional_tests_dir")
+
+        # Specify output file name
+        OUT_NAME = "test_dry_p100_subsets_output.gct"
+
+        args_string = ("{} -out_path {} " +
+                       "-out_name {} " +
+                       "-PSP_config_path {} " +
+                       "-sample_nan_thresh {} " +
+                       "-probe_nan_thresh {} " +
+                       "-probe_sd_cutoff {} " +
+                       "-dist_sd_cutoff {} " +
+                       # "-subset_normalize_bool " +
+                       "-optim -v").format(input_gct_path, functional_tests_dir,
+                                           OUT_NAME, DEFAULT_PSP_CONFIG_PATH,
+                                           0.8, 0.9, 3, 3)
+        args = dry.build_parser().parse_args(args_string.split())
+        out_gct = dry.main(args)
+
+        # Read in output gct created by JJ's code
+        e_output_gct_path = configParser.get("tests", "output_p100_subsets_gct_path")
+        e_gct = parse_gctoo.parse(e_output_gct_path)
+
+        self.assertTrue(np.allclose(out_gct.data_df, e_gct.data_df, atol=1e-1, equal_nan=True),
+                        ("\nExpected data_df:\n{} " +
+                         "\nActual data_df:\n{}").format(e_gct.data_df, out_gct.data_df))
+        self.assertTrue(np.array_equal(e_gct.row_metadata_df, out_gct.row_metadata_df),
+                         ("\nExpected row_metadata_df:\n{} " +
+                         "\nActual row_metadata_df:\n{}").format(e_gct.row_metadata_df, out_gct.row_metadata_df))
+
+        # Column metadata should have one more header
+        self.assertEqual(e_gct.col_metadata_df.shape[1] + 1, out_gct.col_metadata_df.shape[1],
+                         ("Actual col_metadata_df should have one more header" +
+                          "than e_col_metadata_df.\n" +
+                          "e_gct.col_metadata_df.shape: {}, " +
+                          "out_gct.col_metadata_df.shape: {}").format(e_gct.col_metadata_df.shape,
+                                                                      out_gct.col_metadata_df.shape[1]))
+
+        logger.info("Mean difference between gcts: {}".format(np.mean(e_gct.data_df.values - out_gct.data_df.values)))
+        logger.info("Mean absolute difference between gcts: {}".format(np.mean(np.absolute(e_gct.data_df.values - out_gct.data_df.values))))
+
+        # Clean up
+        # os.remove(os.path.join(functional_tests_dir, OUT_NAME))
 
     def test_read_gct_and_check_provenance_code(self):
         # Get assets from config file
         configParser = ConfigParser.RawConfigParser()
         configParser.read(os.path.expanduser(DEFAULT_PSP_CONFIG_PATH))
-        input_gct_path = configParser.get("tests", "input_gct_path")
+        input_p100_gct_path = configParser.get("tests", "input_p100_gct_path")
 
         e_prov_code = ["PRM", "L2X"]
         e_data_df_shape = (96, 96)
-        (out_gct, out_prov_code) = dry.read_gct_and_check_provenance_code(DEFAULT_PSP_CONFIG_PATH, input_gct_path)
+        (out_gct, out_prov_code) = dry.read_gct_and_check_provenance_code(DEFAULT_PSP_CONFIG_PATH, input_p100_gct_path)
         self.assertEqual(out_prov_code, e_prov_code,
                          ("The expected provenance code is {}, " +
                           "not {}").format(e_prov_code, out_prov_code))
