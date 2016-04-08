@@ -1,8 +1,9 @@
 import unittest
 import logging
 import setup_GCToo_logger as setup_logger
+import ConfigParser
+import os
 
-# import argparse
 import in_out.parse_gctoo as parse_gctoo
 import numpy as np
 import pandas as pd
@@ -10,48 +11,81 @@ import dry
 
 import in_out.gct as gct
 
+# Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
-PSP_config_path = "~/.PSP_config"
-test_p100_path = "/Users/lev/code/PSP/python/functional_tests/p100_prm_plate29_3H.gct"
-test_p100_processed_path = "/Users/lev/code/PSP/python/functional_tests/p100_prm_plate29_3H_processed.gct"
+
+# Set default config filepath
+DEFAULT_PSP_CONFIG_PATH = "~/.PSP_config"
 
 # N.B. e_out is expected_output.
 class TestDry(unittest.TestCase):
-    def test_main(self):
-        args_string = ("{} -out_path ./ " +
-                       "-out_name testing_testing " +
-                       "-PSP_config_path {}").format(test_p100_path, PSP_config_path)
-        args = dry.build_parser().parse_args(args_string.split())
-        e_gct = parse_gctoo.parse(test_p100_processed_path)
 
+    def test_main(self):
+        # Get input asset from config file
+        configParser = ConfigParser.RawConfigParser()
+        configParser.read(os.path.expanduser(DEFAULT_PSP_CONFIG_PATH))
+        input_gct_path = configParser.get("tests", "input_gct_path")
+
+        args_string = ("{} -out_path ./ " +
+                       "-out_name example_p100.gct " +
+                       "-PSP_config_path {} " +
+                       "-sample_nan_thresh {} " +
+                       "-probe_nan_thresh {} " +
+                       "-probe_sd_cutoff {} " +
+                       "-dist_sd_cutoff {} " +
+                       # "-subset_normalize_bool " +
+                       "-optim -v").format(input_gct_path, DEFAULT_PSP_CONFIG_PATH,
+                                           0.8, 0.9, 3, 3)
+        args = dry.build_parser().parse_args(args_string.split())
         out_gct = dry.main(args)
-        # self.assertEqual(e_gct, out_gct, "The expected and actual processed gcts are not the same.")
-        pass
+
+        # Read in output gct created by JJ's code
+        e_output_gct_path = "/Users/lev/code/PSP/python/functional_tests/p100_prm_plate29_3H_processed.gct"
+        e_gct = parse_gctoo.parse(e_output_gct_path)
+
+        self.assertTrue(np.allclose(out_gct.data_df, e_gct.data_df, atol=1e-1, equal_nan=True),
+                        ("\nExpected data_df:\n{} " +
+                         "\nActual data_df:\n{}").format(e_gct.data_df, out_gct.data_df))
+        self.assertTrue(np.array_equal(e_gct.row_metadata_df, out_gct.row_metadata_df),
+                         ("\nExpected row_metadata_df:\n{} " +
+                         "\nActual row_metadata_df:\n{}").format(e_gct.row_metadata_df, out_gct.row_metadata_df))
+        self.assertTrue(np.array_equal(e_gct.col_metadata_df, out_gct.col_metadata_df),
+                        ("\nExpected col_metadata_df:\n{} " +
+                         "\nActual col_metadata_df:\n{}").format(e_gct.col_metadata_df, out_gct.col_metadata_df))
+
+        print("Mean difference between gcts: {}".format(np.mean(e_gct.data_df.values - out_gct.data_df.values)))
+        print("Mean absolute difference between gcts: {}".format(np.mean(np.absolute(e_gct.data_df.values - out_gct.data_df.values))))
+
+
 
     def test_read_gct_and_check_provenance_code(self):
+        # Get assets from config file
+        configParser = ConfigParser.RawConfigParser()
+        configParser.read(os.path.expanduser(DEFAULT_PSP_CONFIG_PATH))
+        input_gct_path = configParser.get("tests", "input_gct_path")
+
         e_prov_code = ["PRM", "L2X"]
         e_data_df_shape = (96, 96)
-        (out_gct, out_prov_code) = dry.read_gct_and_check_provenance_code(PSP_config_path, test_p100_path)
+        (out_gct, out_prov_code) = dry.read_gct_and_check_provenance_code(DEFAULT_PSP_CONFIG_PATH, input_gct_path)
         self.assertEqual(out_prov_code, e_prov_code,
-                         ("The expected provenance code is {}," +
-                          "not {}.".format(e_prov_code, out_prov_code)))
+                         ("The expected provenance code is {}, " +
+                          "not {}").format(e_prov_code, out_prov_code))
 
         self.assertEqual(out_gct.data_df.shape, e_data_df_shape,
-                         ("The expected shape of the data matrix is {}," +
-                          "not {}.".format(e_data_df_shape, out_gct.data_df.shape)))
+                         ("The expected shape of the data matrix is {}, " +
+                          "not {}").format(e_data_df_shape, out_gct.data_df.shape))
 
 
     def test_extract_prov_code(self):
         col_meta_df = pd.DataFrame.from_dict({"foo": ["a", "b", "c"],
                                               "provenance_code": ["PRM+L2X",
                                                                   "PRM+L2X",
-                                                                  "PRM+L2X"]},
-                                             orient='index')
+                                                                  "PRM+L2X"]})
         e_prov_code = ["PRM", "L2X"]
         prov_code = dry.extract_prov_code(col_meta_df)
         self.assertEqual(e_prov_code, prov_code,
                         ("The expected provenance code is {}, " +
-                         "not {}.").format(e_prov_code, prov_code))
+                         "not {}").format(e_prov_code, prov_code))
 
     def test_check_assay_type(self):
         assay_type = "aBc"
@@ -156,8 +190,12 @@ class TestDry(unittest.TestCase):
                                       [-3.96, 3.03, 0],
                                       [0.08, -1.16, 0.40]],
                                      dtype=float))
+        e_offsets = np.array([-4.42, 2.83, 0.10], dtype=float)
         e_dists = np.array([36.62, 12.04, 0.06], dtype=float)
-        (out_df, dists, success_bools) = dry.calculate_distances_and_optimize(df, (-7,7))
+        (out_df, offsets, dists, success_bools) = dry.calculate_distances_and_optimize(df, (-7,7))
+        self.assertTrue(np.allclose(offsets, e_offsets, atol=1e-2),
+                        ("\nExpected offsets:\n{} " +
+                         "\nActual offsets:\n{}").format(e_offsets, offsets))
         self.assertTrue(np.allclose(dists, e_dists, atol=1e-2),
                         ("\nExpected distances:\n{} " +
                          "\nActual distances:\n{}").format(e_dists, dists))
@@ -186,7 +224,7 @@ class TestDry(unittest.TestCase):
         optim_bool = False
         prov_code = ["GR1", "L2X"]
         e_prov_code = prov_code
-        (_, _, _, out_prov_code) = dry.calculate_distances_and_optimize_if_needed(
+        (_, _, _, _, out_prov_code) = dry.calculate_distances_and_optimize_if_needed(
             df, optim_bool, (-7, 7), prov_code)
         self.assertTrue(np.array_equal(e_prov_code, out_prov_code), (
             "The expected output provenance code is {}, not {}.".format(e_prov_code, out_prov_code)))
@@ -195,7 +233,7 @@ class TestDry(unittest.TestCase):
         optim_bool = False
         prov_code = ["PR1", "L2X"]
         e_prov_code = prov_code
-        (_, _, _, out_prov_code) = dry.calculate_distances_and_optimize_if_needed(
+        (_, _, _, _, out_prov_code) = dry.calculate_distances_and_optimize_if_needed(
             df, optim_bool, (-7, 7), prov_code)
         self.assertTrue(np.array_equal(e_prov_code, out_prov_code), (
             "The expected output provenance code is {}, not {}.".format(e_prov_code, out_prov_code)))
@@ -204,7 +242,7 @@ class TestDry(unittest.TestCase):
         optim_bool = True
         prov_code = ["GR1", "L2X"]
         e_prov_code = prov_code
-        (_, _, _, out_prov_code) = dry.calculate_distances_and_optimize_if_needed(
+        (_, _, _, _, out_prov_code) = dry.calculate_distances_and_optimize_if_needed(
             df, optim_bool, (-7, 7), prov_code)
         self.assertTrue(np.array_equal(e_prov_code, out_prov_code), (
             "The expected output provenance code is {}, not {}.".format(e_prov_code, out_prov_code)))
@@ -213,7 +251,7 @@ class TestDry(unittest.TestCase):
         optim_bool = True
         prov_code = ["DIA1", "L2X"]
         e_prov_code = np.append(prov_code, "LLB")
-        (_, _, _, out_prov_code) = dry.calculate_distances_and_optimize_if_needed(
+        (_, _, _, _, out_prov_code) = dry.calculate_distances_and_optimize_if_needed(
             df, optim_bool, (-7, 7), prov_code)
         self.assertTrue(np.array_equal(e_prov_code, out_prov_code), (
             "The expected output provenance code is {}, not {}.".format(e_prov_code, out_prov_code)))
@@ -245,6 +283,139 @@ class TestDry(unittest.TestCase):
         self.assertTrue(np.allclose(out_df, e_df, atol=1e-2, equal_nan=True),
                         ("\nExpected out_df:\n{} " +
                          "\nActual out_df:\n{}").format(e_df, out_df))
+
+
+    def test_make_norm_ndarray(self):
+        row_df = pd.DataFrame(np.array([["8350", "1"], ["8350", "1"],
+                                        ["8350", "2"], ["8350", "2"]]),
+                              index=["r1", "r2", "r3", "r4"],
+                              columns=["pr_gene_id", "pr_probe_normalization_group"])
+        col_df = pd.DataFrame(np.array([["G-0022", "1,1"], ["G-0022", "1,1"], ["G-0022", "1,2"],
+                                        ["G-0022", "2,2"], ["G-0022", "2,2"]]),
+                              index=["c1", "c2", "c3", "c4", "c5"],
+                              columns=["det_plate", "det_normalization_group_vector"])
+        e_norm_ndarray = np.array([[1, 1, 1, 2, 2],
+                                   [1, 1, 1, 2, 2],
+                                   [1, 1, 2, 2, 2],
+                                   [1, 1, 2, 2, 2]])
+        norm_ndarray = dry.make_norm_ndarray(row_df, col_df)
+        self.assertTrue(np.array_equal(norm_ndarray, e_norm_ndarray),
+                        ("\nExpected out:\n{} " +
+                         "\nActual out:\n{}").format(e_norm_ndarray, norm_ndarray))
+
+    def test_iterate_over_norm_ndarray_and_normalize(self):
+        data_df = pd.DataFrame(np.array([[7, 8, 3, 8, 9],
+                                         [9, 7, 4, 9, 2],
+                                         [8, 6, 7, 8, 2],
+                                         [4, 8, 5, 5, 7]]),
+                                        index = ["a","b","c","d"],
+                                        dtype='float')
+        norm_ndarray = np.array([[1, 1, 1, 2, 2],
+                                 [1, 1, 1, 2, 2],
+                                 [1, 1, 2, 2, 2],
+                                 [1, 1, 2, 2, 2]])
+        e_df = pd.DataFrame(np.array([[0, 1, -4, -0.5, 0.5],
+                                      [2, 0, -3, 3.5, -3.5],
+                                      [1, -1, 0, 1, -5],
+                                      [-2, 2, 0, 0, 2]], dtype='float'))
+        out_df = dry.iterate_over_norm_ndarray_and_normalize(data_df, norm_ndarray)
+        self.assertTrue(np.array_equal(out_df, e_df),
+                        ("\nExpected out:\n{} " +
+                         "\nActual out:\n{}").format(e_df, out_df))
+
+        # Slightly different norm_ndarray
+        norm_ndarray = np.array([[1, 1, 1, 2, 2],
+                                 [1, 1, 1, 2, 2],
+                                 [1, 1, 2, 2, 3],
+                                 [1, 1, 2, 2, 3]])
+        e_df = pd.DataFrame(np.array([[0, 1, -4, -0.5, 0.5],
+                                      [2, 0, -3, 3.5, -3.5],
+                                      [1, -1, -0.5, 0.5, 0],
+                                      [-2, 2, 0, 0, 0]], dtype='float'))
+        out_df = dry.iterate_over_norm_ndarray_and_normalize(data_df, norm_ndarray)
+        self.assertTrue(np.array_equal(out_df, e_df),
+                        ("\nExpected out:\n{} " +
+                         "\nActual out:\n{}").format(e_df, out_df))
+
+        # Totally weird but acceptable norm_ndarray
+        norm_ndarray = np.array([[2, 2, 3, 3, 3],
+                                 [1, 1, 2, 2, 2],
+                                 [-1, -1, -1, -1, -1],
+                                 [1, 1, 0, 0, 0]])
+        e_df = pd.DataFrame(np.array([[-0.5, 0.5, -5, 0, 1],
+                                      [1, -1, 0, 5, -2],
+                                      [1, -1, 0, 1, -5],
+                                      [-2, 2, 0, 0, 2]], dtype='float'))
+        out_df = dry.iterate_over_norm_ndarray_and_normalize(data_df, norm_ndarray)
+        self.assertTrue(np.array_equal(out_df, e_df),
+                        ("\nExpected out:\n{} " +
+                         "\nActual out:\n{}").format(e_df, out_df))
+
+    def test_subset_normalize(self):
+        row_df = pd.DataFrame(np.array([["8350", "1"], ["8350", "1"],
+                                        ["8350", "2"], ["8350", "2"]]),
+                              index=["r1", "r2", "r3", "r4"],
+                              columns=["pr_gene_id", "pr_probe_normalization_group"])
+        col_df = pd.DataFrame(np.array([["G-0022", "1,1"], ["G-0022", "1,1"], ["G-0022", "1,2"],
+                                        ["G-0022", "2,2"], ["G-0022", "2,2"]]),
+                              index=["c1", "c2", "c3", "c4", "c5"],
+                              columns=["det_plate", "det_normalization_group_vector"])
+        data_df = pd.DataFrame(np.array([[7, 8, 3, 8, 9],
+                                         [9, 7, 4, 9, 2],
+                                         [8, 6, 7, 8, 2],
+                                         [4, 8, 5, 5, 7]], dtype='float'))
+        prov_code = ["GR1", "L2X", "SF3"]
+        e_prov_code = ["GR1", "L2X", "SF3", "GMN"]
+        e_df = pd.DataFrame(np.array([[0, 1, -4, -0.5, 0.5],
+                                      [2, 0, -3, 3.5, -3.5],
+                                      [1, -1, 0, 1, -5],
+                                      [-2, 2, 0, 0, 2]], dtype='float'))
+        (out_df, out_prov_code) = dry.subset_normalize(data_df, row_df, col_df, prov_code)
+        self.assertTrue(np.array_equal(out_df, e_df),
+                        ("\nExpected out:\n{} " +
+                         "\nActual out:\n{}").format(e_df, out_df))
+
+        # Check prov code too
+        self.assertEqual(out_prov_code, e_prov_code,
+                         ("The expected provenance code is {}, " +
+                          "not {}").format(e_prov_code, out_prov_code))
+
+    def test_create_output_gct(self):
+        row_df = pd.DataFrame(np.array([["8350", "1"], ["8350", "1"],
+                                        ["8350", "2"], ["8350", "2"]]),
+                              index=["r1", "r2", "r3", "r4"],
+                              columns=["pr_gene_id", "pr_probe_normalization_group"])
+        col_df = pd.DataFrame(np.array([["G-0021", "PRM+L2X"], ["G-0022", "PRM+L2X"], ["G-0023", "PRM+L2X"],
+                                        ["G-0024", "PRM+L2X"], ["G-0025", "PRM+L2X"]]),
+                              index=["c1", "c2", "c3", "c4", "c5"],
+                              columns=["det_plate", "provenance_code"])
+        data_df = pd.DataFrame(np.array([[1, 2, 3],
+                                         [4, 5, 6]]),
+                                        index=["r1", "r3"],
+                                        columns=["c2", "c4", "c5"],
+                                        dtype='float')
+        offsets = np.array([1.1, 2.2, 3.3], dtype=float)
+        prov_code = ["PRM", "L2X", "GMN", "SF3"]
+        prov_code_delimiter = "+"
+        out_gct = dry.create_output_gct(data_df, row_df, col_df, offsets, prov_code, prov_code_delimiter)
+
+        e_row_df = pd.DataFrame(np.array([["8350", "1"], ["8350", "2"]]),
+                              index=["r1", "r3"],
+                              columns=["pr_gene_id", "pr_probe_normalization_group"])
+        e_col_df = pd.DataFrame(np.array([["G-0022", "PRM+L2X+GMN+SF3", "1.1"],
+                                          ["G-0024", "PRM+L2X+GMN+SF3", "2.2"],
+                                          ["G-0025", "PRM+L2X+GMN+SF3", "3.3"]]),
+                              index=["c2", "c4", "c5"],
+                              columns=["det_plate", "provenance_code", "optimization_offset"])
+        self.assertTrue(np.array_equal(out_gct.row_metadata_df, e_row_df),
+                        ("\nExpected out:\n{} " +
+                         "\nActual out:\n{}").format(e_row_df, out_gct.row_metadata_df))
+        self.assertTrue(np.array_equal(out_gct.col_metadata_df, e_col_df),
+                        ("\nExpected out:\n{} " +
+                         "\nActual out:\n{}").format(e_col_df, out_gct.col_metadata_df))
+        self.assertTrue(np.array_equal(out_gct.data_df, data_df),
+                        ("\nExpected out:\n{} " +
+                         "\nActual out:\n{}").format(data_df, out_gct.data_df))
 
 
 if __name__ == "__main__":
