@@ -40,7 +40,6 @@ class TestDry(unittest.TestCase):
                        "-probe_nan_thresh {} " +
                        "-probe_sd_cutoff {} " +
                        "-dist_sd_cutoff {} " +
-                       # "-subset_normalize_bool " +
                        "-optim -v").format(input_gct_path, functional_tests_dir,
                                            OUT_NAME, DEFAULT_PSP_CONFIG_PATH,
                                            0.8, 0.9, 3, 3)
@@ -52,12 +51,9 @@ class TestDry(unittest.TestCase):
         e_gct = parse_gctoo.parse(e_output_gct_path)
 
         self.assertTrue(np.allclose(out_gct.data_df, e_gct.data_df, atol=1e-1, equal_nan=True),
-                        ("\nExpected data_df:\n{} " +
-                         "\nActual data_df:\n{}").format(e_gct.data_df, out_gct.data_df))
+                        "The data_df that was returned is wrong.")
         self.assertTrue(np.array_equal(e_gct.row_metadata_df, out_gct.row_metadata_df),
-                         ("\nExpected row_metadata_df:\n{} " +
-                         "\nActual row_metadata_df:\n{}").format(e_gct.row_metadata_df, out_gct.row_metadata_df))
-
+                         "The row_metadata_df that was returned is wrong.")
         # Column metadata should have one more header
         self.assertEqual(e_gct.col_metadata_df.shape[1] + 1, out_gct.col_metadata_df.shape[1],
                          ("Actual col_metadata_df should have one more header" +
@@ -65,18 +61,15 @@ class TestDry(unittest.TestCase):
                           "e_gct.col_metadata_df.shape: {}, " +
                           "out_gct.col_metadata_df.shape: {}").format(e_gct.col_metadata_df.shape,
                                                                       out_gct.col_metadata_df.shape[1]))
+        # Check that column metadata is correct for all but the new header
+        self.assertTrue(np.array_equal(e_gct.col_metadata_df, out_gct.col_metadata_df.iloc[:, :-1]),
+                        "The col_metadata_df that was returned is wrong.")
 
-        logger.info("Mean difference between gcts: {}".format(np.mean(e_gct.data_df.values - out_gct.data_df.values)))
-        logger.info("Mean absolute difference between gcts: {}".format(np.mean(np.absolute(e_gct.data_df.values - out_gct.data_df.values))))
+        logger.info("Mean difference between gcts: {}".format(np.nanmean(e_gct.data_df.values - out_gct.data_df.values)))
+        logger.info("Mean absolute difference between gcts: {}".format(np.nanmean(np.absolute(e_gct.data_df.values - out_gct.data_df.values))))
 
         # Clean up
-        # os.remove(os.path.join(functional_tests_dir, OUT_NAME))
-
-
-
-    # TODO(lev): DEBUG THIS ONE!
-
-
+        os.remove(os.path.join(functional_tests_dir, OUT_NAME))
 
     def test_GCP_main(self):
         # Get input asset from config file
@@ -96,7 +89,6 @@ class TestDry(unittest.TestCase):
                        "-sample_nan_thresh {} " +
                        "-probe_nan_thresh {} " +
                        "-probe_sd_cutoff {} " +
-                       # "-subset_normalize_bool " +
                        "-optim -v").format(input_gct_path, functional_tests_dir,
                                            OUT_NAME, DEFAULT_PSP_CONFIG_PATH,
                                            0.5, 0.5, 4)
@@ -108,31 +100,24 @@ class TestDry(unittest.TestCase):
         e_gct = parse_gctoo.parse(e_output_gct_path)
 
         self.assertTrue(np.allclose(out_gct.data_df, e_gct.data_df, atol=1e-1, equal_nan=True),
-                        ("\nExpected data_df:\n{} " +
-                         "\nActual data_df:\n{}").format(e_gct.data_df, out_gct.data_df))
+                        "The data_df that was returned is wrong.")
         self.assertTrue(np.array_equal(e_gct.row_metadata_df, out_gct.row_metadata_df),
-                         ("\nExpected row_metadata_df:\n{} " +
-                         "\nActual row_metadata_df:\n{}").format(e_gct.row_metadata_df, out_gct.row_metadata_df))
+                        "The row_metadata_df that was returned is wrong.")
+        self.assertTrue(np.array_equal(e_gct.col_metadata_df, out_gct.col_metadata_df),
+                        "The col_metadata_df that was returned is wrong.")
 
-        # Column metadata should have one more header
-        self.assertEqual(e_gct.col_metadata_df.shape[1] + 1, out_gct.col_metadata_df.shape[1],
-                         ("Actual col_metadata_df should have one more header" +
-                          "than e_col_metadata_df.\n" +
-                          "e_gct.col_metadata_df.shape: {}, " +
-                          "out_gct.col_metadata_df.shape: {}").format(e_gct.col_metadata_df.shape,
-                                                                      out_gct.col_metadata_df.shape[1]))
+        # self.assertEqual(e_gct.col_metadata_df.shape[1], out_gct.col_metadata_df.shape[1],
+        #                  ("Actual col_metadata_df should have the same number of headers " +
+        #                   "as e_col_metadata_df.\n" +
+        #                   "e_gct.col_metadata_df.shape: {}, " +
+        #                   "out_gct.col_metadata_df.shape: {}").format(e_gct.col_metadata_df.shape,
+        #                                                               out_gct.col_metadata_df.shape))
 
-        logger.info("Mean difference between gcts: {}".format(np.mean(e_gct.data_df.values - out_gct.data_df.values)))
-        logger.info("Mean absolute difference between gcts: {}".format(np.mean(np.absolute(e_gct.data_df.values - out_gct.data_df.values))))
+        logger.info("Mean difference between gcts: {}".format(np.nanmean(e_gct.data_df.values - out_gct.data_df.values)))
+        logger.info("Mean absolute difference between gcts: {}".format(np.nanmean(np.absolute(e_gct.data_df.values - out_gct.data_df.values))))
 
         # Clean up
-        # os.remove(os.path.join(functional_tests_dir, OUT_NAME))
-
-
-   # TODO(lev): DEBUG THIS ONE!
-
-
-
+        os.remove(os.path.join(functional_tests_dir, OUT_NAME))
 
     def test_p100_subset_main(self):
         # Get input asset from config file
@@ -153,7 +138,7 @@ class TestDry(unittest.TestCase):
                        "-probe_nan_thresh {} " +
                        "-probe_sd_cutoff {} " +
                        "-dist_sd_cutoff {} " +
-                       # "-subset_normalize_bool " +
+                       "-subset_normalize_bool " +
                        "-optim -v").format(input_gct_path, functional_tests_dir,
                                            OUT_NAME, DEFAULT_PSP_CONFIG_PATH,
                                            0.8, 0.9, 3, 3)
@@ -165,11 +150,9 @@ class TestDry(unittest.TestCase):
         e_gct = parse_gctoo.parse(e_output_gct_path)
 
         self.assertTrue(np.allclose(out_gct.data_df, e_gct.data_df, atol=1e-1, equal_nan=True),
-                        ("\nExpected data_df:\n{} " +
-                         "\nActual data_df:\n{}").format(e_gct.data_df, out_gct.data_df))
+                        "The data_df that was returned is wrong.")
         self.assertTrue(np.array_equal(e_gct.row_metadata_df, out_gct.row_metadata_df),
-                         ("\nExpected row_metadata_df:\n{} " +
-                         "\nActual row_metadata_df:\n{}").format(e_gct.row_metadata_df, out_gct.row_metadata_df))
+                         "The row_metadata_df that was returned is wrong.")
 
         # Column metadata should have one more header
         self.assertEqual(e_gct.col_metadata_df.shape[1] + 1, out_gct.col_metadata_df.shape[1],
@@ -179,11 +162,15 @@ class TestDry(unittest.TestCase):
                           "out_gct.col_metadata_df.shape: {}").format(e_gct.col_metadata_df.shape,
                                                                       out_gct.col_metadata_df.shape[1]))
 
-        logger.info("Mean difference between gcts: {}".format(np.mean(e_gct.data_df.values - out_gct.data_df.values)))
-        logger.info("Mean absolute difference between gcts: {}".format(np.mean(np.absolute(e_gct.data_df.values - out_gct.data_df.values))))
+        # Check that column metadata is correct for all but the new header
+        self.assertTrue(np.array_equal(e_gct.col_metadata_df, out_gct.col_metadata_df.iloc[:, :-1]),
+                        "The col_metadata_df that was returned is wrong.")
+
+        logger.info("Mean difference between gcts: {}".format(np.nanmean(e_gct.data_df.values - out_gct.data_df.values)))
+        logger.info("Mean absolute difference between gcts: {}".format(np.nanmean(np.absolute(e_gct.data_df.values - out_gct.data_df.values))))
 
         # Clean up
-        # os.remove(os.path.join(functional_tests_dir, OUT_NAME))
+        os.remove(os.path.join(functional_tests_dir, OUT_NAME))
 
     def test_read_gct_and_check_provenance_code(self):
         # Get assets from config file
@@ -441,7 +428,7 @@ class TestDry(unittest.TestCase):
                                          [8, 6, 7, 8, 2],
                                          [4, 8, 5, 5, 7]]),
                                         index = ["a","b","c","d"],
-                                        dtype='float')
+                                        dtype="float")
         norm_ndarray = np.array([[1, 1, 1, 2, 2],
                                  [1, 1, 1, 2, 2],
                                  [1, 1, 2, 2, 2],
@@ -449,7 +436,7 @@ class TestDry(unittest.TestCase):
         e_df = pd.DataFrame(np.array([[0, 1, -4, -0.5, 0.5],
                                       [2, 0, -3, 3.5, -3.5],
                                       [1, -1, 0, 1, -5],
-                                      [-2, 2, 0, 0, 2]], dtype='float'))
+                                      [-2, 2, 0, 0, 2]], dtype="float"))
         out_df = dry.iterate_over_norm_ndarray_and_normalize(data_df, norm_ndarray)
         self.assertTrue(np.array_equal(out_df, e_df),
                         ("\nExpected out:\n{} " +
@@ -463,7 +450,7 @@ class TestDry(unittest.TestCase):
         e_df = pd.DataFrame(np.array([[0, 1, -4, -0.5, 0.5],
                                       [2, 0, -3, 3.5, -3.5],
                                       [1, -1, -0.5, 0.5, 0],
-                                      [-2, 2, 0, 0, 0]], dtype='float'))
+                                      [-2, 2, 0, 0, 0]], dtype="float"))
         out_df = dry.iterate_over_norm_ndarray_and_normalize(data_df, norm_ndarray)
         self.assertTrue(np.array_equal(out_df, e_df),
                         ("\nExpected out:\n{} " +
@@ -477,7 +464,7 @@ class TestDry(unittest.TestCase):
         e_df = pd.DataFrame(np.array([[-0.5, 0.5, -5, 0, 1],
                                       [1, -1, 0, 5, -2],
                                       [1, -1, 0, 1, -5],
-                                      [-2, 2, 0, 0, 2]], dtype='float'))
+                                      [-2, 2, 0, 0, 2]], dtype="float"))
         out_df = dry.iterate_over_norm_ndarray_and_normalize(data_df, norm_ndarray)
         self.assertTrue(np.array_equal(out_df, e_df),
                         ("\nExpected out:\n{} " +
@@ -495,13 +482,13 @@ class TestDry(unittest.TestCase):
         data_df = pd.DataFrame(np.array([[7, 8, 3, 8, 9],
                                          [9, 7, 4, 9, 2],
                                          [8, 6, 7, 8, 2],
-                                         [4, 8, 5, 5, 7]], dtype='float'))
+                                         [4, 8, 5, 5, 7]], dtype="float"))
         prov_code = ["GR1", "L2X", "SF3"]
         e_prov_code = ["GR1", "L2X", "SF3", "GMN"]
         e_df = pd.DataFrame(np.array([[0, 1, -4, -0.5, 0.5],
                                       [2, 0, -3, 3.5, -3.5],
                                       [1, -1, 0, 1, -5],
-                                      [-2, 2, 0, 0, 2]], dtype='float'))
+                                      [-2, 2, 0, 0, 2]], dtype="float"))
         (out_df, out_prov_code) = dry.subset_normalize(data_df, row_df, col_df, prov_code)
         self.assertTrue(np.array_equal(out_df, e_df),
                         ("\nExpected out:\n{} " +
@@ -525,7 +512,7 @@ class TestDry(unittest.TestCase):
                                          [4, 5, 6]]),
                                         index=["r1", "r3"],
                                         columns=["c2", "c4", "c5"],
-                                        dtype='float')
+                                        dtype="float")
         offsets = np.array([1.1, 2.2, 3.3], dtype=float)
         prov_code = ["PRM", "L2X", "GMN", "SF3"]
         prov_code_delimiter = "+"
@@ -548,6 +535,46 @@ class TestDry(unittest.TestCase):
         self.assertTrue(np.array_equal(out_gct.data_df, data_df),
                         ("\nExpected out:\n{} " +
                          "\nActual out:\n{}").format(data_df, out_gct.data_df))
+
+    def test_slice_metadata_using_already_sliced_data_df(self):
+        data = pd.DataFrame([[2,3],[5,6],[11,12]],
+                            index=["a","b","d"],
+                            columns=["f","g"])
+        row_meta = pd.DataFrame([["rm1","rm2"],["rm3","rm4"],
+                                 ["rm5","rm6"],["rm7","rm8"]],
+                                index=["a","b","c","d"],
+                                columns=["row_field1", "row_field2"])
+        col_meta = pd.DataFrame([["cm1","cm2"],["cm3","cm4"],["cm5","cm6"]],
+                                index=["e","f","g"],
+                                columns=["col_field1","col_field2"])
+        e_row_meta = pd.DataFrame([["rm1","rm2"],["rm3","rm4"],["rm7","rm8"]],
+                                index=["a","b","d"],
+                                columns=["row_field1", "row_field2"])
+        e_col_meta = pd.DataFrame([["cm3","cm4"],["cm5","cm6"]],
+                                index=["f","g"],
+                                columns=["col_field1","col_field2"])
+
+        (out_row, out_col) = dry.slice_metadata_using_already_sliced_data_df(data,
+                                                                             row_meta,
+                                                                             col_meta)
+        self.assertTrue(np.array_equal(out_row, e_row_meta),
+                        "Row metadata dataframe is wrong: \n{}".format(out_row))
+        self.assertTrue(np.array_equal(out_col, e_col_meta),
+                        "Col metadata dataframe is wrong: \n{}".format(out_col))
+        
+    def test_check_for_subsets(self):
+        row_meta = pd.DataFrame([["rm1","rm2"],["rm3","rm4"],
+                                 ["rm5","rm6"],["rm7","rm8"]],
+                                index=["a","b","c","d"],
+                                columns=["row_field1", "row_field2"])
+        col_meta = pd.DataFrame([["cm1","cm2"],["cm3","cm4"],["cm5","cm6"]],
+                                index=["e","f","g"],
+                                columns=["col_field1","col_field2"])
+        row_field = "row_field1"
+        col_field = "col_field2"
+        subsets_exist = dry.check_for_subsets(row_meta, col_meta, row_field, col_field)
+
+        self.assertTrue(subsets_exist)
 
 
 if __name__ == "__main__":

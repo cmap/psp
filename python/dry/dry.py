@@ -24,7 +24,6 @@ N.B. This script requires a configuration file in your home directory
 (e.g. ~/.PSP_config).
 
 """
-
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
@@ -101,10 +100,11 @@ def main(args):
     #     gct.data_df, args.normalization_peptide_id, prov_code)
 
     ### LOG TRANSFORM
-    (log_transformed_df, prov_code) = do_log_transform_if_needed(gct.data_df, prov_code)
+    (gct.data_df, prov_code) = do_log_transform_if_needed(gct.data_df, prov_code)
 
     ### GCP HISTONE NORMALIZE (if GCP)
-    (out_df, prov_code) = do_gcp_histone_normalize_if_needed(log_transformed_df, args.normalization_peptide_id, prov_code)
+    (gct.data_df, prov_code) = do_gcp_histone_normalize_if_needed(gct.data_df, args.normalization_peptide_id, prov_code)
+    (gct.row_metadata_df, gct.col_metadata_df) = slice_metadata_using_already_sliced_data_df(gct.data_df, gct.row_metadata_df, gct.col_metadata_df)
 
     ##########
 
@@ -115,6 +115,7 @@ def main(args):
 
     ### FILTER SAMPLES BY NAN
     gct.data_df = filter_samples_by_nan(gct.data_df, args.sample_nan_thresh)
+    (gct.row_metadata_df, gct.col_metadata_df) = slice_metadata_using_already_sliced_data_df(gct.data_df, gct.row_metadata_df, gct.col_metadata_df)
     thresh_digit = ("{:.1f}".format(args.sample_nan_thresh)).split(".")[1]
     prov_code_entry = "SF{}".format(thresh_digit)
     prov_code.append(prov_code_entry)
@@ -126,6 +127,7 @@ def main(args):
 
     ### FILTER MANUALLY REJECTED PROBES
     gct.data_df = manual_probe_rejection(gct.data_df, gct.row_metadata_df)
+    (gct.row_metadata_df, gct.col_metadata_df) = slice_metadata_using_already_sliced_data_df(gct.data_df, gct.row_metadata_df, gct.col_metadata_df)
     # prov_code_entry = "MPR"
     # prov_code.append(prov_code_entry)
 
@@ -133,38 +135,46 @@ def main(args):
 
     ### FILTER PROBES BY NAN AND SD
     gct.data_df = filter_probes_by_nan_and_sd(gct.data_df, args.probe_nan_thresh, args.probe_sd_cutoff)
-    # thresh_digit = ("{:.1f}".format(args.probe_nan_thresh)).split(".")[1]
-    # prov_code_entry = "PF{}".format(thresh_digit)
-    prov_code_entry = "OSF"
+    (gct.row_metadata_df, gct.col_metadata_df) = slice_metadata_using_already_sliced_data_df(gct.data_df, gct.row_metadata_df, gct.col_metadata_df)
+    thresh_digit = ("{:.1f}".format(args.probe_nan_thresh)).split(".")[1]
+    prov_code_entry = "PF{}".format(thresh_digit)
     prov_code.append(prov_code_entry)
 
     ##########
 
-    # TODO(lev): should only happen for P100
-    ### CALCULATE DISTANCES
-    (gct.data_df, offsets, dists, success_bools, prov_code) = calculate_distances_and_optimize_if_needed(gct.data_df, args.optim, args.optim_bounds, prov_code)
+    # TODO(lev): rename to remove_sample_outliers_by_distance?
+    # TODO(lev): redo this so that the distance calc only happens for p100
+    if prov_code[0] in ["PR1", "DIA1", "PRM"]:
+        ### CALCULATE DISTANCES
+        (gct.data_df, offsets, dists, success_bools, prov_code) = calculate_distances_and_optimize_if_needed(gct.data_df, args.optim, args.optim_bounds, prov_code)
 
-    ### REMOVE SAMPLE OUTLIERS
-    (gct.data_df, offsets_of_remaining_data) = remove_sample_outliers(gct.data_df, offsets, dists, success_bools, args.dist_sd_cutoff)
-    cutoff_digit = ("{:.1f}".format(args.dist_sd_cutoff)).split(".")[1]
-    prov_code_entry = "OF{}".format(cutoff_digit)
-    prov_code.append(prov_code_entry)
+        ### REMOVE SAMPLE OUTLIERS
+        (gct.data_df, offset_subset) = remove_sample_outliers(gct.data_df, offsets, dists, success_bools, args.dist_sd_cutoff)
+        (gct.row_metadata_df, gct.col_metadata_df) = slice_metadata_using_already_sliced_data_df(gct.data_df, gct.row_metadata_df, gct.col_metadata_df)
+        # prov_code_entry = "OF{:.0f}".format(args.dist_sd_cutoff)
+        prov_code_entry = "OSF"
+        prov_code.append(prov_code_entry)
+    else:
+        offset_subset = None
 
     ##########
 
     # 5) Row median and probe-group specific normalize
     # (gct.data_df, prov_code) = row_median_and_subset_normalize(gct.data_df, prov_code, args.subset_normalize)
 
-    ### ROW MEDIAN NORMALIZE
-    gct.data_df = row_median_normalize(gct.data_df)
-    prov_code_entry = "RMN"
-    prov_code.append(prov_code_entry)
+    ### ROW MEDIAN OR SUBSET NORMALIZE
+    ROW_SUBSET_FIELD = "pr_probe_normalization_group"
+    COL_SUBSET_FIELD = "det_normalization_group_vector"
+    subsets_exist = check_for_subsets(gct.row_metadata_df, gct.col_metadata_df, ROW_SUBSET_FIELD, COL_SUBSET_FIELD)
 
-    # TODO(lev): make sure this works.
+    print subsets_exist
 
-    ### SUBSET NORMALIZE
-    if args.subset_normalize_bool:
+    if args.subset_normalize_bool and subsets_exist:
         (gct.data_df, prov_code) = subset_normalize(gct.data_df, gct.row_metadata_df, gct.col_metadata_df, prov_code)
+    else:
+        gct.data_df = row_median_normalize(gct.data_df)
+        prov_code_entry = "RMN"
+        prov_code.append(prov_code_entry)
 
     ##########
 
@@ -174,7 +184,7 @@ def main(args):
 
     # 7) Create processed gct object
     out_gct = create_output_gct(gct.data_df, gct.row_metadata_df, gct.col_metadata_df,
-                                offsets_of_remaining_data, prov_code, args.prov_code_delimiter)
+                                offset_subset, prov_code, args.prov_code_delimiter)
 
     # 8) Save processed gct object to file
     out_fname = os.path.join(args.out_path, args.out_name)
@@ -726,10 +736,11 @@ def remove_sample_outliers(data_df, offsets, distances, success_bools, dist_sd_c
     # Remove samples whose distance metric is greater than the cutoff OR
     # those that didn't converge during optimization
     samples_to_keep = np.logical_and(distances < cutoff, success_bools)
-    out_df = data_df.iloc[:, samples_to_keep]
-    out_offsets = offsets[samples_to_keep]
-    assert not out_df.empty, "All samples were filtered out. Try increasing the SD cutoff."
 
+    out_df = data_df.iloc[:, samples_to_keep]
+    # assert not out_df.empty, "All samples were filtered out. Try increasing the SD cutoff."
+
+    out_offsets = offsets[samples_to_keep]
     return out_df, out_offsets
 
 # tested #
@@ -864,7 +875,76 @@ def iterate_over_norm_ndarray_and_normalize(data_df, norm_ndarray):
     return normalized_data
 
 
-if __name__ == '__main__':
+def slice_metadata_using_already_sliced_data_df(data_df, row_meta_df, col_meta_df):
+    """Slice row_meta_df and col_meta_df to only contain the row_ids and col_ids
+    in data_df.
+
+    Args:
+        data_df (pandas df): containing only the data we want to keep
+        row_meta_df (pandas df)
+        col_meta_df (pandas df)
+
+    Returns:
+        row_meta_df_sliced (pandas df)
+        col_meta_df_sliced (pandas df)
+
+    """
+    # Get rows and samples to keep from data_df
+    rows = data_df.index.values
+    cols = data_df.columns.values
+
+    # Number of rows and samples should be > 1
+    # If only one row or col, the df will be transposed and that will be ugly
+    if not len(rows) > 1:
+        err_msg = "Fewer than 2 rows remain after data processing. I don't like that!"
+        logger.error(err_msg)
+        raise Exception(err_msg)
+    if not len(cols) > 1:
+        err_msg = "Fewer than 2 columns remain after data processing. I don't like that!"
+        logger.error(err_msg)
+        raise Exception(err_msg)
+
+    # Extract remaining rows and samples from row and col metadata dfs
+    row_meta_df_sliced = row_meta_df.loc[rows, :]
+    col_meta_df_sliced = col_meta_df.loc[cols, :]
+
+    return row_meta_df_sliced, col_meta_df_sliced
+
+
+def check_for_subsets(row_meta_df, col_meta_df, row_subset_field, col_subset_field):
+    """Read metadata to see if subset normalization could be performed. That is,
+     if the row or column metadata has more than one unique value in
+     the subset fields.
+
+    Args:
+        row_meta_df (pandas df)
+        col_meta_df (pandas df)
+        row_subset_field (string)
+        col_subset_field (string)
+
+    Returns:
+        subsets_exist (bool): true if there
+
+    """
+    # Verify that subset metadata fields are in the metadata dfs
+    assert row_subset_field in row_meta_df.columns, (
+        "Row_meta_df does not have the row_subset_field: {}.".format(row_subset_field))
+    assert col_subset_field in col_meta_df.columns, (
+        "Col_meta_df does not have the col_subset_field: {}.".format(col_subset_field))
+
+    num_unique_row_subsets = len(np.unique(row_meta_df.loc[:, row_subset_field].values));
+    num_unique_col_subsets = len(np.unique(col_meta_df.loc[:, col_subset_field].values));
+
+    # If either metadata field has more than one unique value, return true
+    if num_unique_row_subsets > 1 or num_unique_col_subsets > 1:
+        subsets_exist = True
+    else:
+        subsets_exist = False
+
+    return subsets_exist
+
+
+if __name__ == "__main__":
     args = build_parser().parse_args(sys.argv[1:])
     setup_logger.setup(verbose=args.verbose)
     logger.debug("args: {}".format(args))
