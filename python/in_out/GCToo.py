@@ -71,20 +71,30 @@ class GCToo(object):
         """Prints a string representation of a GCToo object."""
         version = "GCT v{}\n".format(self.version)
         source = "src: {}\n".format(self.src)
-        data = "data_df: [{} rows x {} columns]\n".format(
+
+        if self.data_df is not None:
+            data = "data_df: [{} rows x {} columns]\n".format(
             self.data_df.shape[0], self.data_df.shape[1])
-        row_meta = "row_metadata_df: [{} rows x {} columns]\n".format(
+        else:
+            data = "data_df: None\n"
+
+        if self.row_metadata_df is not None:
+            row_meta = "row_metadata_df: [{} rows x {} columns]\n".format(
             self.row_metadata_df.shape[0], self.row_metadata_df.shape[1])
-        col_meta = "col_metadata_df: [{} rows x {} columns]".format(
+        else:
+            row_meta = "row_metadata_df: None\n"
+
+        if self.col_metadata_df is not None:
+            col_meta = "col_metadata_df: [{} rows x {} columns]".format(
             self.col_metadata_df.shape[0], self.col_metadata_df.shape[1])
+        else:
+            col_meta = "col_metadata_df: None\n"
 
         full_string = (version + source + data + row_meta + col_meta)
         return full_string
 
-
     def assemble_multi_index_df(self):
-        """
-        Assembles three component dataframes into a multiindex dataframe.
+        """Assembles three component dataframes into a multiindex dataframe.
         Sets the result to self.multi_index_df.
 
         IMPORTANT: Cross-section ("xs") is the best command for selecting
@@ -115,3 +125,56 @@ class GCToo(object):
 
         self.multi_index_df = multi_index_df
         return multi_index_df
+
+
+def slice(gctoo, row_bool=None, col_bool=None):
+    """Extract a subset of data from a GCToo object in a variety of ways.
+
+    Args:
+        gctoo (GCToo object)
+        row_id (list of strings): if empty, will use all rid
+        row_bool (list of bools): length must equal gctoo.data_df.shape[0]
+        col_id (list of strings): if empty, will use all cid
+        col_bool (list of bools): length must equal gctoo.data_df.shape[1]
+
+        NOT YET IMPLEMENTED:
+        row_meta_field (list of strings)
+        row_meta_values (list of strings)
+        exclude_rid (bool): if true, select row ids EXCLUDING 'rid' (default: False)
+        exclude_cid (bool): if true, select col ids EXCLUDING 'cid' (default: False)
+        ridx (list of ints): select rows using row indices
+        cidx (list of ints): select cols using col indices
+        ignore_missing (bool): if true, ignore missing ids (default: False)
+
+    Returns:
+        out_gctoo (GCToo object): gctoo after slicing
+
+    """
+    # TODO(lev): should use mutually exclusive groups and argparse here
+
+    # Initialize output
+    out_gctoo = GCToo()
+
+    # If row_bool is None, use all rids
+    if row_bool is None:
+        row_bool = [True] * gctoo.data_df.shape[0]
+    if col_bool is None:
+        col_bool = [True] * gctoo.data_df.shape[1]
+
+    assert len(row_bool) == gctoo.data_df.shape[0], 'len(row_bool) must equal gctoo.data_df.shape[0]'
+    assert len(col_bool) == gctoo.data_df.shape[1], 'len(row_bool) must equal gctoo.data_df.shape[1]'
+
+    # Use boolean indexing
+    out_gctoo.data_df = gctoo.data_df.iloc[row_bool, col_bool]
+    out_gctoo.row_metadata_df = gctoo.row_metadata_df.iloc[row_bool, :]
+    out_gctoo.col_metadata_df = gctoo.col_metadata_df.iloc[col_bool, :]
+
+    return out_gctoo
+
+
+
+
+
+
+
+
