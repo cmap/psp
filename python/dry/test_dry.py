@@ -1,16 +1,14 @@
 import unittest
 import logging
-import setup_GCToo_logger as setup_logger
+import utils.setup_logger as setup_logger
 import ConfigParser
 import os
 import sys
-
-import in_out.parse_gctoo as parse_gctoo
 import numpy as np
 import pandas as pd
-import dry
 
-import in_out.gct as gct
+import in_out.parse_gctoo as parse_gctoo
+import dry
 
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)

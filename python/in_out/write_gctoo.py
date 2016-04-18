@@ -1,5 +1,5 @@
 import logging
-import setup_GCToo_logger as setup_logger
+import utils.setup_logger as setup_logger
 import pandas as pd
 import numpy as np
 import os.path
