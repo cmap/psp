@@ -1,6 +1,9 @@
 import setuptools
 
-setuptools.setup(name="PSP",
-    version="0.1",
-    author="lev",
-    packages=["in_out","utils","dry"])
+setuptools.setup(
+    name="psp",
+    version="0.2",
+    author="Lev Litichevskiy",
+    author_email="lev@broadinstitute.org",
+    url="https://github.com/cmap/proteomics-signature-pipeline.git",
+    packages=["in_out", "utils", "dry"])
