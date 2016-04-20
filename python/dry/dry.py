@@ -15,34 +15,66 @@ import in_out.write_gctoo as write_gctoo
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
 
-""" Performs filtering and normalization of P100 and GCP data.
+"""Performs filtering and normalization of P100 and GCP data.
 
-Converts level 2 to level 3 data. Required input is a filepath to a gct file.
-Output is a gct file. Assay type is determined from the provenance code.
+Converts level 2 to level 3 data. Required input is a filepath to a gct file,
+a filepath to an output file, and what to name the output file.
+Output is writing the gct file.
 
-N.B. This script requires a configuration file in your home directory
-(e.g. ~/.PSP_config).
+N.B. This script requires a configuration file. You can specify the location
+of this config file with the optional argument -psp_config_path. Otherwise,
+it will look for psp.cfg in your home directory. See
+broadinstitute.psp/python/example_psp.cfg for an example config file.
+
+Example usage:
+    python dry/dry.py input.gct /path/to/output/dir output.gct
+    -sample_nan_thresh 0.9 -subset_normalize_bool -optim -force_assay PR1
 
 """
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
+LOG_TRANSFORM_PROV_CODE_ENTRY = "L2X"
+GCP_HISTONE_PROV_CODE_ENTRY = "H3N"
+SAMPLE_FILTER_PROV_CODE_ENTRY = "SF"
+MANUAL_PROBE_FILTER_PROV_CODE_ENTRY = "MPR" # not used
+PROBE_FILTER_PROV_CODE_ENTRY = "PF"
+OPTIMIZATION_PROV_CODE_ENTRY = "LLB" # rename to OPT?
+OUTLIER_SAMPLE_FILTER_PROV_CODE_ENTRY = "OSF" # add sd cutoff?
+SUBSET_NORMALIZE_PROV_CODE_ENTRY = "GMN" # rename to SSN (SubSetNormalize)?
+ROW_NORMALIZE_PROV_CODE_ENTRY = "RMN"
+
 def build_parser():
     """Build argument parser."""
 
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    # Required arguments
+    # Required args
     parser.add_argument("gct_path", type=str, help="filepath to gct file")
     parser.add_argument("out_path", type=str, help="path to save directory")
     parser.add_argument("out_name", type=str, help="name of output gct")
 
-    # Filtering args
-    parser.add_argument("-sample_nan_thresh", type=float, default=0.3,
+    # Optional args
+    parser.add_argument("-verbose", "-v", action="store_true", default=False,
+                        help="increase the number of messages reported")
+    parser.add_argument("-psp_config_path", type=str,
+                        default="~/psp.cfg",
+                        help="filepath to PSP config file")
+    parser.add_argument("-force_assay", choices=["GR1", "PR1"], default=None, # TODO(lev): should I allow other options?
+                        help=("directly specify assay type here " +
+                              "(overrides first entry of provenance code)"))
+    parser.add_argument("-optim", action="store_true", default=False,
+                        help="whether to perform load balancing optimization")
+    parser.add_argument("-subset_normalize_bool", action="store_true", default=False,
+                        help="whether to perform subset-specific normalization")
+    # TODO(lev): do we want to keep this?
+
+    # Parameters
+    parser.add_argument("-sample_nan_thresh", type=float, default=0.8,
                         help=("if < sample_nan_thresh of a sample's data " +
                               "is non-nan, that sample will be filtered out"))
-    parser.add_argument("-probe_nan_thresh", type=float, default=0.3,
+    parser.add_argument("-probe_nan_thresh", type=float, default=0.9,
                         help=("if < probe_nan_thresh of a probe's data " +
                               "is non-nan, that probe will be filtered out"))
     parser.add_argument("-probe_sd_cutoff", type=float, default=3,
@@ -50,50 +82,8 @@ def build_parser():
     parser.add_argument("-dist_sd_cutoff", type=float, default=3,
                         help=("maximum SD for a sample's distance metric " +
                               "before being filtered out"))
-    parser.add_argument("-manual_rejection_field", type=str,
-                        default="pr_probe_suitability_manual",
-                        help=("row metadata field where user indicated if "
-                              "probe should be rejected"))
-
-    # Subset normalization args
-    parser.add_argument("-subset_normalize_bool", action="store_true", default=False,
-                        help="whether to perform subset-specific normalization")
-    parser.add_argument("-row_subset_field", type=str, default="pr_probe_normalization_group",
-                        help="row metadata field indicating the subset group")
-    parser.add_argument("-col_subset_field", type=str, default="det_normalization_group_vector",
-                        help="col metadata field indicating the subset group")
-
-    # P100-specific args
-    parser.add_argument("-optim", action="store_true",
-                        help="whether to perform load balancing optimization")
     parser.add_argument("-optim_bounds", type=tuple, default=(-7,7),
                         help="bounds over which to perform optimization")
-
-    # GCP-specific args
-    parser.add_argument("-normalization_peptide_id", type=str, default="BI10052",
-                        help=("which peptide to normalize to; " +
-                              "if None, gcp_histone_normalization not performed"))
-
-    # Metadata args
-    parser.add_argument("-prov_code_field", type=str, default="provenance_code",
-                        help="name of the col metadata field for the provenance code")
-    parser.add_argument("-prov_code_delimiter", type=str, default="+",
-                        help="string delimiter in provenance code")
-    parser.add_argument("-data_null", type=str, default="NaN",
-                        help="string with which to represent NaN in data of output gct")
-    parser.add_argument("-filler_null", type=str, default="NA",
-                        help="string with which to fill the empty top-left quadrant in the output gct")
-    parser.add_argument("-verbose", "-v", action="store_true", default=False,
-                        help="increase the number of messages reported")
-
-    # Miscellaneous
-    parser.add_argument("-PSP_config_path", type=str,
-                        default="~/.PSP_config", help="path to PSP config file")
-    parser.add_argument("-log2", action="store_true",
-                        help="whether to perform log2 normalization")
-    parser.add_argument("-force_assay", choices=["GCP", "P100"], default=None,
-                        help=("directly specify assay type here " +
-                              "(overrides first entry of provenance code)"))
 
     return parser
 
@@ -107,10 +97,11 @@ def main(args):
     Returns:
         out_gct (GCToo object): output gct object
     """
-    ### READ GCT AND EXTRACT PROVENANCE CODE
-    (gct, assay_type, prov_code, p100_assay_types, gcp_assay_types) = (
-        read_gct_and_extract_provenance_code(
-            args.gct_path,args.PSP_config_path, args.force_assay))
+    ### READ GCT AND CONFIG FILE
+    (gct, assay_type, prov_code, p100_assay_types,
+     gcp_assay_types, config_io, config_metadata) = (
+        read_gct_and_config_file(
+            args.gct_path, args.psp_config_path, args.force_assay))
 
     ### LOG TRANSFORM
     (gct.data_df, prov_code) = log_transform_if_needed(gct.data_df, prov_code)
@@ -118,12 +109,12 @@ def main(args):
     ### HISTONE NORMALIZE (if GCP)
     (gct, prov_code) = gcp_histone_normalize_if_needed(
         gct, assay_type, gcp_assay_types,
-        args.normalization_peptide_id, prov_code)
+        config_metadata["gcp_normalization_peptide_id"], prov_code)
 
     ### INITIAL FILTERING
     (gct, prov_code) = initial_filtering(
         gct, args.sample_nan_thresh, args.probe_nan_thresh,
-        args.probe_sd_cutoff, args.manual_rejection_field, prov_code)
+        args.probe_sd_cutoff, config_metadata["manual_rejection_field"], prov_code)
 
     ### APPLY OFFSETS IF NEEDED (if P100)
     (gct, dists, offsets, success_bools, prov_code) = (
@@ -134,59 +125,72 @@ def main(args):
     ### FILTER SAMPLES BY DISTANCE (if P100)
     (gct, out_offsets, prov_code) = p100_filter_samples_by_dist(
         gct, assay_type, p100_assay_types, offsets, dists,
-        success_bools, prov_code)
+        success_bools, args.dist_sd_cutoff, prov_code)
 
     ### MEDIAN NORMALIZE
-    (gct, prov_code) = row_median_normalize(
-        gct, args.subset_normalize_bool, args.row_subset_field,
-        args.col_subset_field, prov_code)
+    (gct, prov_code) = median_normalize(
+        gct, args.subset_normalize_bool, config_metadata["row_subset_field"],
+        config_metadata["col_subset_field"], prov_code)
 
-    ### INSERT OFFSETS AND UPDATED PROV CODE
+    ### INSERT OFFSETS AND UPDATE PROVENANCE CODE
     out_gct = insert_offsets_and_prov_code(
-        gct, out_offsets, prov_code,args.prov_code_field,
-        args.prov_code_delimiter)
+        gct, out_offsets, config_metadata["offsets_field"], prov_code,
+        config_metadata["prov_code_field"], config_metadata["prov_code_delimiter"])
 
     ### WRITE OUTPUT GCT
-    write_output_gct(gct, args.out_path, args.out_name,
-                     args.data_null, args.filler_null)
+    write_output_gct(out_gct, args.out_path, args.out_name,
+                     config_io["data_null"], config_io["filler_null"])
 
     return out_gct
 
 
 # tested #
-def read_gct_and_extract_provenance_code(gct_path, config_path, forced_assay_type):
-    """Create gct object and extract provenance code. Check that it is non-empty
-     and the same for all samples. If forced_assay_type is not None, set
-     assay_type to forced_assay_type.
+def read_gct_and_config_file(gct_path, config_path, forced_assay_type):
+    """Read gct and config file.
 
-     Args:
-         gct_path (filepath)
-         config_path (filepath)
-         forced_assay_type (string or None)
+    The config file has two sections: io and metadata. These are returned as
+    dictionaries. The field "nan_values" in "io" indicates what values to
+    consider NaN when reading in the gct file. The fields "gcp_assays" and
+    "p100_assays" are returned in order to be used by later functions that need
+    to know if the assay is P100 or GCP.
 
-     Returns:
-         gct (GCToo object)
-         assay_type (string)
-         prov_code (list of strings)
-         p100_assay_types (list of strings)
-         gcp_assay_types (list of strings)
-     """
+    Provenance code is extracted from the col metadata. It must be non-empty
+    and the same for all samples. If forced_assay_type is not None,
+    assay_type is set to forced_assay_type.
+
+    Args:
+        gct_path (string): filepath to gct file
+        config_path (srting): filepath to config file
+        forced_assay_type (string, or None)
+        prov_code_field (string): name of the col metadata field for the provenance code
+
+    Returns:
+        gct (GCToo object)
+        assay_type (string)
+        prov_code (list of strings)
+        p100_assay_types (list of strings)
+        gcp_assay_types (list of strings)
+        config_io (dictionary)
+        config_metadata (dictionary)
+    """
 
     # Read from config file
-    configParser = ConfigParser.RawConfigParser()
-    configParser.read(os.path.expanduser(config_path))
+    config_parser = ConfigParser.RawConfigParser()
+    config_parser.read(os.path.expanduser(config_path))
+    config_io = dict(config_parser.items("io"))
+    config_metadata = dict(config_parser.items("metadata"))
 
     # Extract what values to consider NaN
     # N.B. eval used to convert string from config file to list
-    PSP_nan_values = eval(configParser.get("io", "nan_values"))
+    psp_nan_values = eval(config_io["nan_values"])
 
     # Parse the gct file and return GCToo object
-    gct = parse_gctoo.parse(gct_path, nan_values=PSP_nan_values)
+    gct = parse_gctoo.parse(gct_path, nan_values=psp_nan_values)
 
-    # Extract the plate's provenance code and check that it is the same for all samples
-    prov_code = extract_prov_code(gct.col_metadata_df)
-
-    # TODO(lev): check that prov code only has allowed values?
+    # Extract the plate's provenance code
+    prov_code = extract_prov_code(gct.col_metadata_df,
+                                  config_metadata["prov_code_field"],
+                                  config_metadata["prov_code_delimiter"])
 
     # If forced_assay_type is not None, set assay_type to forced_assay_type.
     # Otherwise, the first entry of the provenance code is the assay_type.
@@ -196,29 +200,33 @@ def read_gct_and_extract_provenance_code(gct_path, config_path, forced_assay_typ
         assay_type = prov_code[0]
 
     # Make sure assay_type is one of the allowed values
-    p100_assay_types = eval(configParser.get("metadata", "P100_assays"))
-    gcp_assay_types = eval(configParser.get("metadata", "GCP_assays"))
-    allowed_assay_types = P100_assay_types + GCP_assay_types
+    p100_assay_types = eval(config_metadata["p100_assays"])
+    gcp_assay_types = eval(config_metadata["gcp_assays"])
+    allowed_assay_types = p100_assay_types + gcp_assay_types
     check_assay_type(assay_type, allowed_assay_types)
 
-    return gct, assay_type, prov_code, p100_assay_types, gcp_assay_types
+    return gct, assay_type, prov_code, p100_assay_types, gcp_assay_types, config_io, config_metadata
 
 
 # tested #
-def extract_prov_code(col_metadata_df):
+def extract_prov_code(col_metadata_df, prov_code_field, prov_code_delimiter):
     """Extract the provenance code from the column metadata.
-    Also verify that it is the same for all samples.
+    It must be non-empty and the same for all samples.
 
     Args:
         col_metadata_df (pandas df): contains provenance code metadata
+        prov_code_field (string): name of the col metadata field for the provenance code
+        prov_code_delimiter (string): string delimiter in provenance code
+
     Returns:
         prov_code (list of strings)
+
     """
     # Create pandas series of all provenance codes
-    prov_code_series = col_metadata_df.loc[:, "provenance_code"]
+    prov_code_series = col_metadata_df.loc[:, prov_code_field]
 
-    # Split each provenance code string along the separator
-    prov_code_list_series = prov_code_series.apply(lambda x: x.split("+"))
+    # Split each provenance code string along the delimiter
+    prov_code_list_series = prov_code_series.apply(lambda x: x.split(prov_code_delimiter))
 
     # Verify that all provenance codes are the same
     # (i.e. verify that the number of elements equal to the first element is
@@ -245,6 +253,7 @@ def check_assay_type(assay_type, allowed_assay_types):
     Args:
         assay_type (string)
         allowed_assay_types (list of strings)
+
     Returns:
         assay_ok (bool)
     """
@@ -257,8 +266,9 @@ def check_assay_type(assay_type, allowed_assay_types):
     return assay_ok
 
 
+# tested #
 def log_transform_if_needed(data_df, prov_code):
-    """Call log_transform if it hasn't already been done.
+    """Perform log2 transformation if it hasn't already been done.
 
     Args:
         data_df (pandas df)
@@ -266,18 +276,17 @@ def log_transform_if_needed(data_df, prov_code):
 
     Returns:
         out_df (pandas df)
-        updated_prov_code (list of strings)
+        updated_prov_code (list of strings): updated
     """
-
     # Check if log2 transformation has already occurred
-    if "L2X" in prov_code:
-        logger.info("L2X has already occurred.")
+    if LOG_TRANSFORM_PROV_CODE_ENTRY in prov_code:
+        logger.info("{} has already occurred.".format(LOG_TRANSFORM_PROV_CODE_ENTRY))
         out_df = data_df
         updated_prov_code = prov_code
     else:
-        data_df = log_transform(data_df, log_base=2)
-        prov_code_entry = "L2X"
-        updated_prov_code = prov_code.append(prov_code_entry)
+        out_df = log_transform(data_df, log_base=2)
+        prov_code_entry = LOG_TRANSFORM_PROV_CODE_ENTRY
+        updated_prov_code = prov_code + [prov_code_entry]
 
     return out_df, updated_prov_code
 
@@ -293,22 +302,25 @@ def log_transform(data_df, log_base):
         out_df (pandas df)
     """
     # Replace 0 with np.nan
-    data_df.replace(0, np.nan, inplace=True)
+    data_df_no_zeros = data_df.replace(0, np.nan)
 
     # Numpy operations work fine on dataframes
-    out_df = np.log(data_df) / np.log(log_base)
+    out_df = np.log(data_df_no_zeros) / np.log(log_base)
 
     return out_df
 
-
-def gcp_histone_normalize_if_needed(gct, assay_type, gcp_assays, normalization_peptide_id, prov_code):
-    """If GCP and normalization_peptide_id is not None, call gcp_histone_normalize.
+# tested #
+def gcp_histone_normalize_if_needed(gct, assay_type, gcp_assays, gcp_normalization_peptide_id, prov_code):
+    """If GCP and gcp_normalization_peptide_id is not None, perform
+     histone normalization. This subtracts the normalization probe row
+     from all the other probe rows. It also removes the normalization probe
+     from the data going forward.
 
     Args:
         gct (GCToo object)
         assay_type (string)
         gcp_assays (list of strings)
-        normalization_peptide_id (string)
+        gcp_normalization_peptide_id (string, or None)
         prov_code (list of strings)
 
     Returns:
@@ -316,15 +328,14 @@ def gcp_histone_normalize_if_needed(gct, assay_type, gcp_assays, normalization_p
             one row removed from each if normalization occurred
         updated_prov_code (list of strings)
     """
-
-    if (assay_type in gcp_assays) and (normalization_peptide_id is not None):
+    if (assay_type in gcp_assays) and (gcp_normalization_peptide_id is not None):
         # Perform normalization
-        out_df = gcp_histone_normalize(gct.data_df, normalization_peptide_id)
+        out_df = gcp_histone_normalize(gct.data_df, gcp_normalization_peptide_id)
 
         # Update gct object and provenance code
-        gct.data_df = out_df
-        prov_code_entry = "H3N"
-        (out_gct, updated_prov_code) = update_metadata_and_prov_code(gct, prov_code_entry, prov_code)
+        prov_code_entry = GCP_HISTONE_PROV_CODE_ENTRY
+        (out_gct, updated_prov_code) = update_metadata_and_prov_code(
+            out_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
 
     else:
         out_gct = gct
@@ -334,34 +345,39 @@ def gcp_histone_normalize_if_needed(gct, assay_type, gcp_assays, normalization_p
 
 
 # tested #
-def gcp_histone_normalize(data_df, normalization_peptide_id):
-    """Subtract values of normalization_peptide_id from all values.
-    Also, remove the row of data corresponding to the normalization histone.
+def gcp_histone_normalize(data_df, gcp_normalization_peptide_id):
+    """Subtract values of gcp_normalization_peptide_id from all the other probes.
+    Remove the row of data corresponding to the normalization histone.
 
     Args:
-        data_df: dataframe of floats
-        normalization_peptide_id: string
+        data_df (pandas df)
+        gcp_normalization_peptide_id (string)
+
     Returns:
-        out_df: dataframe of floats with one row removed
+        out_df (pandas df): one row removed
     """
     # Verify that normalization peptide is in the data
-    assert normalization_peptide_id in data_df.index, (
+    assert gcp_normalization_peptide_id in data_df.index, (
         ("The normalization peptide is not in this dataset. " +
-         "normalization_peptide_id: {}".format(normalization_peptide_id)))
+         "gcp_normalization_peptide_id: {}".format(gcp_normalization_peptide_id)))
 
     # Calculate normalization values
-    norm_values = data_df.loc[normalization_peptide_id, :]
+    norm_values = data_df.loc[gcp_normalization_peptide_id, :]
 
     # Drop the normalization peptide row
-    data_df.drop(normalization_peptide_id, inplace=True)
+    out_df = data_df.drop(gcp_normalization_peptide_id)
 
     # Subtract the normalization values from all rows
-    out_df = data_df - norm_values
+    out_df = out_df - norm_values
     return out_df
 
-
+# tested #
 def initial_filtering(gct, sample_nan_thresh, probe_nan_thresh, probe_sd_cutoff, manual_rejection_field, prov_code):
-    """Performs three types of filtering.
+    """Performs three types of filtering. filter_samples_by_nan removes
+    samples that have too many nan values. manual_probe_rejection removes
+    probes that were manually labeled for removal. filter_probes_by_nan_and_sd
+    removes probes if they have too many nan values OR if the SD for the whole
+    row is too high.
 
     Args:
         gct (GCToo object)
@@ -374,25 +390,28 @@ def initial_filtering(gct, sample_nan_thresh, probe_nan_thresh, probe_sd_cutoff,
     Returns:
         gct (GCToo object): updated
         prov_code (list of strings): updated
-
     """
 
     # Filter samples by nan
     gct.data_df = filter_samples_by_nan(gct.data_df, sample_nan_thresh)
     thresh_digit = ("{:.1f}".format(sample_nan_thresh)).split(".")[1]
-    prov_code_entry = "SF{}".format(thresh_digit)
-    (gct, prov_code) = update_metadata_and_prov_code(gct, prov_code_entry, prov_code)
+    prov_code_entry = "{}{}".format(SAMPLE_FILTER_PROV_CODE_ENTRY, thresh_digit)
+    (gct, prov_code) = update_metadata_and_prov_code(
+        gct.data_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
 
     # Filter manually rejected probes
     gct.data_df = manual_probe_rejection(gct.data_df, gct.row_metadata_df, manual_rejection_field)
     prov_code_entry = None # TODO(lev): do we want MPR as a provenance code entry?
-    (gct, prov_code) = update_metadata_and_prov_code(gct, prov_code_entry, prov_code)
+    (gct, prov_code) = update_metadata_and_prov_code(
+        gct.data_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
 
+    # TODO(lev): should we separate filtering by nan and by sd?
     # Filter probes by nan and sd
     gct.data_df = filter_probes_by_nan_and_sd(gct.data_df, probe_nan_thresh, probe_sd_cutoff)
-    thresh_digit = ("{:.1f}".format(args.probe_nan_thresh)).split(".")[1]
-    prov_code_entry = "PF{}".format(thresh_digit)
-    (gct, prov_code) = update_metadata_and_prov_code(gct, prov_code_entry, prov_code)
+    thresh_digit = ("{:.1f}".format(probe_nan_thresh)).split(".")[1]
+    prov_code_entry = "{}{}".format(PROBE_FILTER_PROV_CODE_ENTRY, thresh_digit)
+    (gct, prov_code) = update_metadata_and_prov_code(
+        gct.data_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
 
     return gct, prov_code
 
@@ -402,10 +421,10 @@ def filter_samples_by_nan(data_df, sample_nan_thresh):
     """Remove samples (i.e. columns) with less than sample_nan_thresh non-NaN values.
 
     Args:
-        data_df: pandas dataframe of floats
-        sample_nan_thresh: float from 0 to 1
+        data_df (pandas df)
+        sample_nan_thresh (float b/w 0 and 1)
     Returns:
-        out_df: pandas dataframe (potentially smaller than original df)
+        out_df (pandas df): potentially smaller than input
     """
     # Number of NaNs per sample
     num_nans = data_df.isnull().sum()
@@ -440,8 +459,9 @@ def manual_probe_rejection(data_df, row_metadata_df, manual_rejection_field):
     keep_probe_bool = (keep_probe_str == "TRUE")
 
     # Check that the list of good probes is not empty
-    assert keep_probe_bool.any(), ("No probes were marked TRUE (i.e. suitable).\n" +
-                                   "row_metadata_df.loc[:, '{}']: \n{}").format(manual_rejection_field, keep_probe_str)
+    assert keep_probe_bool.any(), (
+        "No probes were marked TRUE (i.e. suitable).\n" +
+        "row_metadata_df.loc[:, '{}']: \n{}").format(manual_rejection_field, keep_probe_str)
 
     # Return the good probes
     out_df = data_df[keep_probe_bool.values]
@@ -454,11 +474,11 @@ def filter_probes_by_nan_and_sd(data_df, probe_nan_thresh, probe_sd_cutoff):
     Also remove probes with standard deviation higher than probe_sd_cutoff.
 
     Args:
-        data_df: pandas dataframe of floats
-        probe_nan_thresh: float from 0 to 1
-        probe_sd_cutoff: float
+        data_df (pandas df)
+        probe_nan_thresh (float b/w 0 and 1)
+        probe_sd_cutoff (float)
     Returns:
-        out_df: pandas dataframe (potentially smaller than original df)
+        out_df (pandas df): potentially smaller than original df
     """
     # Input should be a pandas dataframe
     assert isinstance(data_df, pd.DataFrame), (
@@ -481,15 +501,22 @@ def filter_probes_by_nan_and_sd(data_df, probe_nan_thresh, probe_sd_cutoff):
     probes_to_keep = ((pct_non_nans_per_probe > probe_nan_thresh) &
                       (probe_sds < probe_sd_cutoff))
     out_df = data_df.loc[probes_to_keep, :]
-    assert not out_df.empty, ("All probes were filtered out. " +
-                              "Try reducing the NaN threshold and/or SD cutoff.")
+    assert not out_df.empty, (
+        "All probes were filtered out. Try reducing the NaN threshold and/or SD cutoff.")
     return out_df
 
+# tested #
+def p100_calculate_dists_and_apply_offsets_if_needed(gct, assay_type,
+                                                     p100_assays, optim_bool,
+                                                     optim_bounds, prov_code):
+    """If P100, calculate a distance metric for each sample in order to use it
+    later for filtering. The distance metric is how far away each probe is from
+    its median value.
 
-def p100_calculate_dists_and_apply_offsets_if_needed(gct, assay_type, p100_assays, optim_bool, optim_bounds, prov_code):
-    """If P100, calculate distances. If also optim_bool=True, calculate offset
-    for each sample and apply it. Provenance code only updated if
-    optimization occurred.
+    If optimization is also requested (optim_bool=True), an offset is calculated
+    for each sample that seeks to minimize the distance metric for that sample.
+    The distance is then recalculated for the data after offsets have been
+    applied. The provenance code is only updated if optimization occurs.
 
     Args:
         gct (GCToo object)
@@ -513,7 +540,9 @@ def p100_calculate_dists_and_apply_offsets_if_needed(gct, assay_type, p100_assay
             # Perform optimization and return offsets, distances, and success_bools
             (gct.data_df, offsets, dists, success_bools) = (
                 calculate_distances_and_optimize(gct.data_df, optim_bounds))
-            (gct, prov_code) = update_metadata_and_prov_code(gct, "LLB", prov_code)
+            prov_code_entry = OPTIMIZATION_PROV_CODE_ENTRY
+            (gct, prov_code) = update_metadata_and_prov_code(
+                gct.data_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
         else:
             # Simply calculate distance metric for each sample
             dists = calculate_distances_only(gct.data_df)
@@ -523,6 +552,7 @@ def p100_calculate_dists_and_apply_offsets_if_needed(gct, assay_type, p100_assay
             success_bools = None
 
     # GCP
+    # N.B. distances are not calculated because filtration by distance doesn't occur
     else:
         dists = None
         offsets = None
@@ -533,7 +563,7 @@ def p100_calculate_dists_and_apply_offsets_if_needed(gct, assay_type, p100_assay
 
 # tested #
 def calculate_distances_and_optimize(data_df, optim_bounds):
-    """For each sample, perform optimized load balancing.
+    """For each sample, perform optimization.
 
     This means finding an offset for each sample that minimizes
     the distance metric. The distance metric is the sum of the
@@ -600,7 +630,6 @@ def calculate_distances_only(data_df):
         data_df (pandas df)
     Returns:
         dists (numpy array of floats): length = num_samples
-
     """
     # Determine the median value for each probe
     probe_medians = data_df.median(axis=1)
@@ -622,15 +651,14 @@ def calculate_distances_only(data_df):
 # tested #
 def distance_function(offset, values, medians):
     """This function calculates the distance metric.
-
     N.B. Only uses the non-NaN values.
 
     Args:
-        offset: float
-        values: numpy array of floats
-        medians: numpy array of floats
+        offset (float)
+        values (numpy array of floats)
+        medians (numpy array of floats)
     Returns:
-        dist: float
+        dist (float)
     """
     non_nan_idx = ~np.isnan(values)
     assert np.size(non_nan_idx) != 0, "All values in this sample are NaN!"
@@ -641,9 +669,13 @@ def distance_function(offset, values, medians):
     return dist
 
 
-def p100_filter_samples_by_dist(gct, assay_type, p100_assay_types, offsets, dists, success_bools, prov_code):
-    """If P100, filter out samples whose distance is above some threshold.
+def p100_filter_samples_by_dist(gct, assay_type, p100_assay_types, offsets,
+                                dists, success_bools, dist_sd_cutoff, prov_code):
+    """If P100, filter out samples whose distance metric is above some threshold.
     Also remove samples for which optimization did not converge.
+
+    N.B. Offsets are only passed to this function so that offsets of filtered
+    out samples can be removed.
 
     Args:
         gct (GCToo object)
@@ -652,6 +684,7 @@ def p100_filter_samples_by_dist(gct, assay_type, p100_assay_types, offsets, dist
         offsets (numpy array of floats, or None): offset that was applied to each sample
         dists (numpy array of floats, or None): distance metric for each sample
         success_bools (numpy array of bools, or None): for each sample, indicates whether optimization was successful
+        dist_sd_cutoff (float): maximum SD for a sample's distance metric before being filtered out
         prov_code (list of strings)
 
     Returns:
@@ -662,17 +695,17 @@ def p100_filter_samples_by_dist(gct, assay_type, p100_assay_types, offsets, dist
     """
     # P100
     if (assay_type in p100_assay_types):
-        (gct.data_df, out_offsets) = remove_sample_outliers(gct.data_df, offsets, dists, success_bools, args.dist_sd_cutoff)
-        prov_code_entry = "OSF" # TODO(lev): should we include dist_sd_cutoff in this prov_code_entry?
-        # prov_code_entry = "OF{:.0f}".format(args.dist_sd_cutoff)
-        (gct, prov_code) = update_metadata_and_prov_code(gct, prov_code_entry, prov_code)
+        (out_df, out_offsets) = remove_sample_outliers(gct.data_df, offsets, dists, success_bools, dist_sd_cutoff)
+        prov_code_entry = OUTLIER_SAMPLE_FILTER_PROV_CODE_ENTRY
+        # prov_code_entry = "OF{:.0f}".format(args.dist_sd_cutoff) # TODO(lev): should we include dist_sd_cutoff in this prov_code_entry?
+        (gct, prov_code) = update_metadata_and_prov_code(
+            out_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
 
     # GCP
     else:
         out_offsets = None
 
     return gct, out_offsets, prov_code
-
 
 
 # tested #
@@ -688,7 +721,8 @@ def remove_sample_outliers(data_df, offsets, distances, success_bools, dist_sd_c
         offsets (numpy array of floats): length = num_samples
         distances (numpy array of floats): length = num_samples
         success_bools (numpy array of bools): length = num_samples
-        dist_sd_cutoff (float)
+        dist_sd_cutoff (float): maximum SD for a sample's distance metric before being filtered out
+
     Returns:
         out_df (pandas df): potentially smaller than original df
         out_offsets (numpy array of floats): length = num_remaining_samples
@@ -719,10 +753,11 @@ def remove_sample_outliers(data_df, offsets, distances, success_bools, dist_sd_c
 
     return out_df, out_offsets
 
-def row_median_normalize(gct, subset_normalize_bool, row_subset_field, col_subset_field, prov_code):
+
+def median_normalize(gct, subset_normalize_bool, row_subset_field, col_subset_field, prov_code):
     """Subset normalize if subset_normalize_bool=True OR if the metadata
-    shows that subsets exist for either rows or columns. Otherwise, do
-    ordinary median normalization.
+    shows that subsets exist for either rows or columns. Otherwise, use the
+    whole row for median normalization.
 
     Args:
         gct (GCToo object)
@@ -733,24 +768,30 @@ def row_median_normalize(gct, subset_normalize_bool, row_subset_field, col_subse
 
     Returns:
         gct (GCToo object): updated
-        prov_code (list of strings): updated
+        updated_prov_code (list of strings)
 
     """
     # Check if subsets_exist
-    subsets_exist = check_for_subsets(gct.row_metadata_df, gct.col_metadata_df, args.row_subset_field, args.col_subset_field)
+    subsets_exist = check_for_subsets(gct.row_metadata_df, gct.col_metadata_df,
+                                      row_subset_field, col_subset_field)
 
-    if (args.subset_normalize_bool) or (subsets_exist):
-        gct = subset_normalize(gct, args.row_subset_field, args.col_subset_field)
-        # prov_code_entry = "SSN" # TODO(lev): rename prov_code_entry to SSN (SubSetNormalize)?
-        prov_code_entry = "GMN"
-        prov_code.append(prov_code_entry)
+    # TODO(lev): should this be AND or OR?
+    if (subset_normalize_bool) and (subsets_exist):
+        logger.debug("Performing subset normalization.")
+        out_gct = subset_normalize(gct, row_subset_field, col_subset_field)
+        prov_code_entry = SUBSET_NORMALIZE_PROV_CODE_ENTRY
+        updated_prov_code = prov_code + [prov_code_entry]
     else:
         # Subtract median of whole row from each entry in the row
-        gct.data_df = gct.data_df.subtract(gct.data_df.median(axis=1), axis=0)
-        prov_code_entry = "RMN"
-        prov_code.append(prov_code_entry)
+        gct.data_df = row_median_normalize(gct.data_df)
+        out_gct = gct
+        prov_code_entry = ROW_NORMALIZE_PROV_CODE_ENTRY
+        updated_prov_code = prov_code + [prov_code_entry]
+
+    return out_gct, updated_prov_code
 
 
+# tested #
 def check_for_subsets(row_meta_df, col_meta_df, row_subset_field, col_subset_field):
     """Read metadata to see if subset normalization could be performed. That is,
      if the row or column metadata has more than one unique value in
@@ -813,9 +854,8 @@ def make_norm_ndarray(row_metadata_df, col_metadata_df, row_subset_field, col_su
     """Creates a normalization ndarray.
 
     The normalization ndarray is used to figure out how to normalize each
-    section of the data. Extracts probe normalization groups from row
-    metadata field "pr_probe_normalization_group" and sample normalization
-    groups from column metadata field "det_normalization_group_vector."
+    section of the data. Extracts probe normalization groups from the metadata
+    field row_subset_field and from the column metadata field col_subset_field.
 
     Args:
         row_metadata_df (pandas df)
@@ -841,14 +881,20 @@ def make_norm_ndarray(row_metadata_df, col_metadata_df, row_subset_field, col_su
     assert all([len(sample_list) == length_of_first_list for sample_list in sample_grps_lists])
 
     # Convert from lists of strings to ndarray of ints
-    sample_grp_ndarray = np.array(sample_grps_lists, dtype='int')
+    sample_grp_ndarray = np.array(sample_grps_lists, dtype="int")
 
     # Get probe groups and unique probe groups; convert to ints
-    probe_grps = row_metadata_df[row_subset_field].values.astype('int')
+    probe_grps = row_metadata_df[row_subset_field].values.astype("int")
     unique_probe_grps = np.unique(probe_grps)
 
+    # Length of sample group vector must equal number of unique probe groups
+    assert length_of_first_list == len(unique_probe_grps), (
+        "Length of sample group vector must equal number of unique " +
+        "probe groups. len(sample_grps_lists[0]): {} \n " +
+        "len(unique_probe_grps): {}".format(len(sample_grps_lists[0]), len(unique_probe_grps)))
+
     # Initialize norm_ndarray
-    norm_ndarray = np.zeros((row_metadata_df.shape[0], col_metadata_df.shape[0]), dtype='int')
+    norm_ndarray = np.zeros((row_metadata_df.shape[0], col_metadata_df.shape[0]), dtype="int")
 
     # Each col of sample_grp_ndarray corresponds to a UNIQUE probe_grp;
     # create norm_ndarray by expanding sample_grp_ndarray so that each column
@@ -897,7 +943,20 @@ def iterate_over_norm_ndarray_and_normalize(data_df, norm_ndarray):
 
     return normalized_data
 
+# tested #
+def row_median_normalize(data_df):
+    """Subtract median of the row from each entry of the row.
 
+    Args:
+        data_df (pandas df)
+    Returns:
+        out_df (pandas df): with normalized values
+    """
+    out_df = data_df.subtract(data_df.median(axis=1), axis=0)
+    return out_df
+
+
+# tested #
 def insert_offsets_and_prov_code(gct, offsets, offsets_field, prov_code, prov_code_field, prov_code_delimiter):
     """Insert offsets into output gct and update provenance code in metadata.
 
@@ -922,7 +981,7 @@ def insert_offsets_and_prov_code(gct, offsets, offsets_field, prov_code, prov_co
         assert len(offsets) == gct.col_metadata_df.shape[0]
         gct.col_metadata_df[offsets_field] = offsets.astype(str)
 
-    # TODO(lev): check that only acceptable values were inserted
+    # TODO(lev): check that only acceptable values were inserted?
 
     # Convert provenance code to delimiter separated string
     prov_code_str = prov_code_delimiter.join(prov_code)
@@ -948,41 +1007,46 @@ def write_output_gct(gct, out_path, out_name, data_null, filler_null):
 
     """
     out_fname = os.path.join(out_path, out_name)
-    write_gctoo.write(out_gct, out_fname, data_null=data_null, filler_null=filler_null, data_float_format=None)
+    write_gctoo.write(gct, out_fname, data_null=data_null,
+                      filler_null=filler_null, data_float_format=None)
 
 
-def update_metadata_and_prov_code(gct, prov_code_entry, prov_code):
+def update_metadata_and_prov_code(data_df, row_meta_df, col_meta_df, prov_code_entry, prov_code):
     """Update metadata with the already sliced data_df, and update the prov_code.
 
     Args:
-        gct (GCToo object)
+        data_df (pandas df)
+        row_meta_df (pandas df)
+        col_meta_df (pandas df)
         prov_code_entry (string)
         prov_code (list_of_strings)
 
     Returns:
         out_gct (GCToo object): updated
-        prov_code (list of strings)
+        updated_prov_code (list of strings)
 
     """
     if prov_code_entry is not None:
-        prov_code.append(prov_code_entry)
-    out_gct = slice_metadata_using_already_sliced_data_df(gct)
+        updated_prov_code = prov_code + [prov_code_entry]
+    else:
+        updated_prov_code = prov_code
 
-    return gct, prov_code
+    out_gct = slice_metadata_using_already_sliced_data_df(data_df, row_meta_df, col_meta_df)
+    return out_gct, updated_prov_code
 
 
+# tested #
 def slice_metadata_using_already_sliced_data_df(data_df, row_meta_df, col_meta_df):
     """Slice row_meta_df and col_meta_df to only contain the row_ids and col_ids
     in data_df.
 
     Args:
-        data_df (pandas df): containing only the data we want to keep
+        data_df (pandas df)
         row_meta_df (pandas df)
         col_meta_df (pandas df)
 
     Returns:
-        row_meta_df_sliced (pandas df)
-        col_meta_df_sliced (pandas df)
+        out_gct (GCToo object): with all dfs correctly sliced
 
     """
     # Get rows and samples to keep from data_df
@@ -1001,10 +1065,15 @@ def slice_metadata_using_already_sliced_data_df(data_df, row_meta_df, col_meta_d
         raise Exception(err_msg)
 
     # Extract remaining rows and samples from row and col metadata dfs
-    row_meta_df_sliced = row_meta_df.loc[rows, :]
-    col_meta_df_sliced = col_meta_df.loc[cols, :]
+    out_row_meta_df = row_meta_df.loc[rows, :]
+    out_col_meta_df = col_meta_df.loc[cols, :]
 
-    return row_meta_df_sliced, col_meta_df_sliced
+    # Return gct
+    out_gct = GCToo.GCToo(data_df=data_df,
+                          row_metadata_df=out_row_meta_df,
+                          col_metadata_df=out_col_meta_df)
+
+    return out_gct
 
 
 if __name__ == "__main__":
@@ -1013,6 +1082,6 @@ if __name__ == "__main__":
     logger.debug("args: {}".format(args))
 
     # Check that config file exists
-    assert os.path.exists(os.path.expanduser(args.PSP_config_path))
+    assert os.path.exists(os.path.expanduser(args.psp_config_path))
 
     main(args)
