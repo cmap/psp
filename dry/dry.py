@@ -23,8 +23,8 @@ Output is writing the gct file.
 
 N.B. This script requires a configuration file. You can specify the location
 of this config file with the optional argument -psp_config_path. Otherwise,
-it will look for psp.cfg in your home directory. An example config file can
-be found at broadinstitute.psp/python/example_psp.cfg.
+it will look for psp.cfg in your home directory. See example_psp.cfg for
+an example config file.
 
 Example usage:
     python dry/dry.py input.gct /path/to/output/dir output.gct

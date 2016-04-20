@@ -1,9 +1,7 @@
 import unittest
 import logging
 import utils.setup_logger as setup_logger
-import ConfigParser
 import os
-import sys
 import numpy as np
 import pandas as pd
 
@@ -12,7 +10,9 @@ import in_out.GCToo as GCToo
 import dry
 
 """
-This code should be run from broadinstitute.psp/python/dry. The dry directory
+This code should be run from broadinstitute.psp/dry.
+
+The dry directory
 contains a directory called functional_tests that has the assets
 required for the 3 functional tests below.
 
