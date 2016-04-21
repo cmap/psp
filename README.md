@@ -1,7 +1,7 @@
 Proteomics Signature Pipeline (PSP)
 =========
 
-A Python package for processing proteomics data (P100 and GCP).
+Package for processing proteomics data (P100 and GCP).
 
 This package requires that your environment is properly set up.
 

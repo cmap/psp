@@ -12,9 +12,8 @@ import dry
 """
 This code should be run from broadinstitute.psp/dry.
 
-The dry directory
-contains a directory called functional_tests that has the assets
-required for the 3 functional tests below.
+The dry directory contains a directory called functional_tests
+that has the assets required for the 3 functional tests below.
 
 """
 
