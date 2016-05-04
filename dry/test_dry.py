@@ -10,10 +10,11 @@ import in_out.GCToo as GCToo
 import dry
 
 """
-This code should be run from broadinstitute.psp/dry.
+This code should be run from broadinstitute.psp.
 
 The dry directory contains a directory called functional_tests
-that has the assets required for the 3 functional tests below.
+that has the assets required for the 3 functional tests below. For
+functional tests, I just check that they run to completion.
 
 """
 
@@ -21,7 +22,7 @@ that has the assets required for the 3 functional tests below.
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
 # Functional tests dir lives within the dry directory
-FUNCTIONAL_TESTS_DIR = "functional_tests"
+FUNCTIONAL_TESTS_DIR = "dry/functional_tests"
 
 # N.B. e_out is expected_output.
 class TestDry(unittest.TestCase):
@@ -31,13 +32,12 @@ class TestDry(unittest.TestCase):
         JJ_OUTPUT_GCT = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate29_3H_processed.gct")
         OUT_NAME = "test_dry_p100_output.gct"
 
-        args_string = ("{} {} {} " +
+        args_string = ("{} {} " +
+                       "-out_name {} " +
                        "-sample_nan_thresh {} " +
                        "-probe_nan_thresh {} " +
-                       "-probe_sd_cutoff {} " +
-                       "-dist_sd_cutoff {} " +
-                       "-optim -v").format(INPUT_GCT_PATH, FUNCTIONAL_TESTS_DIR,
-                                           OUT_NAME, 0.8, 0.9, 3, 3)
+                       "-v").format(INPUT_GCT_PATH, FUNCTIONAL_TESTS_DIR,
+                                    OUT_NAME, 0.8, 0.9)
         args = dry.build_parser().parse_args(args_string.split())
         out_gct = dry.main(args)
 
@@ -55,8 +55,9 @@ class TestDry(unittest.TestCase):
                           "e_gct.col_metadata_df.shape: {}, " +
                           "out_gct.col_metadata_df.shape: {}").format(e_gct.col_metadata_df.shape,
                                                                       out_gct.col_metadata_df.shape[1]))
-        # Check that column metadata is correct for all but the new header
-        self.assertTrue(np.array_equal(e_gct.col_metadata_df, out_gct.col_metadata_df.iloc[:, :-1]),
+
+        # Check that column metadata is correct (ignore last 3 entries so that we can skip provenance code)
+        self.assertTrue(np.array_equal(e_gct.col_metadata_df.iloc[:, :-2], out_gct.col_metadata_df.iloc[:, :-3]),
                         "The col_metadata_df that was returned is wrong.")
 
         logger.info("Mean difference between gcts: {}".format(np.nanmean(e_gct.data_df.values - out_gct.data_df.values)))
@@ -70,12 +71,13 @@ class TestDry(unittest.TestCase):
         JJ_OUTPUT_GCT = os.path.join(FUNCTIONAL_TESTS_DIR, "gcp_gr1_plate31_processed.gct")
         OUT_NAME = "test_dry_gcp_output.gct"
 
-        args_string = ("{} {} {} " +
+        args_string = ("{} {} " +
+                       "-out_name {} " +
                        "-sample_nan_thresh {} " +
                        "-probe_nan_thresh {} " +
                        "-probe_sd_cutoff {} " +
-                       "-optim -v").format(INPUT_GCT_PATH, FUNCTIONAL_TESTS_DIR,
-                                           OUT_NAME, 0.5, 0.5, 4)
+                       "-v").format(INPUT_GCT_PATH, FUNCTIONAL_TESTS_DIR,
+                                    OUT_NAME, 0.5, 0.5, 4)
         args = dry.build_parser().parse_args(args_string.split())
         out_gct = dry.main(args)
 
@@ -86,7 +88,9 @@ class TestDry(unittest.TestCase):
                         "The data_df that was returned is wrong.")
         self.assertTrue(np.array_equal(e_gct.row_metadata_df, out_gct.row_metadata_df),
                         "The row_metadata_df that was returned is wrong.")
-        self.assertTrue(np.array_equal(e_gct.col_metadata_df, out_gct.col_metadata_df),
+
+        # Check that column metadata is correct (ignore last 2 entries so that we can skip provenance code)
+        self.assertTrue(np.array_equal(e_gct.col_metadata_df.iloc[:, :-2], out_gct.col_metadata_df.iloc[:, :-2]),
                         "The col_metadata_df that was returned is wrong.")
 
         logger.info("Mean difference between gcts: {}".format(np.nanmean(e_gct.data_df.values - out_gct.data_df.values)))
@@ -100,14 +104,14 @@ class TestDry(unittest.TestCase):
         JJ_OUTPUT_GCT = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate35_subsets_processed.gct")
         OUT_NAME = "test_dry_p100_subsets_output_no_bool.gct"
 
-        args_string = ("{} {} {} " +
+        args_string = ("{} {} " +
+                       "-out_name {} " +
                        "-sample_nan_thresh {} " +
                        "-probe_nan_thresh {} " +
                        "-probe_sd_cutoff {} " +
                        "-dist_sd_cutoff {} " +
-                       "-subset_normalize_bool " +
-                       "-optim -v").format(INPUT_GCT_PATH, FUNCTIONAL_TESTS_DIR,
-                                           OUT_NAME, 0.8, 0.9, 3, 3)
+                       "-v").format(INPUT_GCT_PATH, FUNCTIONAL_TESTS_DIR,
+                                    OUT_NAME, 0.8, 0.9, 3, 3)
         args = dry.build_parser().parse_args(args_string.split())
         out_gct = dry.main(args)
 
@@ -127,8 +131,8 @@ class TestDry(unittest.TestCase):
                           "out_gct.col_metadata_df.shape: {}").format(e_gct.col_metadata_df.shape,
                                                                       out_gct.col_metadata_df.shape[1]))
 
-        # Check that column metadata is correct for all but the new header
-        self.assertTrue(np.array_equal(e_gct.col_metadata_df, out_gct.col_metadata_df.iloc[:, :-1]),
+        # Check that column metadata is correct for all but the new header and provenance code
+        self.assertTrue(np.array_equal(e_gct.col_metadata_df.iloc[:, :-1], out_gct.col_metadata_df.iloc[:, :-2]),
                         "The col_metadata_df that was returned is wrong.")
 
         logger.info("Mean difference between gcts: {}".format(np.nanmean(e_gct.data_df.values - out_gct.data_df.values)))
@@ -138,22 +142,20 @@ class TestDry(unittest.TestCase):
         os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_NAME))
 
     def test_read_gct_and_config_file(self):
-        PSP_CONFIG_PATH = os.path.expanduser("~/psp.cfg")
+        PSP_CONFIG_PATH = "example_psp.cfg"
         assert os.path.exists(PSP_CONFIG_PATH), (
             "Config file must exist in order to perform this test.\n" +
             "PSP_CONFIG_PATH: {}".format(PSP_CONFIG_PATH))
 
         INPUT_GCT_PATH = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate29_3H.gct")
         e_data_df_shape = (96, 96)
-        e_assay_type = "PRM"
+        e_assay_type = "p100"
         e_prov_code = ["PRM", "L2X"]
-        e_p100_assays = ["PR1", "DIA1", "PRM"]
-        e_gcp_assays = ["GR1"]
         e_gcp_norm_peptide = "BI10052"
 
         # Happy path
-        (out_gct, out_assay_type, out_prov_code, out_p100_assays, out_gcp_assays,
-         config_io, config_metadata) = dry.read_gct_and_config_file(
+        (out_gct, out_assay_type, out_prov_code, config_io, config_metadata,
+         config_parameters) = dry.read_gct_and_config_file(
             INPUT_GCT_PATH, PSP_CONFIG_PATH, None)
 
         self.assertEqual(out_gct.data_df.shape, e_data_df_shape,
@@ -165,20 +167,14 @@ class TestDry(unittest.TestCase):
         self.assertEqual(out_prov_code, e_prov_code,
                          ("The expected provenance code is {}, " +
                           "not {}").format(e_prov_code, out_prov_code))
-        self.assertEqual(out_p100_assays, e_p100_assays,
-                         ("The expected P100 assays are {}, " +
-                          "not {}").format(e_p100_assays, out_p100_assays))
-        self.assertEqual(out_gcp_assays, e_gcp_assays,
-                         ("The expected GCP assays are {}, " +
-                          "not {}").format(e_gcp_assays, out_gcp_assays))
         self.assertEqual(config_metadata["gcp_normalization_peptide_id"],
                          e_gcp_norm_peptide,
                          ("The expected gcp_normalization_peptide_id is {}" +
                           "").format(e_gcp_norm_peptide, config_metadata["gcp_normalization_peptide_id"]))
 
         # Check that force-assay works
-        e_forced_assay_type = "GR1"
-        (_, out_forced_assay_type, _, _, _, _, _) = dry.read_gct_and_config_file(
+        e_forced_assay_type = "gcp"
+        (_, out_forced_assay_type, _, _, _, _) = dry.read_gct_and_config_file(
             INPUT_GCT_PATH, PSP_CONFIG_PATH, "GR1")
         self.assertEqual(out_forced_assay_type, e_forced_assay_type,
                          ("The expected assay type is {}, " +
@@ -197,9 +193,10 @@ class TestDry(unittest.TestCase):
 
     def test_check_assay_type(self):
         assay_type = "aBc"
-        allowed = ["ABC", "aBc", "d"]
-        assay_ok = dry.check_assay_type(assay_type, allowed)
-        self.assertTrue(assay_ok)
+        p100 = ["ABC", "aBc", "d"]
+        gcp = ["bd", "ef"]
+        assay_out = dry.check_assay_type(assay_type, p100, gcp)
+        self.assertEqual(assay_out, "p100")
 
 
     def test_log_transform_if_needed(self):
@@ -248,15 +245,14 @@ class TestDry(unittest.TestCase):
                                 index=["d","e"],
                                 columns=["col_field1","col_field2"])
         in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
-        assay_type = "GR1"
-        gcp_assays = ["GR1"]
+        assay_type = "gcp"
         norm_peptide = "b"
         prov_code = ["GR1", "L2X"]
         e_prov_code = ["GR1", "L2X", "H3N"]
 
         # Happy path
         (out_gct, out_prov_code) = dry.gcp_histone_normalize_if_needed(
-            in_gct, assay_type, gcp_assays, norm_peptide, prov_code)
+            in_gct, assay_type, norm_peptide, prov_code)
 
         self.assertTrue(np.allclose(out_gct.data_df, e_data, atol=1e-3))
         self.assertTrue(np.array_equal(out_gct.row_metadata_df, e_row_meta))
@@ -265,7 +261,7 @@ class TestDry(unittest.TestCase):
 
         # GCP but no peptide ID
         (out_gct2, out_prov_code2) = dry.gcp_histone_normalize_if_needed(
-            in_gct, assay_type, gcp_assays, None, prov_code)
+            in_gct, assay_type, None, prov_code)
 
         self.assertTrue(np.allclose(out_gct2.data_df, data, atol=1e-3))
         self.assertTrue(np.array_equal(out_gct2.row_metadata_df, row_meta))
@@ -292,9 +288,10 @@ class TestDry(unittest.TestCase):
         sample_nan_thresh = 0.3
         probe_nan_thresh = 0.5
         probe_sd_cutoff = 3
+        assay_type = "p100"
         manual_rejection_field = "rej"
         prov_code = ["A","B"]
-        e_prov_code = ["A","B","SF3","PF5"]
+        e_prov_code = ["A","B","SF3","MPR","PF5"]
 
         data = pd.DataFrame([[1,2,3],[np.nan,5,np.nan],[7,8,9],[10,11,12]],
                             index=["a","b","c","d"],
@@ -314,13 +311,30 @@ class TestDry(unittest.TestCase):
         in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
 
         (out_gct, out_prov_code) = dry.initial_filtering(
-            in_gct, sample_nan_thresh, probe_nan_thresh, probe_sd_cutoff,
+            in_gct, assay_type, sample_nan_thresh, probe_nan_thresh,
+            probe_sd_cutoff, {},
             manual_rejection_field, prov_code)
 
         self.assertTrue(np.allclose(out_gct.data_df, e_data, atol=1e-3))
         self.assertTrue(np.array_equal(out_gct.row_metadata_df, e_row_meta))
         self.assertTrue(np.array_equal(out_gct.col_metadata_df, col_meta))
-        self.assertTrue(np.array_equal(out_prov_code, e_prov_code))
+        self.assertEqual(out_prov_code, e_prov_code)
+
+    def test_check_nan_thresh(self):
+        assay_type = "p100"
+        sample_nan_thresh = None
+        probe_nan_thresh = 0.5
+        config_parameters = {"gcp_sample_nan_thresh": "0.1",
+                             "gcp_probe_nan_thresh": "0.2",
+                             "p100_sample_nan_thresh": "0.3",
+                             "p100_probe_nan_thresh": "0.4"}
+        e_sample_nan_thresh = 0.3
+        e_probe_nan_thresh = 0.5
+        [out_sample_thresh, out_probe_thresh] = dry.check_nan_thresh(
+            assay_type, sample_nan_thresh, probe_nan_thresh, config_parameters)
+
+        self.assertEqual(e_sample_nan_thresh, out_sample_thresh)
+        self.assertEqual(e_probe_nan_thresh, out_probe_thresh)
 
     def test_filter_samples_by_nan(self):
         df = pd.DataFrame(np.array([[0.5, 0.2, 0.1, 0.25],
@@ -367,12 +381,10 @@ class TestDry(unittest.TestCase):
                          "\nActual output:\n{}").format(e_out, out))
 
     def test_p100_calculate_dists_and_apply_offsets_if_needed(self):
-        assay_type = "PR1"
-        p100_assays = ["PR1", "PRM"]
-        optim_bool = True
+        assay_type = "p100"
+        no_optim = True
         optim_bounds = (2,2)
         prov_code = ["PR1", "L2X", "filtering"]
-
         e_dists = [4,16,36]
         e_offsets = [2,2,2]
         e_bools = [True, True, True]
@@ -392,7 +404,7 @@ class TestDry(unittest.TestCase):
         # P100 & optim
         (out_gct, out_dists, out_offsets, out_bools, out_prov_code) = (
             dry.p100_calculate_dists_and_apply_offsets_if_needed(
-                in_gct, assay_type, p100_assays, optim_bool, optim_bounds, prov_code))
+                in_gct, assay_type, not no_optim, optim_bounds, prov_code))
 
         self.assertTrue(np.allclose(out_dists, e_dists, atol=1e-2))
         self.assertTrue(np.allclose(out_offsets, e_offsets, atol=1e-2))
@@ -403,7 +415,7 @@ class TestDry(unittest.TestCase):
         e_dists2 = [4,0,4]
         (out_gct, out_dists, out_offsets, out_bools, out_prov_code) = (
             dry.p100_calculate_dists_and_apply_offsets_if_needed(
-                in_gct, assay_type, p100_assays, False, optim_bounds, prov_code))
+                in_gct, assay_type, no_optim, optim_bounds, prov_code))
 
         self.assertTrue(np.allclose(out_dists, e_dists2, atol=1e-2))
         self.assertEqual(out_offsets, None)
@@ -413,7 +425,7 @@ class TestDry(unittest.TestCase):
         # GCP
         (out_gct, out_dists, out_offsets, out_bools, out_prov_code) = (
             dry.p100_calculate_dists_and_apply_offsets_if_needed(
-                in_gct, "GR1", p100_assays, optim_bool, optim_bounds, prov_code))
+                in_gct, "gcp", not no_optim, optim_bounds, prov_code))
 
         self.assertEqual(out_dists, None)
         self.assertEqual(out_offsets, None)
@@ -474,7 +486,6 @@ class TestDry(unittest.TestCase):
 
 
     def test_p100_filter_samples_by_dist(self):
-        p100_assay_types = ["PR1", "PRM"]
         offsets = np.array([4,3,7], dtype=float)
         dists = np.array([1,6,2], dtype=float)
         success_bools = np.array([True, True, True], dtype=bool)
@@ -492,7 +503,6 @@ class TestDry(unittest.TestCase):
         in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
 
         # P100
-        assay_type = "PR1"
         e_data = pd.DataFrame([[1,3],[4,6],[7,9],[10,12]],
                             index=["a","b","c","d"],
                             columns=["e","g"])
@@ -500,11 +510,11 @@ class TestDry(unittest.TestCase):
                                 index=["e","g"],
                                 columns=["col_field1","col_field2"])
         e_offsets = np.array([4,7], dtype=float)
-        e_prov_code = ["A", "B", "OSF"]
+        e_prov_code = ["A", "B", "OSF1"]
 
         (out_gct, out_offsets, out_prov_code) = (
             dry.p100_filter_samples_by_dist(
-                in_gct, assay_type, p100_assay_types, offsets, dists, success_bools, dist_sd_cutoff, prov_code))
+                in_gct, "p100", offsets, dists, success_bools, dist_sd_cutoff, prov_code))
 
         self.assertTrue(np.allclose(out_gct.data_df, e_data, atol=1e-2))
         self.assertTrue(np.array_equal(out_gct.col_metadata_df, e_col_meta))
@@ -513,10 +523,9 @@ class TestDry(unittest.TestCase):
         self.assertEqual(out_prov_code, e_prov_code)
 
         # GCP
-        assay_type = "GR1"
         (out_gct2, out_offsets2, out_prov_code2) = (
             dry.p100_filter_samples_by_dist(
-                in_gct, assay_type, p100_assay_types, None, dists, None, dist_sd_cutoff, prov_code))
+                in_gct, "gcp", None, dists, None, dist_sd_cutoff, prov_code))
 
         self.assertTrue(np.allclose(out_gct2.data_df, data, atol=1e-2))
         self.assertTrue(np.array_equal(out_gct2.col_metadata_df, col_meta))
@@ -560,20 +569,22 @@ class TestDry(unittest.TestCase):
         prov_code = ["A", "B"]
 
         # Subset normalize
+        ignore_subset_norm = False
         e_data = pd.DataFrame([[0,-0.5,0.5],[0,-0.5,0.5],[0,-0.5,0.5],[0,-0.5,0.5]],
                             index=["a","b","c","d"],
                             columns=["e","f","g"])
         e_prov_code = ["A", "B", "GMN"]
 
         (out_gct, out_prov_code) = dry.median_normalize(
-            in_gct, True, row_subset_field, col_subset_field, prov_code)
+            in_gct, ignore_subset_norm, row_subset_field, col_subset_field, prov_code)
 
         self.assertTrue(np.allclose(out_gct.data_df, e_data, atol=1e-2))
         self.assertTrue(np.array_equal(out_gct.row_metadata_df, row_meta))
         self.assertTrue(np.array_equal(out_gct.col_metadata_df, col_meta))
-        self.assertTrue(np.array_equal(out_prov_code, e_prov_code))
+        self.assertEqual(out_prov_code, e_prov_code)
 
         # Ordinary normalization
+        ignore_subset_norm2 = True
         e_data2 = pd.DataFrame([[-1,0,1],[-1,0,1],[-1,0,1],[-1,0,1]],
                                index=["a","b","c","d"],
                                columns=["e","f","g"],
@@ -588,12 +599,12 @@ class TestDry(unittest.TestCase):
         e_prov_code2 = ["A", "B", "RMN"]
 
         (out_gct2, out_prov_code2) = dry.median_normalize(
-            in_gct2, False, row_subset_field, col_subset_field, prov_code)
+            in_gct2, ignore_subset_norm2, row_subset_field, col_subset_field, prov_code)
 
         self.assertTrue(np.allclose(out_gct2.data_df, e_data2, atol=1e-2))
         self.assertTrue(np.array_equal(out_gct2.row_metadata_df, row_meta2))
         self.assertTrue(np.array_equal(out_gct2.col_metadata_df, col_meta2))
-        self.assertTrue(np.array_equal(out_prov_code2, e_prov_code2))
+        self.assertEqual(out_prov_code2, e_prov_code2)
 
 
     def test_check_for_subsets(self):
