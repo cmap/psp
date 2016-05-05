@@ -11,6 +11,7 @@ from scipy.optimize import minimize_scalar
 import in_out.GCToo as GCToo
 import in_out.parse_gctoo as parse_gctoo
 import in_out.write_gctoo as write_gctoo
+import utils.gct2pw as gct2pw
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
@@ -18,7 +19,9 @@ __email__ = "lev@broadinstitute.org"
 """Performs filtering and normalization of P100 and GCP data.
 
 Converts level 2 to level 3 data. Required input is a filepath to a gct file and
-a filepath to an output file. Output is writing the gct file.
+a filepath to an output file. Output is writing a processed gct file and a pw
+(plate-well) file listing what samples were filtered out at two sample
+filtration steps.
 
 N.B. This script requires a configuration file. You can specify the location
 of this config file with the optional argument -psp_config_path. Otherwise,
@@ -27,7 +30,7 @@ current directory.
 
 Example usage:
     python dry/dry.py input.gct /path/to/output/dir -out_name output.gct
-    -sample_nan_thresh 0.9 -no_optim -force_assay PR1
+        -sample_nan_thresh 0.9 -no_optim -force_assay PR1
 
 """
 # Setup logger
@@ -57,6 +60,8 @@ def build_parser():
     # Optional args
     parser.add_argument("-out_name", type=str, default=None,
                         help="name of output gct (if None, will use <INPUT_GCT>.processed.gct")
+    parser.add_argument("-out_pw_name", type=str, default=None,
+                        help="name of output pw file (if None, will use <INPUT_GCT>.remaining.pw")
     parser.add_argument("-verbose", "-v", action="store_true", default=False,
                         help="increase the number of messages reported")
     parser.add_argument("-psp_config_path", type=str,
@@ -96,46 +101,56 @@ def main(args):
         out_gct (GCToo object): output gct object
     """
     ### READ GCT AND CONFIG FILE
-    (gct, assay_type, prov_code, config_io, config_metadata, config_parameters) = (
+    (in_gct, assay_type, prov_code, config_io, config_metadata, config_parameters) = (
         read_gct_and_config_file(
             args.gct_path, args.psp_config_path, args.force_assay))
 
     ### LOG TRANSFORM
-    (gct.data_df, prov_code) = log_transform_if_needed(gct.data_df, prov_code)
+    (l2x_gct, prov_code) = log_transform_if_needed(in_gct, prov_code)
 
     ### HISTONE NORMALIZE (if GCP)
-    (gct, prov_code) = gcp_histone_normalize_if_needed(gct, assay_type,
+    (hist_norm_gct, prov_code) = gcp_histone_normalize_if_needed(l2x_gct, assay_type,
         config_metadata["gcp_normalization_peptide_id"], prov_code)
 
     ### INITIAL FILTERING
-    (gct, prov_code) = initial_filtering(
-        gct, assay_type, args.sample_nan_thresh, args.probe_nan_thresh,
+    (filt_gct, prov_code, post_sample_nan_remaining) = initial_filtering(
+        hist_norm_gct, assay_type, args.sample_nan_thresh, args.probe_nan_thresh,
         args.probe_sd_cutoff, config_parameters,
         config_metadata["manual_rejection_field"], prov_code)
 
     ### APPLY OFFSETS IF NEEDED (if P100)
-    (gct, dists, offsets, success_bools, prov_code) = (
+    (offset_gct, dists, offsets, success_bools, prov_code) = (
         p100_calculate_dists_and_apply_offsets_if_needed(
-            gct, assay_type, args.no_optim,
+            filt_gct, assay_type, args.no_optim,
             eval(config_parameters["optim_bounds"]), prov_code))
 
     ### FILTER SAMPLES BY DISTANCE (if P100)
-    (gct, out_offsets, prov_code) = p100_filter_samples_by_dist(
-        gct, assay_type, offsets, dists,
-        success_bools, args.dist_sd_cutoff, prov_code)
+    (filt_dist_gct, out_offsets, post_sample_dist_remaining, prov_code) = (
+        p100_filter_samples_by_dist(
+        offset_gct, assay_type, offsets, dists,
+        success_bools, args.dist_sd_cutoff, prov_code))
 
     ### MEDIAN NORMALIZE
-    (gct, prov_code) = median_normalize(
-        gct, args.ignore_subset_norm, config_metadata["row_subset_field"],
+    (med_norm_gct, prov_code) = median_normalize(
+        filt_dist_gct, args.ignore_subset_norm, config_metadata["row_subset_field"],
         config_metadata["col_subset_field"], prov_code)
 
     ### INSERT OFFSETS AND UPDATE PROVENANCE CODE
     out_gct = insert_offsets_and_prov_code(
-        gct, out_offsets, config_metadata["offsets_field"], prov_code,
+        med_norm_gct, out_offsets, config_metadata["offsets_field"], prov_code,
         config_metadata["prov_code_field"], config_metadata["prov_code_delimiter"])
 
+    ### CONFIGURE OUT NAMES
+    (out_gct_name, out_pw_name) = configure_out_names(
+        args.gct_path, args.out_name, args.out_pw_name)
+
+    ### WRITE PW FILE OF REMAINING SAMPLES
+    save_remaining_samples(in_gct, post_sample_nan_remaining,
+                           post_sample_dist_remaining,
+                           args.out_path, out_pw_name)
+
     ### WRITE OUTPUT GCT
-    write_output_gct(out_gct, args.out_path, args.out_name,
+    write_output_gct(out_gct, args.out_path, out_gct_name,
                      config_io["data_null"], config_io["filler_null"])
 
     return out_gct
@@ -266,29 +281,71 @@ def check_assay_type(assay_type, p100_assays, gcp_assays):
 
     return assay_type_out
 
+
 # tested #
-def log_transform_if_needed(data_df, prov_code):
+def configure_out_names(gct_path, out_name_from_args, out_pw_name_from_args):
+    """If out_name_from_args is None, append .processed.gct to the input
+    gct name. If out_pw_name_from_args is None, append .remaining.pw to the
+    input gct name.
+
+    Args:
+        gct_path:
+        out_name_from_args:
+        out_pw_name_from_args:
+
+    Returns:
+        out_gct_name (file path)
+        out_pw_name (file path)
+
+    """
+    GCT_SUFFIX = ".processed.gct"
+    PW_SUFFIX = ".remaining.pw"
+
+    input_basename = os.path.basename(gct_path)
+    if out_name_from_args is None:
+        out_gct_name = input_basename + GCT_SUFFIX
+    else:
+        out_gct_name = out_name_from_args
+        assert os.path.splitext(out_gct_name)[1] == ".gct", (
+            "The output gct name must end with .gct; out_gct_name: {}".format(
+                out_gct_name))
+
+    if out_pw_name_from_args is None:
+        out_pw_name = input_basename + PW_SUFFIX
+    else:
+        out_pw_name = out_pw_name_from_args
+        assert os.path.splitext(out_pw_name)[1] == ".pw", (
+            "The output pw name must end with .pw; out_pw_name: {}".format(
+                out_pw_name))
+
+    return out_gct_name, out_pw_name
+
+
+# tested #
+def log_transform_if_needed(gct, prov_code):
     """Perform log2 transformation if it hasn't already been done.
 
     Args:
-        data_df (pandas df)
+        gct (GCToo object)
         prov_code (list of strings)
 
     Returns:
-        out_df (pandas df)
+        out_gct (GCToo object)
         updated_prov_code (list of strings): updated
     """
+    # Initialize output gct as input gct
+    out_gct = gct
+
     # Check if log2 transformation has already occurred
     if LOG_TRANSFORM_PROV_CODE_ENTRY in prov_code:
         logger.info("{} has already occurred.".format(LOG_TRANSFORM_PROV_CODE_ENTRY))
-        out_df = data_df
         updated_prov_code = prov_code
     else:
-        out_df = log_transform(data_df, log_base=2)
+        out_gct.data_df = log_transform(gct.data_df, log_base=2)
         prov_code_entry = LOG_TRANSFORM_PROV_CODE_ENTRY
         updated_prov_code = prov_code + [prov_code_entry]
 
-    return out_df, updated_prov_code
+    return out_gct, updated_prov_code
 
 
 # tested #
@@ -381,6 +438,8 @@ def initial_filtering(gct, assay_type, sample_nan_thresh, probe_nan_thresh, prob
 
     If nan_thresh is None, will use assay-specific default from config file.
 
+    Also return a list of samples remaining after sample filtration.
+
     Args:
         gct (GCToo object)
         assay_type (string)
@@ -392,37 +451,48 @@ def initial_filtering(gct, assay_type, sample_nan_thresh, probe_nan_thresh, prob
         prov_code (list of strings)
 
     Returns:
-        gct (GCToo object): updated
+        out_gct (GCToo object): updated
+        post_sample_nan_remaining (list of strings)
         prov_code (list of strings): updated
     """
+    # Record what probes we begin with
+    initial_probes = list(gct.data_df.index.values)
 
-    # Check NaN thresholds
+    # Check nan thresholds
     [sample_nan_thresh, probe_nan_thresh] = check_nan_thresh(
         assay_type, sample_nan_thresh, probe_nan_thresh, config_parameters)
 
-    # Filter samples by nan
-    gct.data_df = filter_samples_by_nan(gct.data_df, sample_nan_thresh)
+    ### FILTER SAMPLES BY NAN
+    sample_nan_data_df = filter_samples_by_nan(gct.data_df, sample_nan_thresh)
     thresh_digit = ("{:.1f}".format(sample_nan_thresh)).split(".")[1]
     prov_code_entry = "{}{}".format(SAMPLE_FILTER_PROV_CODE_ENTRY, thresh_digit)
-    (gct, prov_code) = update_metadata_and_prov_code(
-        gct.data_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
+    (out_gct, prov_code) = update_metadata_and_prov_code(
+        sample_nan_data_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
 
-    # Filter manually rejected probes
-    gct.data_df = manual_probe_rejection(gct.data_df, gct.row_metadata_df, manual_rejection_field)
+    # Record what samples remain
+    post_sample_nan_remaining = list(out_gct.data_df.columns.values)
 
-    # TODO(lev): should only appear if probes are actually rejected
-    prov_code_entry = "MPR"
-    (gct, prov_code) = update_metadata_and_prov_code(
-        gct.data_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
+    ### FILTER MANUALLY REJECTED PROBES
+    probe_manual_data_df = manual_probe_rejection(out_gct.data_df, out_gct.row_metadata_df, manual_rejection_field)
 
-    # Filter probes by nan and sd
-    gct.data_df = filter_probes_by_nan_and_sd(gct.data_df, probe_nan_thresh, probe_sd_cutoff)
+    # Check if any probes were actually rejected
+    post_probe_manual_remaining_probes = list(probe_manual_data_df.index.values)
+    probes_removed = (set(initial_probes) != set(post_probe_manual_remaining_probes))
+
+    # Only update prov code if probes were actually rejected
+    if probes_removed:
+        prov_code_entry = "MPR"
+        (out_gct, prov_code) = update_metadata_and_prov_code(
+            probe_manual_data_df, out_gct.row_metadata_df, out_gct.col_metadata_df, prov_code_entry, prov_code)
+
+    ### FILTER PROBES BY NAN AND SD
+    probe_nan_sd_data_df = filter_probes_by_nan_and_sd(out_gct.data_df, probe_nan_thresh, probe_sd_cutoff)
     thresh_digit = ("{:.1f}".format(probe_nan_thresh)).split(".")[1]
     prov_code_entry = "{}{}".format(PROBE_FILTER_PROV_CODE_ENTRY, thresh_digit)
-    (gct, prov_code) = update_metadata_and_prov_code(
-        gct.data_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
+    (out_gct, prov_code) = update_metadata_and_prov_code(
+        probe_nan_sd_data_df, out_gct.row_metadata_df, out_gct.col_metadata_df, prov_code_entry, prov_code)
 
-    return gct, prov_code
+    return out_gct, prov_code, post_sample_nan_remaining
 
 
 def check_nan_thresh(assay_type, sample_nan_thresh, probe_nan_thresh, config_parameters):
@@ -479,6 +549,7 @@ def filter_samples_by_nan(data_df, sample_nan_thresh):
     # Only return samples with fewer % of NaNs than the cutoff
     out_df = data_df.loc[:, pct_non_nan_per_sample > sample_nan_thresh]
     assert not out_df.empty, "All samples were filtered out. Try reducing the threshold."
+
     return out_df
 
 
@@ -566,7 +637,7 @@ def p100_calculate_dists_and_apply_offsets_if_needed(gct, assay_type, no_optim_b
         prov_code (list of strings)
 
     Returns:
-        gct (GCToo object): updated
+        out_gct (GCToo object): updated
         dists (numpy array of floats): distance metric for each sample
         offsets (numpy array of floats): offset that was applied to each sample
         success_bools (numpy array of bools): for each sample, indicates whether optimization was successful
@@ -577,11 +648,11 @@ def p100_calculate_dists_and_apply_offsets_if_needed(gct, assay_type, no_optim_b
     if assay_type is "p100":
         if not no_optim_bool:
             # Perform optimization and return offsets, distances, and success_bools
-            (gct.data_df, offsets, dists, success_bools) = (
+            (out_df, offsets, dists, success_bools) = (
                 calculate_distances_and_optimize(gct.data_df, optim_bounds))
             prov_code_entry = OPTIMIZATION_PROV_CODE_ENTRY
-            (gct, prov_code) = update_metadata_and_prov_code(
-                gct.data_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
+            (out_gct, prov_code) = update_metadata_and_prov_code(
+                out_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
         else:
             # Simply calculate distance metric for each sample
             dists = calculate_distances_only(gct.data_df)
@@ -589,6 +660,7 @@ def p100_calculate_dists_and_apply_offsets_if_needed(gct, assay_type, no_optim_b
             # Set offsets and success_bools to None
             offsets = None
             success_bools = None
+            out_gct = gct
 
     # GCP
     # N.B. distances are not calculated because filtration by distance doesn't occur
@@ -596,8 +668,9 @@ def p100_calculate_dists_and_apply_offsets_if_needed(gct, assay_type, no_optim_b
         dists = None
         offsets = None
         success_bools = None
+        out_gct = gct
 
-    return gct, dists, offsets, success_bools, prov_code
+    return out_gct, dists, offsets, success_bools, prov_code
 
 
 # tested #
@@ -713,6 +786,8 @@ def p100_filter_samples_by_dist(gct, assay_type, offsets, dists,
     """If P100, filter out samples whose distance metric is above some threshold.
     Also remove samples for which optimization did not converge.
 
+    Also return a list of samples that remain after filtration.
+
     N.B. Offsets are only passed to this function so that offsets of filtered
     out samples can be removed.
 
@@ -728,6 +803,7 @@ def p100_filter_samples_by_dist(gct, assay_type, offsets, dists,
     Returns:
         gct (GCToo object): updated
         out_offsets (numpy array of floats, or None): only returned for samples that were not removed
+        post_sample_dist_remaining (list of strings): if GCP, then None
         prov_code (list of strings): updated
 
     """
@@ -739,11 +815,15 @@ def p100_filter_samples_by_dist(gct, assay_type, offsets, dists,
         (gct, prov_code) = update_metadata_and_prov_code(
             out_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
 
+         # Record what samples remain
+        post_sample_dist_remaining = list(gct.data_df.columns.values)
+
     # GCP
     else:
         out_offsets = None
+        post_sample_dist_remaining = None
 
-    return gct, out_offsets, prov_code
+    return gct, out_offsets, post_sample_dist_remaining, prov_code
 
 
 # tested #
@@ -1025,6 +1105,51 @@ def insert_offsets_and_prov_code(gct, offsets, offsets_field, prov_code, prov_co
     gct.col_metadata_df.loc[:, prov_code_field] = prov_code_str
 
     return gct
+
+# tested #
+def save_remaining_samples(gct, post_sample_nan_remaining,
+                           post_sample_dist_remaining, out_path, out_name):
+    """Save to a .pw file a record of what samples remain after filtering by nan
+    and by distance.
+
+    Args:
+        gct (GCToo object): original input gct
+        post_sample_nan_remaining (list of strings):
+        post_sample_dist_remaining (list of strings): if GCP, this will be None
+        out_path (filepath): where to save output file
+        out_name (string): what to call output file
+
+    Returns:
+        .pw file called out_name
+
+    """
+    # Extract plate and well names
+    [plate_names, well_names] = gct2pw.extract_plate_and_well_names(
+        gct.col_metadata_df, "det_plate", "det_well")
+
+    # Create boolean lists of length = number of original samples indicating if
+    # sample was filtered at a certain step
+    original_samples = list(gct.data_df.columns.values)
+    post_sample_nan_bools = [sample in post_sample_nan_remaining for sample in original_samples]
+
+    if post_sample_dist_remaining is not None:
+        post_sample_dist_bools = [sample in post_sample_dist_remaining for sample in original_samples]
+
+        # Assemble plate_names, well_names, and bool arrays into a df
+        out_df = gct2pw.assemble_output_df(
+            plate_names, well_names,
+            remains_after_poor_coverage_filtration=post_sample_nan_bools,
+            remains_after_outlier_removal=post_sample_dist_bools)
+    else:
+        # Assemble plate_names, well_names, and single bool array into a df
+        out_df = gct2pw.assemble_output_df(
+            plate_names, well_names,
+            remains_after_poor_coverage_filtration=post_sample_nan_bools)
+
+    # Write to pw file
+    full_out_name = os.path.join(out_path, out_name)
+    out_df.to_csv(full_out_name, sep="\t", na_rep="NaN", index=False)
+    logger.info("PW file written to {}".format(full_out_name))
 
 
 def write_output_gct(gct, out_path, out_name, data_null, filler_null):

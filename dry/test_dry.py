@@ -17,7 +17,6 @@ that has the assets required for the 3 functional tests below. For
 functional tests, I just check that they run to completion.
 
 """
-
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
@@ -70,14 +69,17 @@ class TestDry(unittest.TestCase):
         INPUT_GCT_PATH = os.path.join(FUNCTIONAL_TESTS_DIR, "gcp_gr1_plate31.gct")
         JJ_OUTPUT_GCT = os.path.join(FUNCTIONAL_TESTS_DIR, "gcp_gr1_plate31_processed.gct")
         OUT_NAME = "test_dry_gcp_output.gct"
+        OUT_PW_NAME = "test_dry_gcp_remaining.pw"
 
         args_string = ("{} {} " +
                        "-out_name {} " +
+                       "-out_pw_name {} " +
                        "-sample_nan_thresh {} " +
                        "-probe_nan_thresh {} " +
                        "-probe_sd_cutoff {} " +
                        "-v").format(INPUT_GCT_PATH, FUNCTIONAL_TESTS_DIR,
-                                    OUT_NAME, 0.5, 0.5, 4)
+                                    OUT_NAME, OUT_PW_NAME, 0.5, 0.5, 4)
+        print args_string
         args = dry.build_parser().parse_args(args_string.split())
         out_gct = dry.main(args)
 
@@ -98,6 +100,11 @@ class TestDry(unittest.TestCase):
 
         # Clean up
         os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_NAME))
+
+        # No samples should have been filtered out
+        out_pw_df = pd.read_csv(
+            os.path.join(FUNCTIONAL_TESTS_DIR, OUT_PW_NAME), sep="\t")
+        self.assertTrue(all(out_pw_df["remains_after_poor_coverage_filtration"]))
 
     def test_p100_subset_main(self):
         INPUT_GCT_PATH = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate35_subsets.gct")
@@ -199,20 +206,41 @@ class TestDry(unittest.TestCase):
         self.assertEqual(assay_out, "p100")
 
 
+    def test_configure_out_names(self):
+        gct_path = "/cmap/location/somewhere/input.gct"
+        out_name_from_args = "super_output.gct"
+        out_pw_name_from_args = "super_duper.pw"
+
+        # Using given args
+        (out_gct_name, out_pw_name) = dry.configure_out_names(
+            gct_path, out_name_from_args, out_pw_name_from_args)
+
+        self.assertEqual(out_gct_name, out_name_from_args)
+        self.assertEqual(out_pw_name, out_pw_name_from_args)
+
+        # None provided
+        (out_gct_name2, out_pw_name2) = dry.configure_out_names(
+            gct_path, None, None)
+
+        self.assertEqual(out_gct_name2, "input.gct.processed.gct")
+        self.assertEqual(out_pw_name2, "input.gct.remaining.pw")
+
+
     def test_log_transform_if_needed(self):
         prov_code = ["GR1", "L2X"]
         in_df = pd.DataFrame([[10, -3, 1.2],
                               [0.45, 0.2, 0],
                               [4.5, np.nan, 0.3]], dtype=float)
+        in_gct = GCToo.GCToo(data_df=in_df, row_metadata_df=None, col_metadata_df=None)
 
         # Nothing should happen
-        (out_df, out_prov_code) = dry.log_transform_if_needed(in_df, prov_code)
-        self.assertTrue(np.allclose(out_df, in_df, atol=1e-3, equal_nan=True))
+        (out_gct, out_prov_code) = dry.log_transform_if_needed(in_gct, prov_code)
+        self.assertTrue(np.allclose(out_gct.data_df, in_df, atol=1e-3, equal_nan=True))
         self.assertEqual(out_prov_code, prov_code)
 
         # L2X should occur
         prov_code2 = ["GR1"]
-        (_, out_prov_code2) = dry.log_transform_if_needed(in_df, prov_code2)
+        (_, out_prov_code2) = dry.log_transform_if_needed(in_gct, prov_code2)
         self.assertEqual(out_prov_code2, prov_code)
 
 
@@ -292,6 +320,7 @@ class TestDry(unittest.TestCase):
         manual_rejection_field = "rej"
         prov_code = ["A","B"]
         e_prov_code = ["A","B","SF3","MPR","PF5"]
+        e_remaining_samples = ["e","f","g"]
 
         data = pd.DataFrame([[1,2,3],[np.nan,5,np.nan],[7,8,9],[10,11,12]],
                             index=["a","b","c","d"],
@@ -309,8 +338,9 @@ class TestDry(unittest.TestCase):
                                 index=["e","f","g"],
                                 columns=["col_field1","col_field2"])
         in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
+        original_gct = in_gct
 
-        (out_gct, out_prov_code) = dry.initial_filtering(
+        (out_gct, out_prov_code, out_remaining) = dry.initial_filtering(
             in_gct, assay_type, sample_nan_thresh, probe_nan_thresh,
             probe_sd_cutoff, {},
             manual_rejection_field, prov_code)
@@ -318,7 +348,31 @@ class TestDry(unittest.TestCase):
         self.assertTrue(np.allclose(out_gct.data_df, e_data, atol=1e-3))
         self.assertTrue(np.array_equal(out_gct.row_metadata_df, e_row_meta))
         self.assertTrue(np.array_equal(out_gct.col_metadata_df, col_meta))
+        self.assertEqual(out_remaining, e_remaining_samples)
         self.assertEqual(out_prov_code, e_prov_code)
+
+        # Make sure that input gct was not modified
+        self.assertTrue(np.allclose(in_gct.data_df, original_gct.data_df,
+                                    atol=1e-3, equal_nan=True))
+
+        # Check that manual rejection doesn't happen if no probes marked for rejection
+        row_meta2 = pd.DataFrame([["rm1","TRUE"],["rm3","TRUE"],["rm5","TRUE"],["rm7","TRUE"]],
+                                index=["a","b","c","d"],
+                                columns=["row_field1", "rej"])
+        e_data2 = pd.DataFrame([[1,2,3],[7,8,9],[10,11,12]],
+                              index=["a","c","d"],
+                              columns=["e","f","g"])
+        e_prov_code2 = ["A","B","SF3","PF5"]
+
+        in_gct2 = GCToo.GCToo(data_df=data, row_metadata_df=row_meta2, col_metadata_df=col_meta)
+        (out_gct2, out_prov_code2, out_remaining2) = dry.initial_filtering(
+            in_gct2, assay_type, sample_nan_thresh, probe_nan_thresh,
+            probe_sd_cutoff, {},
+            manual_rejection_field, prov_code)
+
+        self.assertTrue(np.allclose(out_gct2.data_df, e_data2, atol=1e-3))
+        self.assertEqual(out_remaining2, e_remaining_samples)
+        self.assertEqual(out_prov_code2, e_prov_code2)
 
     def test_check_nan_thresh(self):
         assay_type = "p100"
@@ -510,9 +564,10 @@ class TestDry(unittest.TestCase):
                                 index=["e","g"],
                                 columns=["col_field1","col_field2"])
         e_offsets = np.array([4,7], dtype=float)
+        e_remaining = ["e","g"]
         e_prov_code = ["A", "B", "OSF1"]
 
-        (out_gct, out_offsets, out_prov_code) = (
+        (out_gct, out_offsets, out_remaining, out_prov_code) = (
             dry.p100_filter_samples_by_dist(
                 in_gct, "p100", offsets, dists, success_bools, dist_sd_cutoff, prov_code))
 
@@ -520,10 +575,11 @@ class TestDry(unittest.TestCase):
         self.assertTrue(np.array_equal(out_gct.col_metadata_df, e_col_meta))
         self.assertTrue(np.array_equal(out_gct.row_metadata_df, row_meta))
         self.assertTrue(np.allclose(out_offsets, e_offsets, atol=1e-2))
+        self.assertEqual(out_remaining, e_remaining)
         self.assertEqual(out_prov_code, e_prov_code)
 
         # GCP
-        (out_gct2, out_offsets2, out_prov_code2) = (
+        (out_gct2, out_offsets2, out_remaining2, out_prov_code2) = (
             dry.p100_filter_samples_by_dist(
                 in_gct, "gcp", None, dists, None, dist_sd_cutoff, prov_code))
 
@@ -531,6 +587,7 @@ class TestDry(unittest.TestCase):
         self.assertTrue(np.array_equal(out_gct2.col_metadata_df, col_meta))
         self.assertTrue(np.array_equal(out_gct2.row_metadata_df, row_meta))
         self.assertEqual(out_offsets2, None)
+        self.assertEqual(out_remaining2, None)
         self.assertEqual(out_prov_code2, prov_code)
 
 
@@ -753,6 +810,40 @@ class TestDry(unittest.TestCase):
             in_gct, offsets, offsets_field, prov_code, prov_code_field, prov_code_delimiter)
 
         self.assertTrue(np.array_equal(out_gct.col_metadata_df, e_col_meta))
+
+    def test_save_remaining_samples(self):
+        data = pd.DataFrame([[1,2,3,4,5],[6,7,8,9,10]],
+                            index=["a","b"],
+                            columns=["c","d","e","f","g"])
+        row_meta = pd.DataFrame([["rm1","rm2"],["rm3","rm4"]],
+                                index=["a","b"],
+                                columns=["row_field1", "row_field2"])
+        col_meta = pd.DataFrame([["plate1","A1"],["plate1","A2"],["plate1","A3"],
+                                 ["plate1","A4"], ["plate1","A5"]],
+                                index=["c","d","e","f","g"],
+                                columns=["det_plate","det_well"])
+        in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
+
+        post_sample_nan_remaining = ["c","e","f","g"]
+        post_sample_dist_remaining = ["c","f","g"]
+        out_path = FUNCTIONAL_TESTS_DIR
+        out_name = "test_remaining_samples.pw"
+        e_df = pd.DataFrame([["plate1","A1",True,True],
+                             ["plate1","A2",False,False],
+                             ["plate1","A3",False,True],
+                             ["plate1","A4",True,True],
+                             ["plate1","A5",True,True]])
+
+        dry.save_remaining_samples(in_gct, post_sample_nan_remaining,
+                                   post_sample_dist_remaining, out_path, out_name)
+
+        # Read back the pw file
+        df_from_file = pd.read_csv(os.path.join(out_path, out_name), sep="\t")
+        self.assertTrue(np.array_equal(df_from_file, e_df))
+
+        # Clean up
+        os.remove(os.path.join(out_path, out_name))
+
 
     def test_slice_metadata_using_already_sliced_data_df(self):
         data = pd.DataFrame([[2,3],[5,6],[11,12]],

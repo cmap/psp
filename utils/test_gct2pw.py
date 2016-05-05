@@ -1,7 +1,7 @@
 import unittest
 import logging
 import utils.setup_logger as setup_logger
-import qc_gct_to_pw
+import gct2pw
 
 """
 This code should be run from broadinstitute.psp/utils.
@@ -19,7 +19,7 @@ class TestQCGctToPw(unittest.TestCase):
     def test_main(self):
         gct_path = ""
 
-        qc_gct_to_pw.main()
+        gct2pw.main()
 
 
 if __name__ == "__main__":
