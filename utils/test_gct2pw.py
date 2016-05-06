@@ -1,6 +1,7 @@
 import unittest
 import logging
 import utils.setup_logger as setup_logger
+import numpy as np
 import gct2pw
 
 """
@@ -15,11 +16,16 @@ that has the assets required below.
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
 
-class TestQCGctToPw(unittest.TestCase):
-    def test_main(self):
-        gct_path = ""
+class TestGct2Pw(unittest.TestCase):
+    def test_assemble_output_df(self):
+        plate_names = np.array(["plate1", "plate2", "plate3"])
+        well_names = np.array(["A1", "A2", "A3"])
+        e_col_names = ["plate_name", "well_name", "arg1", "arg2", "arg3"]
 
-        gct2pw.main()
+        out_df = gct2pw.assemble_output_df(
+            plate_names, well_names, arg3=[1,2,3], arg1=[7,8,9], arg2=[4,5,6])
+
+        self.assertEqual(list(out_df.columns.values), e_col_names)
 
 
 if __name__ == "__main__":
