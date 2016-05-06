@@ -30,13 +30,15 @@ class TestDry(unittest.TestCase):
         INPUT_GCT_PATH = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate29_3H.gct")
         JJ_OUTPUT_GCT = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate29_3H_processed.gct")
         OUT_NAME = "test_dry_p100_output.gct"
+        OUT_PW_NAME = "test_dry_p100_remaining.pw"
 
         args_string = ("{} {} " +
                        "-out_name {} " +
+                       "-out_pw_name {} " +
                        "-sample_nan_thresh {} " +
                        "-probe_nan_thresh {} " +
                        "-v").format(INPUT_GCT_PATH, FUNCTIONAL_TESTS_DIR,
-                                    OUT_NAME, 0.8, 0.9)
+                                    OUT_NAME, OUT_PW_NAME, 0.8, 0.9)
         args = dry.build_parser().parse_args(args_string.split())
         out_gct = dry.main(args)
 
@@ -64,6 +66,7 @@ class TestDry(unittest.TestCase):
 
         # Clean up
         os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_NAME))
+        os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_PW_NAME))
 
     def test_GCP_main(self):
         INPUT_GCT_PATH = os.path.join(FUNCTIONAL_TESTS_DIR, "gcp_gr1_plate31.gct")
@@ -98,27 +101,31 @@ class TestDry(unittest.TestCase):
         logger.info("Mean difference between gcts: {}".format(np.nanmean(e_gct.data_df.values - out_gct.data_df.values)))
         logger.info("Mean absolute difference between gcts: {}".format(np.nanmean(np.absolute(e_gct.data_df.values - out_gct.data_df.values))))
 
-        # Clean up
-        os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_NAME))
-
         # No samples should have been filtered out
         out_pw_df = pd.read_csv(
             os.path.join(FUNCTIONAL_TESTS_DIR, OUT_PW_NAME), sep="\t")
         self.assertTrue(all(out_pw_df["remains_after_poor_coverage_filtration"]))
 
+        # Clean up
+        os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_NAME))
+        os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_PW_NAME))
+
+
     def test_p100_subset_main(self):
         INPUT_GCT_PATH = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate35_subsets.gct")
         JJ_OUTPUT_GCT = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate35_subsets_processed.gct")
-        OUT_NAME = "test_dry_p100_subsets_output_no_bool.gct"
+        OUT_NAME = "test_dry_p100_subsets_output.gct"
+        OUT_PW_NAME = "test_dry_p100_subsets_output_remaining.pw"
 
         args_string = ("{} {} " +
                        "-out_name {} " +
+                       "-out_pw_name {} " +
                        "-sample_nan_thresh {} " +
                        "-probe_nan_thresh {} " +
                        "-probe_sd_cutoff {} " +
                        "-dist_sd_cutoff {} " +
                        "-v").format(INPUT_GCT_PATH, FUNCTIONAL_TESTS_DIR,
-                                    OUT_NAME, 0.8, 0.9, 3, 3)
+                                    OUT_NAME, OUT_PW_NAME, 0.8, 0.9, 3, 3)
         args = dry.build_parser().parse_args(args_string.split())
         out_gct = dry.main(args)
 
@@ -147,6 +154,7 @@ class TestDry(unittest.TestCase):
 
         # Clean up
         os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_NAME))
+        os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_PW_NAME))
 
     def test_read_gct_and_config_file(self):
         PSP_CONFIG_PATH = "example_psp.cfg"

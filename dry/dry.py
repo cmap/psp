@@ -172,7 +172,7 @@ def read_gct_and_config_file(gct_path, config_path, forced_assay_type):
 
     Args:
         gct_path (string): filepath to gct file
-        config_path (srting): filepath to config file
+        config_path (string): filepath to config file
         forced_assay_type (string, or None)
         prov_code_field (string): name of the col metadata field for the provenance code
 
@@ -494,7 +494,7 @@ def initial_filtering(gct, assay_type, sample_nan_thresh, probe_nan_thresh, prob
 
     return out_gct, prov_code, post_sample_nan_remaining
 
-
+# tested #
 def check_nan_thresh(assay_type, sample_nan_thresh, probe_nan_thresh, config_parameters):
     """Checks if nan_thresh provided. If not, uses value from config file.
 
@@ -551,7 +551,6 @@ def filter_samples_by_nan(data_df, sample_nan_thresh):
     assert not out_df.empty, "All samples were filtered out. Try reducing the threshold."
 
     return out_df
-
 
 # tested #
 def manual_probe_rejection(data_df, row_metadata_df, manual_rejection_field):
@@ -759,7 +758,6 @@ def calculate_distances_only(data_df):
 
     return dists
 
-
 # tested #
 def distance_function(offset, values, medians):
     """This function calculates the distance metric.
@@ -780,7 +778,7 @@ def distance_function(offset, values, medians):
     dist = sum(np.square((offset + non_nan_values) - non_nan_medians))
     return dist
 
-
+# tested #
 def p100_filter_samples_by_dist(gct, assay_type, offsets, dists,
                                 success_bools, dist_sd_cutoff, prov_code):
     """If P100, filter out samples whose distance metric is above some threshold.
@@ -871,7 +869,7 @@ def remove_sample_outliers(data_df, offsets, distances, success_bools, dist_sd_c
 
     return out_df, out_offsets
 
-
+# tested #
 def median_normalize(gct, ignore_subset_norm, row_subset_field, col_subset_field, prov_code):
     """Subset normalize if the metadata shows that subsets exist for either
     rows or columns AND ignore_subset_norm is False. Otherwise, use the
@@ -1232,7 +1230,6 @@ def slice_metadata_using_already_sliced_data_df(data_df, row_meta_df, col_meta_d
     out_gct = GCToo.GCToo(data_df=data_df,
                           row_metadata_df=out_row_meta_df,
                           col_metadata_df=out_col_meta_df)
-
     return out_gct
 
 
