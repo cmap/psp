@@ -11,7 +11,7 @@ from scipy.optimize import minimize_scalar
 import in_out.GCToo as GCToo
 import in_out.parse_gctoo as parse_gctoo
 import in_out.write_gctoo as write_gctoo
-import utils.gct2pw as gct2pw
+import utils.qc_gct2pw as gct2pw
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
@@ -36,6 +36,7 @@ Example usage:
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
+# Provenance code entries
 LOG_TRANSFORM_PROV_CODE_ENTRY = "L2X"
 GCP_HISTONE_PROV_CODE_ENTRY = "H3N"
 SAMPLE_FILTER_PROV_CODE_ENTRY = "SF"
@@ -45,6 +46,10 @@ OPTIMIZATION_PROV_CODE_ENTRY = "LLB"
 OUTLIER_SAMPLE_FILTER_PROV_CODE_ENTRY = "OSF"
 SUBSET_NORMALIZE_PROV_CODE_ENTRY = "GMN"
 ROW_NORMALIZE_PROV_CODE_ENTRY = "RMN"
+
+# Default output suffixes
+DEFAULT_GCT_SUFFIX = ".dry.processed.gct"
+DEFAULT_PW_SUFFIX = ".dry.processed.pw"
 
 
 def build_parser():
@@ -59,9 +64,9 @@ def build_parser():
 
     # Optional args
     parser.add_argument("-out_name", type=str, default=None,
-                        help="name of output gct (if None, will use <INPUT_GCT>.processed.gct")
+                        help="name of output gct (if None, will use <INPUT_GCT>.dry.processed.gct")
     parser.add_argument("-out_pw_name", type=str, default=None,
-                        help="name of output pw file (if None, will use <INPUT_GCT>.remaining.pw")
+                        help="name of output pw file (if None, will use <INPUT_GCT>.dry.processed.pw")
     parser.add_argument("-verbose", "-v", action="store_true", default=False,
                         help="increase the number of messages reported")
     parser.add_argument("-psp_config_path", type=str,
@@ -144,10 +149,10 @@ def main(args):
     (out_gct_name, out_pw_name) = configure_out_names(
         args.gct_path, args.out_name, args.out_pw_name)
 
-    ### WRITE PW FILE OF REMAINING SAMPLES
-    save_remaining_samples(in_gct, post_sample_nan_remaining,
-                           post_sample_dist_remaining,
-                           args.out_path, out_pw_name)
+    ### WRITE PW FILE OF SAMPLES FILTERED
+    write_output_pw(in_gct, post_sample_nan_remaining,
+                    post_sample_dist_remaining,
+                    args.out_path, out_pw_name)
 
     ### WRITE OUTPUT GCT
     write_output_gct(out_gct, args.out_path, out_gct_name,
@@ -284,8 +289,8 @@ def check_assay_type(assay_type, p100_assays, gcp_assays):
 
 # tested #
 def configure_out_names(gct_path, out_name_from_args, out_pw_name_from_args):
-    """If out_name_from_args is None, append .processed.gct to the input
-    gct name. If out_pw_name_from_args is None, append .remaining.pw to the
+    """If out_name_from_args is None, append DEFAULT_GCT_SUFFIX to the input
+    gct name. If out_pw_name_from_args is None, append DEFAULT_PW_SUFFIX to the
     input gct name.
 
     Args:
@@ -298,12 +303,9 @@ def configure_out_names(gct_path, out_name_from_args, out_pw_name_from_args):
         out_pw_name (file path)
 
     """
-    GCT_SUFFIX = ".processed.gct"
-    PW_SUFFIX = ".remaining.pw"
-
     input_basename = os.path.basename(gct_path)
     if out_name_from_args is None:
-        out_gct_name = input_basename + GCT_SUFFIX
+        out_gct_name = input_basename + DEFAULT_GCT_SUFFIX
     else:
         out_gct_name = out_name_from_args
         assert os.path.splitext(out_gct_name)[1] == ".gct", (
@@ -311,7 +313,7 @@ def configure_out_names(gct_path, out_name_from_args, out_pw_name_from_args):
                 out_gct_name))
 
     if out_pw_name_from_args is None:
-        out_pw_name = input_basename + PW_SUFFIX
+        out_pw_name = input_basename + DEFAULT_PW_SUFFIX
     else:
         out_pw_name = out_pw_name_from_args
         assert os.path.splitext(out_pw_name)[1] == ".pw", (
@@ -1025,7 +1027,8 @@ def make_norm_ndarray(row_metadata_df, col_metadata_df, row_subset_field, col_su
         norm_ndarray[probe_bool_vec, :] = row_to_insert
 
     # Check that there are no zeros in norm_ndarray anymore
-    assert ~np.any(norm_ndarray == 0)
+    assert ~np.any(norm_ndarray == 0), (
+        "There should not be any zeros in norm_ndarray anymore.")
 
     return norm_ndarray
 
@@ -1105,10 +1108,10 @@ def insert_offsets_and_prov_code(gct, offsets, offsets_field, prov_code, prov_co
     return gct
 
 # tested #
-def save_remaining_samples(gct, post_sample_nan_remaining,
-                           post_sample_dist_remaining, out_path, out_name):
-    """Save to a .pw file a record of what samples remain after filtering by nan
-    and by distance.
+def write_output_pw(gct, post_sample_nan_remaining,
+                    post_sample_dist_remaining, out_path, out_name):
+    """Save to a .pw file a record of what samples remain after filtering and
+    the optimization offsets that were applied.
 
     Args:
         gct (GCToo object): original input gct

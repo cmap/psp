@@ -23,6 +23,9 @@ logger = logging.getLogger(setup_logger.LOGGER_NAME)
 # Functional tests dir lives within the dry directory
 FUNCTIONAL_TESTS_DIR = "dry/functional_tests"
 
+# Set to false if you want to see what output is created
+CLEANUP = False
+
 # N.B. e_out is expected_output.
 class TestDry(unittest.TestCase):
 
@@ -30,7 +33,7 @@ class TestDry(unittest.TestCase):
         INPUT_GCT_PATH = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate29_3H.gct")
         JJ_OUTPUT_GCT = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate29_3H_processed.gct")
         OUT_NAME = "test_dry_p100_output.gct"
-        OUT_PW_NAME = "test_dry_p100_remaining.pw"
+        OUT_PW_NAME = "test_dry_p100_output.pw"
 
         args_string = ("{} {} " +
                        "-out_name {} " +
@@ -65,14 +68,15 @@ class TestDry(unittest.TestCase):
         logger.info("Mean absolute difference between gcts: {}".format(np.nanmean(np.absolute(e_gct.data_df.values - out_gct.data_df.values))))
 
         # Clean up
-        os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_NAME))
-        os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_PW_NAME))
+        if CLEANUP:
+            os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_NAME))
+            os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_PW_NAME))
 
     def test_GCP_main(self):
         INPUT_GCT_PATH = os.path.join(FUNCTIONAL_TESTS_DIR, "gcp_gr1_plate31.gct")
         JJ_OUTPUT_GCT = os.path.join(FUNCTIONAL_TESTS_DIR, "gcp_gr1_plate31_processed.gct")
         OUT_NAME = "test_dry_gcp_output.gct"
-        OUT_PW_NAME = "test_dry_gcp_remaining.pw"
+        OUT_PW_NAME = "test_dry_gcp_output.pw"
 
         args_string = ("{} {} " +
                        "-out_name {} " +
@@ -82,7 +86,6 @@ class TestDry(unittest.TestCase):
                        "-probe_sd_cutoff {} " +
                        "-v").format(INPUT_GCT_PATH, FUNCTIONAL_TESTS_DIR,
                                     OUT_NAME, OUT_PW_NAME, 0.5, 0.5, 4)
-        print args_string
         args = dry.build_parser().parse_args(args_string.split())
         out_gct = dry.main(args)
 
@@ -107,15 +110,16 @@ class TestDry(unittest.TestCase):
         self.assertTrue(all(out_pw_df["remains_after_poor_coverage_filtration"]))
 
         # Clean up
-        os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_NAME))
-        os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_PW_NAME))
+        if CLEANUP:
+            os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_NAME))
+            os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_PW_NAME))
 
 
     def test_p100_subset_main(self):
         INPUT_GCT_PATH = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate35_subsets.gct")
         JJ_OUTPUT_GCT = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate35_subsets_processed.gct")
         OUT_NAME = "test_dry_p100_subsets_output.gct"
-        OUT_PW_NAME = "test_dry_p100_subsets_output_remaining.pw"
+        OUT_PW_NAME = "test_dry_p100_subsets_output.pw"
 
         args_string = ("{} {} " +
                        "-out_name {} " +
@@ -153,8 +157,9 @@ class TestDry(unittest.TestCase):
         logger.info("Mean absolute difference between gcts: {}".format(np.nanmean(np.absolute(e_gct.data_df.values - out_gct.data_df.values))))
 
         # Clean up
-        os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_NAME))
-        os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_PW_NAME))
+        if CLEANUP:
+            os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_NAME))
+            os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_PW_NAME))
 
     def test_read_gct_and_config_file(self):
         PSP_CONFIG_PATH = "example_psp.cfg"
@@ -212,26 +217,6 @@ class TestDry(unittest.TestCase):
         gcp = ["bd", "ef"]
         assay_out = dry.check_assay_type(assay_type, p100, gcp)
         self.assertEqual(assay_out, "p100")
-
-
-    def test_configure_out_names(self):
-        gct_path = "/cmap/location/somewhere/input.gct"
-        out_name_from_args = "super_output.gct"
-        out_pw_name_from_args = "super_duper.pw"
-
-        # Using given args
-        (out_gct_name, out_pw_name) = dry.configure_out_names(
-            gct_path, out_name_from_args, out_pw_name_from_args)
-
-        self.assertEqual(out_gct_name, out_name_from_args)
-        self.assertEqual(out_pw_name, out_pw_name_from_args)
-
-        # None provided
-        (out_gct_name2, out_pw_name2) = dry.configure_out_names(
-            gct_path, None, None)
-
-        self.assertEqual(out_gct_name2, "input.gct.processed.gct")
-        self.assertEqual(out_pw_name2, "input.gct.remaining.pw")
 
 
     def test_log_transform_if_needed(self):
@@ -819,7 +804,26 @@ class TestDry(unittest.TestCase):
 
         self.assertTrue(np.array_equal(out_gct.col_metadata_df, e_col_meta))
 
-    def test_save_remaining_samples(self):
+    def test_configure_out_names(self):
+        gct_path = "/cmap/location/somewhere/input.gct"
+        out_name_from_args = "super_output.gct"
+        out_pw_name_from_args = "super_duper.pw"
+
+        # Using given args
+        (out_gct_name, out_pw_name) = dry.configure_out_names(
+            gct_path, out_name_from_args, out_pw_name_from_args)
+
+        self.assertEqual(out_gct_name, out_name_from_args)
+        self.assertEqual(out_pw_name, out_pw_name_from_args)
+
+        # None provided
+        (out_gct_name2, out_pw_name2) = dry.configure_out_names(
+            gct_path, None, None)
+
+        self.assertEqual(out_gct_name2, "input.gct.dry.processed.gct")
+        self.assertEqual(out_pw_name2, "input.gct.dry.processed.pw")
+
+    def test_write_output_pw(self):
         data = pd.DataFrame([[1,2,3,4,5],[6,7,8,9,10]],
                             index=["a","b"],
                             columns=["c","d","e","f","g"])
@@ -835,22 +839,23 @@ class TestDry(unittest.TestCase):
         post_sample_nan_remaining = ["c","e","f","g"]
         post_sample_dist_remaining = ["c","f","g"]
         out_path = FUNCTIONAL_TESTS_DIR
-        out_name = "test_remaining_samples.pw"
+        out_name = "test_write_output.pw"
         e_df = pd.DataFrame([["plate1","A1",True,True],
                              ["plate1","A2",False,False],
                              ["plate1","A3",False,True],
                              ["plate1","A4",True,True],
                              ["plate1","A5",True,True]])
 
-        dry.save_remaining_samples(in_gct, post_sample_nan_remaining,
-                                   post_sample_dist_remaining, out_path, out_name)
+        dry.write_output_pw(in_gct, post_sample_nan_remaining,
+                            post_sample_dist_remaining, out_path, out_name)
 
         # Read back the pw file
         df_from_file = pd.read_csv(os.path.join(out_path, out_name), sep="\t")
         self.assertTrue(np.array_equal(df_from_file, e_df))
 
         # Clean up
-        os.remove(os.path.join(out_path, out_name))
+        if CLEANUP:
+            os.remove(os.path.join(out_path, out_name))
 
 
     def test_slice_metadata_using_already_sliced_data_df(self):
