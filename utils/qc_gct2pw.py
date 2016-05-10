@@ -9,16 +9,14 @@ __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
 
 """
-Converts a QC gct file into a .pw (plate-well) file that can be used
-easily with Plato.
+QC_GCT2PW.PY: Converts a QC gct file into a .pw (plate-well) file that can
+be used easily with Plato.
 
-Divides each value by the maximum value in the row, and then computes the
-median, mean, MAD, and SD of the values in each column.
+Divides each value by the maximum value of its row, and then computes the
+median, mean, MAD, and SD for each column.
 
 Input is a gct file. Output is a pw file.
 """
-
-# TODO(lev): update documentation to reflect correct computations
 
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
@@ -53,7 +51,7 @@ def main(args):
     max_row_values = gct.data_df.max(axis='columns')
     divided_data_df = gct.data_df.div(max_row_values, axis="rows")
 
-    # TODO(lev): what do I do with negative values?
+    # TODO(lev): unlog transform the data (check L2X)
 
     # Calculate metrics for each sample
     medium_over_heavy_medians = divided_data_df.median(axis=0).values
@@ -92,7 +90,8 @@ def extract_plate_and_well_names(col_meta, plate_field, well_field):
     plate_names_same = True
     for plate in plate_names:
         plate_names_same = (plate_names_same and plate == plate_names[0])
-        assert plate_names_same
+        assert plate_names_same, ("All samples must have the same plate name. " +
+                                  "plate_names: {}").format(plate_names)
 
     # Extract well metadata
     well_names = col_meta[well_field].values
