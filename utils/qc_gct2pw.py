@@ -116,6 +116,8 @@ def assemble_output_df(plate_names, well_names, **kwargs):
     PLATE_FIELD = "plate_name"
     WELL_FIELD = "well_name"
 
+    # TODO(lev): use metadata_dict rather than kwargs
+
     # Make plate and well names into a dict
     plate_and_well_dict = {PLATE_FIELD: plate_names, WELL_FIELD: well_names}
 
