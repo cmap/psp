@@ -20,6 +20,6 @@ dependencies:
 - wheel=0.29.0=py27_0
 - zlib=1.2.8=0
 - pip:
-  - psp (/Users/lev/code/broadinstitute.psp)==0.2
+  - psp (/Users/lev/code/broadinstitute.psp)==0.3
   - tables==3.2.2
 
