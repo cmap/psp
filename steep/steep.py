@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-import dry.dry as dry
+import utils.psp_utils as utils
 
 """
 Input is a merged gct file containing all data.
@@ -15,9 +15,11 @@ in_gct = "~/psp_data/all_gcp.gct"
 psp_config = "~/code/broadinstitute.psp/example_psp.cfg"
 
 # Read gct and config file
-read_gct_and_config_file(in_gct, psp_config)
+(gct, config_io, config_metadata, config_parameters) = (
+    utils.read_gct_and_config_file(in_gct, psp_config))
 
 # Compute pairwise similarity matrix
+
 
 # Assemble metadata for similarity matrix
 
