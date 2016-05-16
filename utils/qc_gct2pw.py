@@ -2,8 +2,9 @@ import logging
 import utils.setup_logger as setup_logger
 import sys
 import argparse
-import in_out.parse_gctoo as parse_gctoo
+import numpy as np
 import pandas as pd
+import in_out.parse_gctoo as parse_gctoo
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
@@ -20,6 +21,10 @@ Input is a gct file. Output is a pw file.
 
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
+
+PROV_CODE_FIELD = "provenance_code"
+PROV_CODE_DELIMITER = "+"
+LOG_TRANSFORM_PROV_CODE_ENTRY = "L2X"
 
 def build_parser():
     parser = argparse.ArgumentParser(
@@ -47,11 +52,22 @@ def main(args):
     (plate_names, well_names) = extract_plate_and_well_names(
         gct.col_metadata_df, args.plate_field, args.well_field)
 
+    # Check provenance code to see if log transformation occurred
+    prov_code_series = gct.col_metadata_df.loc[:, PROV_CODE_FIELD]
+
+    # Split each provenance code string along the delimiter
+    prov_code_list_series = prov_code_series.apply(lambda x: x.split(PROV_CODE_DELIMITER))
+
+    # Set provenance code to be the first element in the list
+    prov_code = prov_code_list_series.iloc[0]
+
+    # If data has been log-transformed, undo it
+    if LOG_TRANSFORM_PROV_CODE_ENTRY in prov_code:
+        gct.data_df = np.exp2(gct.data_df)
+
     # Divide by the maximum value for the row
     max_row_values = gct.data_df.max(axis='columns')
     divided_data_df = gct.data_df.div(max_row_values, axis="rows")
-
-    # TODO(lev): unlog transform the data (check L2X)
 
     # Calculate metrics for each sample
     medium_over_heavy_medians = divided_data_df.median(axis=0).values

@@ -38,6 +38,10 @@ class TestQCGct2Pw(unittest.TestCase):
         self.assertTrue(np.array_equal(out_plates, ["a","a"]))
         self.assertTrue(np.array_equal(out_wells, ["c","f"]))
 
+    # TODO(lev)
+    def test_undo_log_transform_if_needed(self):
+        pass
+
     def test_main(self):
         IN_GCT = os.path.join(FUNCTIONAL_TESTS_DIR, "qc_plate32.gct")
         OUT_PW = os.path.join(FUNCTIONAL_TESTS_DIR, "test_qc_gct2pw.pw")
