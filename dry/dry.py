@@ -179,7 +179,6 @@ def read_gct_and_config_file(gct_path, config_path, forced_assay_type):
         gct_path (string): filepath to gct file
         config_path (string): filepath to config file
         forced_assay_type (string, or None)
-        prov_code_field (string): name of the col metadata field for the provenance code
 
     Returns:
         gct (GCToo object)
