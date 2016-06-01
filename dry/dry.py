@@ -89,7 +89,7 @@ def build_parser():
                               "config file will be used"))
     parser.add_argument("-probe_sd_cutoff", type=float, default=3,
                         help=("maximum SD for a probe before being filtered out"))
-    parser.add_argument("-dist_sd_cutoff", type=float, default=3,
+    parser.add_argument("-dist_sd_cutoff", type=float, default=5,
                         help=("maximum SD for a sample's distance metric " +
                               "before being filtered out"))
 
