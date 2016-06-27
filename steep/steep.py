@@ -21,8 +21,8 @@ connectivity using the "all_conn_outputs" argument.
 Similarities are computed pairwise between all samples in in_gct.
 Connectivities, however, are aggregated according to "fields." For example,
 if fields = ["pert_iname", "cell_id"], perturbations of the same perturbagen in
-the same cells (but potentially at different time points and different doses)
-are aggregated together in computing connectivity.
+the same cell lines (but potentially at different time points and different
+doses) are aggregated together when computing connectivity.
 
 """
 
@@ -33,7 +33,7 @@ logger = logging.getLogger(setup_logger.LOGGER_NAME)
 OUT_SIM_NAME_SUFFIX = ".steep.similarity.gct"
 OUT_CONN_NAME_SUFFIX = ".steep.connectivity.gct"
 OUT_PVAL_NAME_SUFFIX = ".steep.pvalue.gct"
-OUT_DIR_CONN_NAME_SUFFIX = ".steep.dconnectivity.gct"
+OUT_CONN_SIGNED_NAME_SUFFIX = ".steep.connectivity_signed.gct"
 
 
 def build_parser():
@@ -51,7 +51,7 @@ def build_parser():
                         default="spearman",
                         choices=["spearman", "pearson"],
                         help="method for computing similarity")
-    parser.add_argument("-fields", nargs="+", default=["pert_iname", "cell_id", "pert_time"],
+    parser.add_argument("-group_fields", nargs="+", default=["pert_iname", "cell_id", "pert_time"],
                         help="list of metadata headers to use for determining unique perturbations")
     parser.add_argument("-out_sim_name", type=str, default=None,
                         help="name of output similarity gct (if None, will use OUT_SIM_NAME_SUFFIX")
@@ -59,30 +59,30 @@ def build_parser():
                         help="name of output connectivity gct (if None, will use OUT_CONN_NAME_SUFFIX")
     parser.add_argument("-out_pval_name", type=str, default=None,
                         help="name of output connectivity p-values gct (if None, will use OUT_PVAL_NAME_SUFFIX")
-    parser.add_argument("-out_directed_conn_name", type=str, default=None,
-                        help="name of output directed connectivity gct (if None, will use OUT_DIR_CONN_SUFFIX")
+    parser.add_argument("-out_conn_signed_name", type=str, default=None,
+                        help="name of output signed connectivity gct (if None, will use OUT_CONN_SIGNED_NAME_SUFFIX")
     parser.add_argument("-psp_config_path", type=str,
                         default="example_psp.cfg",
                         help="filepath to PSP config file")
     parser.add_argument("-all_conn_outputs", type=str, default=False,
                         action="store_true",
-                        help="True will produce more than 1 connectivity gct file")
+                        help="True increases the # of gct files produced")
     parser.add_argument("-verbose", "-v", action="store_true", default=False,
-                        help="True increases the number of messages reported")
+                        help="True increases the # of messages reported")
 
     return parser
 
 
 def main(args):
     # Get full file path for in_gct, and make sure path exists
-    full_in_gct_path = os.path.expanduser(in_gct)
+    full_in_gct_path = os.path.expanduser(args.in_gct)
     assert os.path.exists(full_in_gct_path), (
         "The following gct_path cannot be found. full_in_gct_path: {}").format(
             full_in_gct_path)
 
     # Read gct and config file
     (gct, config_io, config_metadata, config_parameters) = (
-        utils.read_gct_and_config_file(in_gct, psp_config))
+        utils.read_gct_and_config_file(args.in_gct, args.psp_config_path))
 
     # Compute similarity
     similarity_df = compute_similarity_matrix(gct.data_df, method='spearman')
@@ -98,12 +98,12 @@ def main(args):
     write_gctoo.write(similarity_gct, full_out_sim_name, filler_null="NA")
 
     # Compute connectivity
-    (conn_df_unpivoted, conn_meta_df) = compute_connectivity(similarity_gct, fields)
+    (conn_df_unpivoted, conn_meta_df) = compute_connectivity(similarity_gct, args.group_fields)
 
     # Subset and pivot out_df_unpivoted to create output dfs
     ks_stat_df = conn_df_unpivoted.pivot("query", "target", "ks_statistic")
     pval_df = conn_df_unpivoted.pivot("query", "target", "p_value")
-    ks_stat_directed_df = conn_df_unpivoted.pivot("query", "target", "ks_statistic_directed")
+    ks_stat_signed_df = conn_df_unpivoted.pivot("query", "target", "ks_statistic_signed")
 
     logger.debug("ks_stat_df.shape: {}".format(ks_stat_df.shape))
     logger.debug("conn_meta_df.shape: {}".format(conn_meta_df.shape))
@@ -124,20 +124,20 @@ def main(args):
                                row_metadata_df=conn_meta_df,
                                col_metadata_df=conn_meta_df)
 
-        # Save connectivity gct to output file
+        # Save p-values gct to output file
         out_pval_name = configure_out_gct_name(full_in_gct_path, OUT_PVAL_NAME_SUFFIX, args.out_pval_name)
         full_out_pval_name = os.path.join(out_dir, out_pval_name)
         write_gctoo.write(pval_gct, full_out_pval_name, filler_null="NA")
 
-        # Assemble directed connectivities to gct
-        dir_conn_gct = GCToo.GCToo(data_df=ks_stat_directed_df,
-                                   row_metadata_df=conn_meta_df,
-                                   col_metadata_df=conn_meta_df)
+        # Assemble signed connectivities to gct
+        signed_conn_gct = GCToo.GCToo(data_df=ks_stat_signed_df,
+                                      row_metadata_df=conn_meta_df,
+                                      col_metadata_df=conn_meta_df)
 
-        # Save connectivity gct to output file
-        out_dir_conn_name = configure_out_gct_name(full_in_gct_path, OUT_DIR_CONN_NAME_SUFFIX, args.out_directed_conn_name)
+        # Save signed connectivity gct to output file
+        out_dir_conn_name = configure_out_gct_name(full_in_gct_path, OUT_CONN_SIGNED_NAME_SUFFIX, args.out_conn_signed_name)
         full_out_dir_conn_name = os.path.join(out_dir, out_dir_conn_name)
-        write_gctoo.write(dir_conn_gct, full_out_dir_conn_name, filler_null="NA")
+        write_gctoo.write(signed_conn_gct, full_out_dir_conn_name, filler_null="NA")
 
     return similarity_gct, connectivity_gct
 
@@ -166,31 +166,31 @@ def compute_similarity_matrix(data_df, method):
     return out_df
 
 
-def compute_connectivity(sim_gct, fields, is_symmetric=True):
+def compute_connectivity(sim_gct, group_fields, is_symmetric=True):
     """Computes connectivity of perturbagens with the KS-test statistic.
 
     Input is a square dataframe of similarity values. Output is a square
     dataframe of connectivity values. The size of the output df will
     be less than or equal to the size of the input df.
 
-    Lower triangle of the similarity matrix is used.
+    Assumed that similarity matrix is symmetric. Its lower triangle is used.
 
     Connectivity of A to B is determined by a two sample KS-test between
     the distribution of similarities of A to B (all pairwise replicate
     comparisons) and the distribution of similarities of all other
-    perturbagens to B.
+    perturbations to B.
 
     Args:
         sim_gct (pandas df): size of data_df = n x n
-        fields (list or numpy array of strings): specifies how perturbations are aggregated
+        group_fields (list or numpy array of strings): specifies how perturbations are aggregated
         is_symmetric (bool): True indicates that similarity metric is symmetric;
             changes how connectivity is computed
 
     Returns:
-        out_df_unpivoted (pandas df): size = n2 x 5; the columns are query,
-            target, ks_statistic, p_value, ks_statistic_directed
-        out_meta_df (pandas): row index is perturbation ids, columns are
-            metadata headers
+        out_df_unpivoted (pandas df): size = m x 5; m < n; the columns are
+            query, target, ks_statistic, p_value, ks_statistic_signed
+        conn_meta_df (pandas): metadata df to be used for building connectivity
+            gct; row index is group_ids, column headers are group_fields
 
     """
     # sim_gct.data_df should be square, have the same index and columns,
@@ -204,37 +204,33 @@ def compute_connectivity(sim_gct, fields, is_symmetric=True):
              sim_gct.data_df.columns.values, sim_gct.data_df.index.values)))
     assert any(sim_gct.data_df.notnull()), "sim_gct.data_df must have no missing values."
 
-    # Create copy of sim_gct.data_df on which computations will be performed
-    data_df = sim_gct.data_df
+    # Create a pert_id for each perturbation using the values in group_fields;
+    # fields are extracted from row_metadata_df but could be extracted from
+    # col_metadata_df just as well
+    (group_ids, meta_df_with_group_ids) = create_group_ids(sim_gct.row_metadata_df, "col", group_fields)
 
-    # Aggregate samples according to fields and create a perturbation id
-    # for each samples; fields are extracted from row_metadata_df but could be
-    # extracted from col_metadata_df just as well
-    (pert_ids, out_meta_df) = create_ids_from_metadata(sim_gct.row_metadata_df, "column", fields)
+    # Set group_ids to the index of meta_df_with_group_ids and drop_duplicates
+    # to produce the appropriate metadata_df for the connectivity gct
+    print("meta_df_with_group_ids.index.values:\n{}".format(meta_df_with_group_ids.index.values))
+    conn_meta_df = meta_df_with_group_ids.set_index("group_id").drop_duplicates()
+    print("conn_meta_df.index.values:\n{}".format(conn_meta_df.index.values))
 
-    # Rename ids of data_df to pert_ids
-    data_df.index = pd.Index(pert_ids)
-    data_df.columns = pd.Index(pert_ids)
+    # create_distributions_for_ks_test works on a df where the indices are
+    # group_ids; this means the indices might not be unique
+    data_df_for_creating_distributions = sim_gct.data_df.copy()
+    data_df_for_creating_distributions.index = pd.Index(group_ids)
+    data_df_for_creating_distributions.columns = pd.Index(group_ids)
 
     # Set diagonal of similarity matrix to NaN to ignore self-similarities
-    np.fill_diagonal(data_df.values, np.nan)
-
-    # if is_symmetric:
-    #     # Set upper triangle (incl. diagonal) to NaN
-    #     mask = np.tril(np.ones(data_df.shape), k=-1).astype(np.bool)
-    #     data_df = data_df.where(mask)
-    # else:
-    #     # TODO(lev): probably should just symmetrize
-    #     err_msg = "Assymetric similarity matrix is not currently supported."
-    #     logger.error(err_msg)
-    #     raise(Exception(err_msg))
+    np.fill_diagonal(data_df_for_creating_distributions.values, np.nan)
 
     # Create test and null distributions for KS-test
-    (queries, targets, tests, nulls, unique_perts) = create_distributions_for_ks_test(data_df)
+    (queries, targets, tests, nulls, unique_perts) = (
+        create_distributions_for_ks_test(data_df_for_creating_distributions))
 
     # Initialize output arrays
     ks_stats = np.zeros(np.square(len(unique_perts))) * np.nan
-    ks_stats_directed = np.zeros(np.square(len(unique_perts))) * np.nan
+    ks_stats_signed = np.zeros(np.square(len(unique_perts))) * np.nan
     pvals = np.zeros(np.square(len(unique_perts))) * np.nan
 
     # Perform KS-test between test and null distributions
@@ -252,17 +248,17 @@ def compute_connectivity(sim_gct, fields, is_symmetric=True):
             continue
 
         # If median of test distribution is >= median of null
-        # distribution, ks_stat_directed = ks_stat; otherwise,
-        # ks_stat_directed = ks_stat * -1
+        # distribution, ks_stat_signed = ks_stat; otherwise,
+        # ks_stat_signed = ks_stat * -1
         if (np.median(test) - np.median(null)) >= 0:
-            ks_stat_directed = ks_stat
+            ks_stat_signed = ks_stat
         else:
-            ks_stat_directed = ks_stat * -1
+            ks_stat_signed = ks_stat * -1
 
         # Populate output arrays
         ks_stats[count] = ks_stat
         pvals[count] = pval
-        ks_stats_directed[count] = ks_stat_directed
+        ks_stats_signed[count] = ks_stat_signed
 
         # Increment counter
         count = count + 1
@@ -271,13 +267,13 @@ def compute_connectivity(sim_gct, fields, is_symmetric=True):
     out_df_unpivoted = pd.DataFrame.from_dict({
         "query": queries, "target": targets,
         "ks_statistic": ks_stats, "p_value": pvals,
-        "ks_statistic_directed": ks_stats_directed})
+        "ks_statistic_signed": ks_stats_signed})
 
     # Rearrange columns of out_df_unpivoted
     out_df_unpivoted = out_df_unpivoted[["query", "target", "ks_statistic",
-                                         "p_value", "ks_statistic_directed"]]
+                                         "p_value", "ks_statistic_signed"]]
 
-    return out_df_unpivoted, out_meta_df
+    return out_df_unpivoted, conn_meta_df
 
 
 def create_distributions_for_ks_test(in_df, min_distribution_elements=2):
@@ -324,7 +320,6 @@ def create_distributions_for_ks_test(in_df, min_distribution_elements=2):
     for query, target in itertools.product(unique_perts, repeat=2):
         queries[count] = query
         targets[count] = target
-        # logger.debug("query: {}, target: {}".format(query, target))
 
         # Can only proceed if more than 1 target replicate;
         # KS-test cannot be computed otherwise
@@ -333,7 +328,9 @@ def create_distributions_for_ks_test(in_df, min_distribution_elements=2):
         if num_target_replicates > 1:
 
             # Extract all elements where target is in the rows
-            target_df = in_df.loc[target, :]
+            # N.B. Taking a copy here is important; otherwise, pandas will
+            # throw lots of warning messages
+            target_df = in_df.loc[target, :].copy()
 
             # Extract elements where index and column are both target,
             # set upper triangle of them to NaN, and reinsert into target_df;
@@ -341,10 +338,6 @@ def create_distributions_for_ks_test(in_df, min_distribution_elements=2):
             target_equals_query_df = in_df.loc[target, target]
             mask = np.tril(np.ones(target_equals_query_df.shape)).astype(np.bool)
             masked_target_equals_query_df = target_equals_query_df.where(mask)
-            # logger.debug("masked_target_equals_query_df.values: {}".format(
-            #     masked_target_equals_query_df.values))
-            # logger.debug("target_df.loc[target, target].values: {}".format(
-            #     target_df.loc[target, target].values))
             target_df.loc[target, target] = masked_target_equals_query_df
 
             # Elements where column=query is test distribution; remove NaNs
@@ -401,69 +394,75 @@ def symmetrize_if_needed(sim_df):
     return out_df
 
 
-def create_ids_from_metadata(metadata_df, dim, fields, sep="_"):
-    """Create an id for each row/column using the metadata specified by fields.
-    Fields are the metadata fields to use for aggregating perturbagens.
+def create_group_ids(metadata_df, new_dim, group_fields, sep="_"):
+    """Create a new field called group_id by joining the strings in
+    other specified metadata fields.
 
-    If dim="row", this fcn will look for fields in the row names and create
-    an id for each column. If dim="column", this fcn will look for fields
-    in the column names and create an id for each row.
+    If dim="row", a group_id row will be added, and group_fields must exist
+    in the row headers. If dim="col", a group_id column will be added, and
+    group_fields must exist in the column headers.
 
-    This fcn also returns subset_df, in which only "fields" remain,
-    the index (if dim=column) or columns (if dim=row) are set to ids, and
-    duplicate rows (if dim=column) or columns (if dim=row) are removed.
+    This fcn also returns subset_df, in which only group_fields and group_id
+    remain as the row (if dim="row") or column (if dim="col") headers.
+
+    For example:
+
+        meta_df = pd.DataFrame.from_dict(
+            {"cell":["a", "b", "c"], "dose":["10", "10", "1"],
+             "time":["24", "24", "24"]})
+        group_fields = ["cell", "dose"]
+        (group_ids, subset_df) = create_group_ids(meta_df, new_dim="col",group_fields=group_fields)
+
+        # group_ids = ["a_10", "b_10", "c_1"]
+        # subset_df = pd.DataFrame.from_dict(
+            {"cell":["a", "b", "c"], "dose":["10", "10", "1"], "group_id":["a_10", "b_10", "c_1"]})
 
     Args:
         metadata_df (pandas df): size = m x n
-        dim (string): choices = {"row", "column"}
-        fields (list or numpy array of strings)
-        sep (string): separator to use in creating ids
+        new_dim (string): choices = {"row", "col"}
+        group_fields (list or numpy array of strings)
+        sep (string): separator to use in creating group_ids
 
     Returns:
-        ids (list of strings): length = m (if dim="col") or n (if dim="row")
-        subset_df (pandas df): index (if dim=column) or columns (if dim=row)
-            set to ids, duplicate entries removed
+        group_ids (list of strings): length = m (if dim="col") or n (if dim="row")
+        subset_df (pandas df): if dim="row", size = (len(group_fields) + 1) x
+            n; if dim="col", size = m x (len(group_fields) + 1)
 
     """
-    assert (dim == "row" or dim == "column"), (
-        "Dim must be either 'row' or 'column'. dim: {}".format(dim))
+    assert (new_dim == "row" or new_dim == "col"), (
+        "Dim must be either 'row' or 'col'. dim: {}".format(new_dim))
 
-    # Check that each field exists in metadata_df
-    for field in fields:
-        if dim == "row":
-            assert field in metadata_df.index.values
-        elif dim == "column":
-            assert field in metadata_df.columns.values
+    # Check that each group_field exists in metadata_df
+    for field in group_fields:
+        if new_dim == "row":
+            assert field in metadata_df.index.values, (
+                "{} is not present in the metadata row headers.".format(field))
+        elif new_dim == "col":
+            assert field in metadata_df.columns.values, (
+                "{} is not present in the metadata column headers.".format(field))
 
-    if dim == "row":
+    if new_dim == "row":
         # Subset df to just the desired rows
-        subset_df = metadata_df.loc[fields, :]
+        subset_df = metadata_df.loc[group_fields, :]
 
-        # Convert col to id
-        ids = [sep.join(subset_df[col]) for col in subset_df]
+        # Convert col to group_id
+        group_ids = [sep.join(subset_df[col]) for col in subset_df]
 
-        # Set column index of subset_df to ids
-        subset_df.columns = pd.Index(ids)
+        # Add group_id as a new row
+        subset_df.loc["group_id", :] = group_ids
 
-        # Remove duplicate columns
-        # (tranpose to use drop_duplicates method and transpose back)
-        subset_df = subset_df.transpose().drop_duplicates().transpose()
 
-    elif dim == "column":
+    elif new_dim == "col":
         # Subset df to just the desired cols
-        subset_df = metadata_df[fields]
+        subset_df = metadata_df[group_fields]
 
-        # Convert row to id
-        ids = [sep.join(row) for row in subset_df.values]
+        # Convert row to group_id
+        group_ids = [sep.join(row) for row in subset_df.values]
 
-        # Set index of subset_df to ids
-        subset_df.index = pd.Index(ids)
+        # Add group_id as a new col
+        subset_df.loc[:, "group_id"] = group_ids
 
-        # Remove duplicate rows
-        subset_df = subset_df.drop_duplicates()
-
-
-    return ids, subset_df
+    return group_ids, subset_df
 
 
 def configure_out_gct_name(in_gct, suffix, out_name_from_args):

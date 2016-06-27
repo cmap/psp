@@ -85,34 +85,39 @@ class TestSteep(unittest.TestCase):
         self.assertTrue(np.allclose(out_df2, sym_df, equal_nan=True), (
             "out_df2: \n{}".format(out_df2)))
 
-    def test_create_ids_from_metadata(self):
+    def test_create_group_ids(self):
+        # Create group_id column
         meta_df = pd.DataFrame.from_dict(
             {"cell":["a", "b", "c"], "dose":["10", "10", "1"],
              "time":["24", "24", "24"]})
-        fields = ["cell", "time"]
-        e_ids = ["a_24", "b_24", "c_24"]
+        group_fields = ["cell", "time"]
+        e_group_ids = ["a_24", "b_24", "c_24"]
         e_out_df = pd.DataFrame.from_dict(
-            {"cell":["a", "b", "c"], "time":["24", "24", "24"]})
-        e_out_df.index = pd.Index(e_ids)
+            {"cell":["a", "b", "c"], "time":["24", "24", "24"],
+              "group_id":e_group_ids})
+        e_out_df = e_out_df[["cell", "time", "group_id"]]
         logger.debug("\ne_out_df:\n{}".format(e_out_df))
 
-        (out_ids, out_df) = steep.create_ids_from_metadata(meta_df, "column", fields)
-        self.assertEqual(out_ids, e_ids, "out_ids are incorrect: {}".format(out_ids))
+        (out_group_ids, out_df) = steep.create_group_ids(meta_df, "col", group_fields)
+        self.assertEqual(out_group_ids, e_group_ids, (
+            "out_group_ids: {}\ne_group_ids: {}".format(out_group_ids, e_group_ids)))
         self.assertTrue(np.array_equal(out_df, e_out_df), "\nout_df:\n{}\ne_out_df:\n{}".format(
             out_df, e_out_df))
 
+        # Create group_id row
         meta_df2 = pd.DataFrame([
             ["p1", "p2", "p3"], ["-666", "-666", "-666"], ["E", "F", "G"]],
             index = ["pr_thingie", "one_more", "pr_other"])
-        fields2 = np.array(["pr_thingie", "pr_other"])
-        e_ids2 = ["p1_E", "p2_F", "p3_G"]
-        e_out_df2 = pd.DataFrame([["p1", "p2", "p3"], ["E", "F", "G"]],
-                                 index = ["pr_thingie", "pr_other"],
-                                 columns = e_ids2)
+        group_fields2 = np.array(["pr_thingie", "pr_other"])
+        e_group_ids2 = ["p1_E", "p2_F", "p3_G"]
+        e_out_df2 = pd.DataFrame([
+            ["p1", "p2", "p3"], ["E", "F", "G"], e_group_ids2],
+            index = ["pr_thingie", "pr_other", "group_id"])
         logger.debug("\ne_out_df2:\n{}".format(e_out_df2))
 
-        (out_ids2, out_df2) = steep.create_ids_from_metadata(meta_df2, "row", fields2)
-        self.assertEqual(out_ids2, e_ids2, "out_ids2 are incorrect: {}".format(out_ids2))
+        (out_group_ids2, out_df2) = steep.create_group_ids(meta_df2, "row", group_fields2)
+        self.assertEqual(out_group_ids2, e_group_ids2, (
+            "out_group_ids2: {}\ne_group_ids2: {}".format(out_group_ids2, e_group_ids2)))
         self.assertTrue(np.array_equal(out_df2, e_out_df2), "\nout_df2:\n{}\ne_out_df2:\n{}".format(
             out_df2, e_out_df2))
 
@@ -127,15 +132,15 @@ class TestSteep(unittest.TestCase):
              [0.4, 0.1, -0.9, 0.7, 1.6, 0.5, 1, 0.9, 0.6],
              [-0.2, 0.1, 1.1, 0.8, 0.4, -0.5, 0.9, 1, -0.3],
              [0.1, -0.1, -0.1, -0.3, 0.6, -0.3, 0.6, -0.3, 1]],
-            index=["A", "A", "A", "B", "B", "B", "C", "C", "C"],
-            columns=["A", "A", "A", "B", "B", "B", "C", "C", "C"])
+            index=["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9"],
+            columns=["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9"])
         meta_df = pd.DataFrame(
             [["A", "A375", "24", "X1"], ["A", "A375", "24", "X2"],
              ["A", "A375", "24", "X3"], ["B", "PC3", "24", "X2"],
              ["B", "PC3", "24", "X2"], ["B", "PC3", "24", "X3"],
              ["C", "HT29", "24", "X1"], ["C", "HT29", "24", "X2"],
              ["C", "HT29", "24", "X3"]],
-            index=["A", "A", "A", "B", "B", "B", "C", "C", "C"],
+            index=["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9"],
             columns=["pert", "cell", "time", "rep_num"])
         sim_gct = GCToo.GCToo(
             data_df=sim_df, row_metadata_df=meta_df, col_metadata_df=meta_df)
@@ -147,9 +152,9 @@ class TestSteep(unittest.TestCase):
                       "B_PC3_24", "C_HT29_24", "A_A375_24", "B_PC3_24", "C_HT29_24"],
             "ks_statistic": [0.83, 0.36, 0.47, 0.36, 0.39, 0.33, 0.36, 0.25, 0.38],
             "p_value": [0.02, 0.42, 0.14, 0.42, 0.72, 0.52, 0.42, 0.85, 0.72],
-            "ks_statistic_directed": [0.83, -0.36, -0.47, 0.36, 0.39, 0.33, -0.36, 0.25, 0.38]})
+            "ks_statistic_signed": [0.83, -0.36, -0.47, 0.36, 0.39, 0.33, -0.36, 0.25, 0.38]})
         e_out_df_unpivoted = e_out_df_unpivoted[
-            ["query", "target", "ks_statistic", "p_value", "ks_statistic_directed"]]
+            ["query", "target", "ks_statistic", "p_value", "ks_statistic_signed"]]
         e_out_meta_df = pd.DataFrame(
             [["A", "A375", "24"], ["B", "PC3", "24"], ["C", "HT29", "24"]],
             index=["A_A375_24", "B_PC3_24", "C_HT29_24"],
@@ -320,8 +325,31 @@ class TestSteep(unittest.TestCase):
                 e_nulls3_1, nulls3[1]))
 
         # 1 pert; 3 replicates
-
-        # Assymetric similarity matrix...
+        in_df4 = pd.DataFrame(
+            [[np.nan, 0.5, 1.0],
+             [0.5, np.nan, 1.2],
+             [1.0, 1.2, np.nan]],
+            index=["A", "A", "A"],
+            columns=["A", "A", "A"])
+        logger.debug("\nin_df4:\n{}".format(in_df4))
+        e_queries4 = ["A"]
+        e_targets4 = ["A"]
+        e_tests4 = [[]]
+        e_nulls4 = [[]]
+        e_unique_perts4 = ["A"]
+        
+        [queries4, targets4, tests4, nulls4, unique_perts4] = steep.create_distributions_for_ks_test(in_df4)
+        
+        self.assertItemsEqual(e_queries4, queries4, "\ne_queries4:\n{}\nqueries4:\n{}".format(
+            e_queries4, queries4))
+        self.assertItemsEqual(e_targets4, targets4, "\ne_targets4:\n{}\ntargets4:\n{}".format(
+            e_targets4, targets4))
+        self.assertItemsEqual(e_tests4, tests4, "\ne_tests4:\n{}\ntests4:\n{}".format(
+            e_tests4, tests4))
+        self.assertItemsEqual(e_nulls4, nulls4, "\ne_nulls4:\n{}\nnulls4:\n{}".format(
+            e_nulls4, nulls4))
+        self.assertItemsEqual(e_unique_perts4, unique_perts4, "\ne_unique_perts4:\n{}\nunique_perts4:\n{}".format(
+            e_unique_perts4, unique_perts4))
 
 
     def test_configure_out_gct_name(self):
