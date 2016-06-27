@@ -31,7 +31,7 @@ class TestDry(unittest.TestCase):
 
     def test_p100_main(self):
         INPUT_GCT_PATH = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate29_3H.gct")
-        JJ_OUTPUT_GCT = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate29_3H_processed.gct")
+        JJ_OUTPUT_GCT = os.path.join(FUNCTIONAL_TESTS_DIR, "JJ_p100_prm_plate29_3H_processed.gct")
         OUT_NAME = "test_dry_p100_output.gct"
         OUT_PW_NAME = "test_dry_p100_output.pw"
 
@@ -40,8 +40,9 @@ class TestDry(unittest.TestCase):
                        "-out_pw_name {} " +
                        "-sample_nan_thresh {} " +
                        "-probe_nan_thresh {} " +
+                       "-dist_sd_cutoff {} " +
                        "-v").format(INPUT_GCT_PATH, FUNCTIONAL_TESTS_DIR,
-                                    OUT_NAME, OUT_PW_NAME, 0.8, 0.9)
+                                    OUT_NAME, OUT_PW_NAME, 0.8, 0.9, 3)
         args = dry.build_parser().parse_args(args_string.split())
         out_gct = dry.main(args)
 
@@ -74,7 +75,7 @@ class TestDry(unittest.TestCase):
 
     def test_GCP_main(self):
         INPUT_GCT_PATH = os.path.join(FUNCTIONAL_TESTS_DIR, "gcp_gr1_plate31.gct")
-        JJ_OUTPUT_GCT = os.path.join(FUNCTIONAL_TESTS_DIR, "gcp_gr1_plate31_processed.gct")
+        JJ_OUTPUT_GCT = os.path.join(FUNCTIONAL_TESTS_DIR, "JJ_gcp_gr1_plate31_processed.gct")
         OUT_NAME = "test_dry_gcp_output.gct"
         OUT_PW_NAME = "test_dry_gcp_output.pw"
 
@@ -117,7 +118,7 @@ class TestDry(unittest.TestCase):
 
     def test_p100_subset_main(self):
         INPUT_GCT_PATH = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate35_subsets.gct")
-        JJ_OUTPUT_GCT = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate35_subsets_processed.gct")
+        JJ_OUTPUT_GCT = os.path.join(FUNCTIONAL_TESTS_DIR, "JJ_p100_prm_plate35_subsets_processed.gct")
         OUT_NAME = "test_dry_p100_subsets_output.gct"
         OUT_PW_NAME = "test_dry_p100_subsets_output.pw"
 
@@ -695,10 +696,13 @@ class TestDry(unittest.TestCase):
                                         ["G-0022", "2,2"], ["G-0022", "2,2"]]),
                               index=["c1", "c2", "c3", "c4", "c5"],
                               columns=["det_plate", "det_normalization_group_vector"])
-        data_df = pd.DataFrame(np.array([[7, 8, 3, 8, 9],
-                                         [9, 7, 4, 9, 2],
-                                         [8, 6, 7, 8, 2],
-                                         [4, 8, 5, 5, 7]], dtype=float))
+        data_df = pd.DataFrame([[7, 8, 3, 8, 9],
+                                [9, 7, 4, 9, 2],
+                                [8, 6, 7, 8, 2],
+                                [4, 8, 5, 5, 7]],
+                               index=["r1", "r2", "r3", "r4"],
+                               columns=["c1", "c2", "c3", "c4", "c5"],
+                               dtype=float)
         in_gct = GCToo.GCToo(data_df=data_df, row_metadata_df=row_df, col_metadata_df=col_df)
         e_df = pd.DataFrame(np.array([[0, 1, -4, -0.5, 0.5],
                                       [2, 0, -3, 3.5, -3.5],

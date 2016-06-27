@@ -1137,14 +1137,14 @@ def write_output_pw(gct, post_sample_nan_remaining,
 
         # Assemble plate_names, well_names, and bool arrays into a df
         out_df = gct2pw.assemble_output_df(
-            plate_names, well_names,
-            remains_after_poor_coverage_filtration=post_sample_nan_bools,
-            remains_after_outlier_removal=post_sample_dist_bools)
+            plate_names, well_names, {
+                "remains_after_poor_coverage_filtration": post_sample_nan_bools,
+                "remains_after_outlier_removal":post_sample_dist_bools})
     else:
         # Assemble plate_names, well_names, and single bool array into a df
         out_df = gct2pw.assemble_output_df(
-            plate_names, well_names,
-            remains_after_poor_coverage_filtration=post_sample_nan_bools)
+            plate_names, well_names,{
+                "remains_after_poor_coverage_filtration":post_sample_nan_bools})
 
     # Write to pw file
     full_out_name = os.path.join(out_path, out_name)
