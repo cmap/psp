@@ -2,7 +2,7 @@ import logging
 import utils.setup_logger as setup_logger
 import pandas as pd
 import os.path
-import in_out.GCToo as GCToo
+import GCToo
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
@@ -43,7 +43,6 @@ That is, col_metadata_df.shape = (num_cid, num_chd).
 """
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
-setup_logger.setup(verbose=True)
 
 
 def parse(file_path, nan_values=None):
@@ -125,9 +124,10 @@ def parse_into_3_df(file_path, num_data_rows, num_data_cols, num_row_metadata, n
                           na_values=nan_values, keep_default_na=False)
     # N.B. The entries on the 3rd line (rhd and cid) become the column names of full_df.
 
-    # TO-DO(lev): this method saves everything as a string.
-    # Only later do I convert data to floats. Is this okay?
-    # I.e. should we instead save some metadata as floats?
+    # Check that full_df is the size we expect
+    assert full_df.shape == (num_col_metadata + num_data_rows,
+                             num_row_metadata + num_data_cols + 1), (
+        "The shape of full_df is not as expected. Cannot parse this gct file.")
 
     # Assemble metadata dataframes
     row_metadata = assemble_row_metadata(full_df, num_col_metadata, num_data_rows, num_row_metadata)

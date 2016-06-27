@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import os.path
 
+
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
 
@@ -42,10 +43,10 @@ Example GCT:
 """
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
-setup_logger.setup(verbose=True)
 
 # Only writes GCT v1.3
 VERSION = "1.3"
+
 
 def write(gctoo, out_fname, data_null="NaN", filler_null="-666", data_float_format=None):
     """Write a gctoo object to a gct file.

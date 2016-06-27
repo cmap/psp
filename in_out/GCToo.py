@@ -1,4 +1,7 @@
+import numpy as np
 import pandas as pd
+import logging
+import utils.setup_logger as setup_logger
 
 __authors__ = 'Oana Enache, Lev Litichevskiy, Dave Lahr'
 __email__ = 'dlahr@broadinstitute.org'
@@ -41,6 +44,9 @@ N.B. The df is transposed from how it looks in a gct file.
 |  |                |
 |  |                |
 ---------------------
+
+N.B. rids and cids must be unique.
+
 """
 
 
@@ -51,8 +57,10 @@ class GCToo(object):
     and data_df) as well as an assembly of these 3 into a multi index df
     that provides an alternate way of selecting data.
     """
-    def __init__(self, src=None, version=None,
-                 row_metadata_df=None, col_metadata_df=None, data_df=None):
+    def __init__(self, data_df=None, row_metadata_df=None, col_metadata_df=None,
+                 src=None, version=1.3, logger_name=setup_logger.LOGGER_NAME):
+        self.logger = logging.getLogger(logger_name)
+
         self.src = src
         self.version = version
         self.row_metadata_df = row_metadata_df
@@ -60,11 +68,13 @@ class GCToo(object):
         self.data_df = data_df
         self.multi_index_df = None
 
-        # Can only assemble if three component dataframes exist
+        # If all three component dataframes exist, first check that they are
+        # consistent, and then assemble multi_index_df
         if ((self.row_metadata_df is not None) and
                 (self.col_metadata_df is not None) and
                 (self.data_df is not None)):
-            self.multi_index_df = self.assemble_multi_index_df()
+            self.check_component_dfs()
+            self.assemble_multi_index_df()
 
 
     def __str__(self):
@@ -93,6 +103,7 @@ class GCToo(object):
         full_string = (version + source + data + row_meta + col_meta)
         return full_string
 
+
     def assemble_multi_index_df(self):
         """Assembles three component dataframes into a multiindex dataframe.
         Sets the result to self.multi_index_df.
@@ -112,19 +123,49 @@ class GCToo(object):
             2) Select all DMSO samples:
             DMSO_df = multi_index_df.xs("DMSO", level="pert_iname", axis=1, drop_level=False)
         """
-        # Convert row_metadata to the row multi index. Need to transpose the metadata numpy array.
-        row_multi_index = pd.MultiIndex.from_arrays(self.row_metadata_df.T.values, names=self.row_metadata_df.columns)
+	    #prepare row index
+        self.logger.debug("Row metadata shape: {}".format(self.row_metadata_df.shape))
+        row_copy = pd.DataFrame() if self.row_metadata_df.empty else self.row_metadata_df.copy()
+        row_copy["rid"] = row_copy.index
+        row_index = pd.MultiIndex.from_arrays(row_copy.T.values, names=row_copy.columns)
 
-        # Convert col_metadata to the col multi index
-        # N.B. Column metadata is transposed.
-        transposed_col_metadata = self.col_metadata_df.T
-        col_multi_index = pd.MultiIndex.from_arrays(transposed_col_metadata.values, names=transposed_col_metadata.index)
+        #prepare column index
+        self.logger.debug("Col metadata shape: {}".format(self.col_metadata_df.shape))
+        col_copy = pd.DataFrame() if self.col_metadata_df.empty else self.col_metadata_df.copy()
+        col_copy["cid"] = col_copy.index
+        transposed_col_metadata = col_copy.T
+        col_index = pd.MultiIndex.from_arrays(transposed_col_metadata.values, names=transposed_col_metadata.index)
 
         # Create multi index dataframe using the values of data_df and the indexes created above
-        multi_index_df = pd.DataFrame(data=self.data_df.values, index=row_multi_index, columns=col_multi_index)
+        self.logger.debug("Data df shape: {}".format(self.data_df.shape))
+        self.multi_index_df = pd.DataFrame(data=self.data_df.values, index=row_index, columns=col_index)
 
-        self.multi_index_df = multi_index_df
-        return multi_index_df
+    def check_component_dfs(self):
+        """Checks that rids are the same between data_df and row_metadata_df,
+        that cids are the same between data_df and col_metadata_df. Also,
+        check that rids and cids are unique."""
+
+        # Check rid consistency
+        assert np.array_equal(self.data_df.index.values, self.row_metadata_df.index.values), (
+            ("The rids in data_df do not match the rids in row_metadata_df. " +
+             "self.data_df.index.values: {}, self.row_metadata_df.index.values: {}").format(
+                self.data_df.index.values, self.row_metadata_df.index.values))
+
+        # Check cid consistency
+        assert np.array_equal(self.data_df.columns.values, self.col_metadata_df.index.values), (
+            ("The cids in data_df do not match the cids in col_metadata_df. " +
+             "self.data_df.columns.values: {}, self.col_metadata_df.index.values: {}").format(
+                self.data_df.columns.values, self.col_metadata_df.index.values))
+
+        # Check rid uniqueness
+        assert len(np.unique(self.data_df.index.values)) == len(self.data_df.index.values), (
+            ("The rids must be unique. self.data_df.index.values:\n{}".format(
+                self.data_df.index.values)))
+
+        # Check cid uniqueness
+        assert len(np.unique(self.data_df.columns.values)) == len(self.data_df.columns.values), (
+            ("The cids must be unique. self.data_df.columns.values:\n{}".format(
+                self.data_df.index.values)))
 
 
 def slice(gctoo, row_bool=None, col_bool=None):
@@ -132,12 +173,12 @@ def slice(gctoo, row_bool=None, col_bool=None):
 
     Args:
         gctoo (GCToo object)
-        row_id (list of strings): if empty, will use all rid
         row_bool (list of bools): length must equal gctoo.data_df.shape[0]
-        col_id (list of strings): if empty, will use all cid
         col_bool (list of bools): length must equal gctoo.data_df.shape[1]
 
         NOT YET IMPLEMENTED:
+        row_id (list of strings): if empty, will use all rid
+        col_id (list of strings): if empty, will use all cid
         row_meta_field (list of strings)
         row_meta_values (list of strings)
         exclude_rid (bool): if true, select row ids EXCLUDING 'rid' (default: False)
@@ -170,11 +211,4 @@ def slice(gctoo, row_bool=None, col_bool=None):
     out_gctoo.col_metadata_df = gctoo.col_metadata_df.iloc[col_bool, :]
 
     return out_gctoo
-
-
-
-
-
-
-
 
