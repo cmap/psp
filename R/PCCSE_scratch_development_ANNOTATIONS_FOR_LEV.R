@@ -13,7 +13,6 @@ doClassComparisons <- function(d) {
 	return(list(means=m,sds=s));
 }
 
-
 doSingleRankAnalysis <- function(dataset,drug,cell) {
 	encoding<-paste(drug,cell,sep="_")
 	cellDataInd<-dataset$cell_id.1==cell & dataset$cell_id.2==cell
@@ -29,7 +28,9 @@ doSingleRankAnalysis <- function(dataset,drug,cell) {
 		return(list(drug=drug,cell=cell,replicateData=workingData[selfCorrelInd,],replicatePercentileRanks=percentileRanks,meanPercentileRank=mean(percentileRanks),workingData=workingData,workingIndex=wI));
 	} else {
 		return(NULL) # if can't find any potential matches
+	}
 }
+
 
 doAllRankAnalysis <- function(dataset,mode='summary') {
 	alldrugs<-unique(union(dataset$pert_iname.1,dataset$pert_iname.2));
@@ -86,6 +87,17 @@ queryDrugAndKStest <- function(raDataDump, drug, assay="Assay") {
   	rdf$queryDrug[j]<-drug;
   	rdf$otherDrug[j]<-od[j];
   	ksr<-ks.test(qd$connectivityScore[which(qd$otherDrug==od[j])],raDataDump$connectivityScore[which(raDataDump$otherDrug==od[j])]);
+  	
+  	# Print some output
+  	print(paste0("query: ", drug))
+  	print(paste0("target: ", od[j]))
+  	print(paste0("test_distrib: ", qd$connectivityScore[which(qd$otherDrug==od[j])]))
+  	print(paste0("num null_distrib elements: ", length(raDataDump$connectivityScore[which(raDataDump$otherDrug==od[j])])))
+  	print(paste0("KS-test stat: ", ksr$statistic))
+  	print(paste0("KS-test pval: ", ksr$p.value))
+  	
+  	stop("DMSO above")
+  	
   	med.test<-median(qd$connectivityScore[which(qd$otherDrug==od[j])]);
   	med.bkg<-median(raDataDump$connectivityScore[which(raDataDump$otherDrug==od[j])])
   	rdf$KSstat[j]<-ksr$statistic;
