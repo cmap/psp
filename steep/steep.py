@@ -1,6 +1,7 @@
 import logging
 import utils.setup_logger as setup_logger
 import argparse
+import sys
 import os
 import pandas as pd
 import numpy as np
@@ -11,18 +12,21 @@ import utils.psp_utils as utils
 import in_out.GCToo as GCToo
 import in_out.write_gctoo as write_gctoo
 
+__author__ = "Lev Litichevskiy"
+__email__ = "lev@broadinstitute.org"
+
 """
 Input is a gct file.
 
 Minimum output is 2 gct files: 1 for similarities and 1 for connectivities.
-Could produce more output gct files with alternate metrics related to
-connectivity using the "all_conn_outputs" argument.
+Could produce 2 gct files with alternate metrics of connectivity --
+p-value and signed KS-test statistic -- using the "all_conn_outputs" argument.
 
 Similarities are computed pairwise between all samples in in_gct.
-Connectivities, however, are aggregated according to "fields." For example,
-if fields = ["pert_iname", "cell_id"], perturbations of the same perturbagen in
-the same cell lines (but potentially at different time points and different
-doses) are aggregated together when computing connectivity.
+Connectivities, however, are aggregated according to group_fields. For example,
+if group_fields = ["pert_iname", "cell_id"], perturbations of the same
+perturbagen in the same cell lines (but potentially at different time points
+and different doses) are aggregated together when computing connectivity.
 
 """
 
@@ -64,8 +68,7 @@ def build_parser():
     parser.add_argument("-psp_config_path", type=str,
                         default="example_psp.cfg",
                         help="filepath to PSP config file")
-    parser.add_argument("-all_conn_outputs", type=str, default=False,
-                        action="store_true",
+    parser.add_argument("-all_conn_outputs", action="store_true", default=False,
                         help="True increases the # of gct files produced")
     parser.add_argument("-verbose", "-v", action="store_true", default=False,
                         help="True increases the # of messages reported")
@@ -84,8 +87,8 @@ def main(args):
     (gct, config_io, config_metadata, config_parameters) = (
         utils.read_gct_and_config_file(args.in_gct, args.psp_config_path))
 
-    # Compute similarity
-    similarity_df = compute_similarity_matrix(gct.data_df, method='spearman')
+    ### COMPUTE SIMILARITY
+    similarity_df = compute_similarity_matrix(gct.data_df, method="spearman")
 
     # Assemble similarity to gct
     similarity_gct = GCToo.GCToo(data_df=similarity_df,
@@ -94,49 +97,29 @@ def main(args):
 
     # Save similarity gct to output file
     out_sim_name = configure_out_gct_name(full_in_gct_path, OUT_SIM_NAME_SUFFIX, args.out_sim_name)
-    full_out_sim_name = os.path.join(out_dir, out_sim_name)
+    full_out_sim_name = os.path.join(args.out_dir, out_sim_name)
     write_gctoo.write(similarity_gct, full_out_sim_name, filler_null="NA")
 
-    # Compute connectivity
+    ### COMPUTE CONNECTIVITY
     (conn_df_unpivoted, conn_meta_df) = compute_connectivity(similarity_gct, args.group_fields)
 
-    # Subset and pivot out_df_unpivoted to create output dfs
-    ks_stat_df = conn_df_unpivoted.pivot("query", "target", "ks_statistic")
-    pval_df = conn_df_unpivoted.pivot("query", "target", "p_value")
-    ks_stat_signed_df = conn_df_unpivoted.pivot("query", "target", "ks_statistic_signed")
-
-    logger.debug("ks_stat_df.shape: {}".format(ks_stat_df.shape))
-    logger.debug("conn_meta_df.shape: {}".format(conn_meta_df.shape))
-
-    # Assemble connectivity to gct
-    connectivity_gct = GCToo.GCToo(data_df=ks_stat_df,
-                                   row_metadata_df=conn_meta_df,
-                                   col_metadata_df=conn_meta_df)
+    # Assemble connectivity outputs to gcts
+    (connectivity_gct, pval_gct, signed_conn_gct) = assemble_output_conn_gcts(conn_df_unpivoted, conn_meta_df)
 
     # Save connectivity gct to output file
     out_conn_name = configure_out_gct_name(full_in_gct_path, OUT_CONN_NAME_SUFFIX, args.out_conn_name)
-    full_out_conn_name = os.path.join(out_dir, out_conn_name)
+    full_out_conn_name = os.path.join(args.out_dir, out_conn_name)
     write_gctoo.write(connectivity_gct, full_out_conn_name, filler_null="NA")
 
     if args.all_conn_outputs:
-        # Assemble p-values to gct
-        pval_gct = GCToo.GCToo(data_df=pval_df,
-                               row_metadata_df=conn_meta_df,
-                               col_metadata_df=conn_meta_df)
-
         # Save p-values gct to output file
         out_pval_name = configure_out_gct_name(full_in_gct_path, OUT_PVAL_NAME_SUFFIX, args.out_pval_name)
-        full_out_pval_name = os.path.join(out_dir, out_pval_name)
+        full_out_pval_name = os.path.join(args.out_dir, out_pval_name)
         write_gctoo.write(pval_gct, full_out_pval_name, filler_null="NA")
-
-        # Assemble signed connectivities to gct
-        signed_conn_gct = GCToo.GCToo(data_df=ks_stat_signed_df,
-                                      row_metadata_df=conn_meta_df,
-                                      col_metadata_df=conn_meta_df)
 
         # Save signed connectivity gct to output file
         out_dir_conn_name = configure_out_gct_name(full_in_gct_path, OUT_CONN_SIGNED_NAME_SUFFIX, args.out_conn_signed_name)
-        full_out_dir_conn_name = os.path.join(out_dir, out_dir_conn_name)
+        full_out_dir_conn_name = os.path.join(args.out_dir, out_dir_conn_name)
         write_gctoo.write(signed_conn_gct, full_out_dir_conn_name, filler_null="NA")
 
     return similarity_gct, connectivity_gct
@@ -153,7 +136,6 @@ def compute_similarity_matrix(data_df, method):
 
     Returns:
         out_df (pandas df): size = n x n
-
     """
     logger.info("Computing similarity with method = {}.".format(method))
 
@@ -161,7 +143,7 @@ def compute_similarity_matrix(data_df, method):
         out_df = data_df.corr(method="pearson") # automatically deals with missing data
     elif method.lower() == "spearman":
         out_df = data_df.corr(method="spearman") # automatically deals with missing data
-    # TODO(lev): wtcs?
+    # TODO(lev): wtcs
 
     return out_df
 
@@ -173,12 +155,15 @@ def compute_connectivity(sim_gct, group_fields, is_symmetric=True):
     dataframe of connectivity values. The size of the output df will
     be less than or equal to the size of the input df.
 
-    Assumed that similarity matrix is symmetric. Its lower triangle is used.
+    Assumed that similarity matrix is symmetric, so only its lower triangle
+    is used (upper triangle discarded).
 
     Connectivity of A to B is determined by a two sample KS-test between
     the distribution of similarities of A to B (all pairwise replicate
     comparisons) and the distribution of similarities of all other
     perturbations to B.
+
+    N.B. Row and column ids are sorted case-insensitively.
 
     Args:
         sim_gct (pandas df): size of data_df = n x n
@@ -189,8 +174,8 @@ def compute_connectivity(sim_gct, group_fields, is_symmetric=True):
     Returns:
         out_df_unpivoted (pandas df): size = m x 5; m < n; the columns are
             query, target, ks_statistic, p_value, ks_statistic_signed
-        conn_meta_df (pandas): metadata df to be used for building connectivity
-            gct; row index is group_ids, column headers are group_fields
+        conn_meta_df (pandas df): metadata df to be used for building
+            connectivity gct; row index is group_ids, column headers are group_fields
 
     """
     # sim_gct.data_df should be square, have the same index and columns,
@@ -211,9 +196,7 @@ def compute_connectivity(sim_gct, group_fields, is_symmetric=True):
 
     # Set group_ids to the index of meta_df_with_group_ids and drop_duplicates
     # to produce the appropriate metadata_df for the connectivity gct
-    print("meta_df_with_group_ids.index.values:\n{}".format(meta_df_with_group_ids.index.values))
     conn_meta_df = meta_df_with_group_ids.set_index("group_id").drop_duplicates()
-    print("conn_meta_df.index.values:\n{}".format(conn_meta_df.index.values))
 
     # create_distributions_for_ks_test works on a df where the indices are
     # group_ids; this means the indices might not be unique
@@ -225,6 +208,7 @@ def compute_connectivity(sim_gct, group_fields, is_symmetric=True):
     np.fill_diagonal(data_df_for_creating_distributions.values, np.nan)
 
     # Create test and null distributions for KS-test
+    logger.info("Creating distributions for KS tests...")
     (queries, targets, tests, nulls, unique_perts) = (
         create_distributions_for_ks_test(data_df_for_creating_distributions))
 
@@ -236,32 +220,40 @@ def compute_connectivity(sim_gct, group_fields, is_symmetric=True):
     # Perform KS-test between test and null distributions
     count = 0
     logger.info("Computing connectivities...")
-    for test, null in zip(tests, nulls):
-        try:
-            (ks_stat, pval) = stats.ks_2samp(test, null)
-        except ValueError as e:
-            warning_msg = (
-                ("KS-statistic could not be computed for count {}. " +
-                 "Error message was the following: {}").format(count, e))
-            logger.warning(warning_msg)
+    for test, null, query, target in zip(tests, nulls, queries, targets):
+        # Compute KS-test only if both distributions are not empty
+        if len(test)!=0 and len(null)!=0:
+
+            try:
+                (ks_stat, pval) = stats.ks_2samp(test, null)
+            except ValueError as e:
+                warning_msg = (
+                    ("KS-statistic could not be computed for query={}, target={}. " +
+                     "Error message was the following: {}\ntest:\n{}\nnull:\n{}.").format(
+                        query, target, e, test, null))
+                logger.warning(warning_msg)
+                count = count + 1
+                continue
+
+            # If median of test distribution is >= median of null
+            # distribution, ks_stat_signed = ks_stat; otherwise,
+            # ks_stat_signed = ks_stat * -1
+            if (np.median(test) - np.median(null)) >= 0:
+                ks_stat_signed = ks_stat
+            else:
+                ks_stat_signed = ks_stat * -1
+
+            # Populate output arrays
+            ks_stats[count] = ks_stat
+            pvals[count] = pval
+            ks_stats_signed[count] = ks_stat_signed
+
+            # See output for DMSO v. DMSO for debugging purposes
+            if query=="DMSO_PC3_24" and target=="DMSO_PC3_24":
+                logger.debug("ks_stat: {}, pval: {}".format(ks_stat, pval))
+
+            # Increment counter
             count = count + 1
-            continue
-
-        # If median of test distribution is >= median of null
-        # distribution, ks_stat_signed = ks_stat; otherwise,
-        # ks_stat_signed = ks_stat * -1
-        if (np.median(test) - np.median(null)) >= 0:
-            ks_stat_signed = ks_stat
-        else:
-            ks_stat_signed = ks_stat * -1
-
-        # Populate output arrays
-        ks_stats[count] = ks_stat
-        pvals[count] = pval
-        ks_stats_signed[count] = ks_stat_signed
-
-        # Increment counter
-        count = count + 1
 
     # Assemble output arrays into out_df_unpivoted
     out_df_unpivoted = pd.DataFrame.from_dict({
@@ -304,8 +296,17 @@ def create_distributions_for_ks_test(in_df, min_distribution_elements=2):
     N.B. n is the number of unique elements in N, so n < N.
 
     """
-    # Determine how many unique perturbations there are
-    unique_perts = np.unique(in_df.columns.values)
+    # Turn off warnings about chained assignment (comes up later when
+    # modifying target_df before extracting the test and null distributions)
+    pd.options.mode.chained_assignment = None
+
+    # Determine unique perturbations
+    unique_perts_case_sensitive_sort = np.unique(in_df.columns.values)
+
+    # Re-sort unique_perts in order for it to be sorted case-insensitively
+    unique_perts = np.array(sorted(list(unique_perts_case_sensitive_sort), key=str.lower))
+
+    # Determine number of unique perts
     num_unique_perts = len(unique_perts)
     logger.info("Number of unique perturbations is {}.".format(num_unique_perts))
 
@@ -328,14 +329,14 @@ def create_distributions_for_ks_test(in_df, min_distribution_elements=2):
         if num_target_replicates > 1:
 
             # Extract all elements where target is in the rows
-            # N.B. Taking a copy here is important; otherwise, pandas will
-            # throw lots of warning messages
+            # N.B. Taking a copy here ensures that in_df is not modified when
+            # we modify target_df later
             target_df = in_df.loc[target, :].copy()
 
             # Extract elements where index and column are both target,
             # set upper triangle of them to NaN, and reinsert into target_df;
             # this is necessary in order to avoid double-counting
-            target_equals_query_df = in_df.loc[target, target]
+            target_equals_query_df = in_df.loc[target, target].copy()
             mask = np.tril(np.ones(target_equals_query_df.shape)).astype(np.bool)
             masked_target_equals_query_df = target_equals_query_df.where(mask)
             target_df.loc[target, target] = masked_target_equals_query_df
@@ -353,7 +354,8 @@ def create_distributions_for_ks_test(in_df, min_distribution_elements=2):
                 warning_msg = (
                     ("For query {} and target {}, there are fewer than {} " +
                     "elements in the test distribution. Connectivity cannot " +
-                     "be returned for this combination. test: {}").format(
+                     "be returned for this combination, so test and null will "
+                     "both be set to []. test: {}").format(
                         query, target, min_distribution_elements, test))
                 logger.warning(warning_msg)
                 count = count + 1
@@ -364,34 +366,29 @@ def create_distributions_for_ks_test(in_df, min_distribution_elements=2):
                 warning_msg = (
                     ("For query {} and target {}, there are fewer than {} " +
                     "elements in the null distribution. Connectivity cannot " +
-                     "be returned for this combination. null: {}").format(
+                     "be returned for this combination, so test and null will "
+                     "both be set to []. null: {}").format(
                         query, target, min_distribution_elements, null))
                 logger.warning(warning_msg)
                 continue
 
+            # Null and test are only assigned if there are enough elements in
+            # both the null and test distributions
             nulls[count] = null
             tests[count] = test
+
+            # See output for DMSO v. DMSO for debugging purposes
+            if query=="DMSO_PC3_24" and target=="DMSO_PC3_24":
+                logger.debug("num of test elements: {}; num of null elements: {}".format(
+                    len(test), len(null)))
+                logger.debug("\ntarget_equals_query_df:\n{}".format(target_equals_query_df))
+                logger.debug("\nmasked_target_equals_query_df:\n{}".format(masked_target_equals_query_df))
+                logger.debug("\ntest:\n{}\nnull:\n{}".format(test, null))
 
         # Add increment
         count = count + 1
 
     return queries, targets, tests, nulls, unique_perts
-
-
-def symmetrize_if_needed(sim_df):
-    """Check if sim_df is symmetric. If not, symmetrize it.
-
-    Args:
-        sim_df (pandas df)
-    Returns:
-        out_df (pandas df): same size as sim_df
-    """
-    is_sym = np.allclose(sim_df, sim_df.transpose(), equal_nan=True)
-    if not is_sym:
-        out_df = (sim_df + sim_df.transpose()) / 2
-    else:
-        out_df = sim_df
-    return out_df
 
 
 def create_group_ids(metadata_df, new_dim, group_fields, sep="_"):
@@ -465,6 +462,55 @@ def create_group_ids(metadata_df, new_dim, group_fields, sep="_"):
     return group_ids, subset_df
 
 
+def assemble_output_conn_gcts(conn_df_unpivoted, conn_meta_df):
+    """Assembles numerical connectivity values and metadata into output gcts.
+
+    Args:
+        conn_df_unpivoted (pandas df): size = m x 5; the columns are
+            query, target, ks_statistic, p_value, ks_statistic_signed
+        conn_meta_df (pandas df): metadata df to be used for building
+            connectivity gcts; row index is group_ids, column headers are group_fields
+    Returns:
+        connectivity_gct (GCToo object)
+        pval_gct (GCToo object)
+        signed_conn_gct (GCToo object)
+    """
+    # Subset and pivot conn_df_unpivoted to create output dfs
+    bad_sorted_ks_stat_df = conn_df_unpivoted.pivot("query", "target", "ks_statistic")
+    bad_sorted_pval_df = conn_df_unpivoted.pivot("query", "target", "p_value")
+    bad_sorted_ks_stat_signed_df = conn_df_unpivoted.pivot("query", "target", "ks_statistic_signed")
+
+    # Pivot sorts the index, so we have to re-sort case-insensitively
+    ks_stat_df = bad_sorted_ks_stat_df.reindex(sorted(bad_sorted_ks_stat_df.index, key=lambda x: x.lower()))
+    pval_df = bad_sorted_pval_df.reindex(sorted(bad_sorted_pval_df.index, key=lambda x: x.lower()))
+    ks_stat_signed_df = bad_sorted_ks_stat_signed_df.reindex(sorted(bad_sorted_ks_stat_signed_df.index, key=lambda x: x.lower()))
+
+    # Pivot also sorts the columns, so we have to re-sort them case-insensitively as well
+    ks_stat_df = ks_stat_df[sorted(ks_stat_df.columns, key=lambda x: x.lower())]
+    pval_df = pval_df[sorted(pval_df.columns, key=lambda x: x.lower())]
+    ks_stat_signed_df = ks_stat_signed_df[sorted(ks_stat_signed_df.columns, key=lambda x: x.lower())]
+
+    # Make sure that conn_meta_df is also sorted case-insensitively
+    sorted_conn_meta_df = conn_meta_df.reindex(sorted(conn_meta_df.index, key=lambda x: x.lower()))
+
+    # Assemble connectivity to gct
+    connectivity_gct = GCToo.GCToo(data_df=ks_stat_df,
+                                   row_metadata_df=sorted_conn_meta_df,
+                                   col_metadata_df=sorted_conn_meta_df)
+
+    # Assemble p-values to gct
+    pval_gct = GCToo.GCToo(data_df=pval_df,
+                           row_metadata_df=sorted_conn_meta_df,
+                           col_metadata_df=sorted_conn_meta_df)
+
+    # Assemble signed connectivities to gct
+    signed_conn_gct = GCToo.GCToo(data_df=ks_stat_signed_df,
+                                  row_metadata_df=sorted_conn_meta_df,
+                                  col_metadata_df=sorted_conn_meta_df)
+
+    return connectivity_gct, pval_gct, signed_conn_gct
+
+
 def configure_out_gct_name(in_gct, suffix, out_name_from_args):
     """If out_name_from_args is None, append suffix to the input
     gct name. Must end in '.gct'.
@@ -477,7 +523,6 @@ def configure_out_gct_name(in_gct, suffix, out_name_from_args):
 
     Returns:
         out_name (string)
-
     """
     input_basename = os.path.basename(in_gct)
     if out_name_from_args is None:
@@ -495,7 +540,7 @@ def configure_out_gct_name(in_gct, suffix, out_name_from_args):
 
 if __name__ == "__main__":
     args = build_parser().parse_args(sys.argv[1:])
-    setup_logger.setup(verbose=args.verbose)
+    setup_logger.setup(verbose=True)
     logger.debug("args: {}".format(args))
 
     main(args)

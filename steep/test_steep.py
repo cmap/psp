@@ -13,6 +13,9 @@ import steep
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
+# Functional tests dir lives within the dry directory
+FUNCTIONAL_TESTS_DIR = "steep/functional_tests"
+
 
 class TestSteep(unittest.TestCase):
 
@@ -66,24 +69,19 @@ class TestSteep(unittest.TestCase):
             pearson_out.shape[0])), ("np.diagonal(pearson_out): {}".format(
                 np.diagonal(pearson_out))))
 
-    def test_symmetrize_if_needed(self):
-        # Assymetric
-        sim_df = pd.DataFrame([[0.3, 0.4, 0.1], [-0.1, 0.2, np.nan], [1, 9, 4]],
-                              index=["a", "b", "c"],
-                              columns=["a", "b", "c"])
-        e_out_df = pd.DataFrame(
-            [[0.30, 0.15, 0.55], [0.15, 0.2, np.nan], [0.55, np.nan, 4.0]])
+    def test_compute_similarity_against_R_code(self):
+        INPUT_GCT_PATH = os.path.join(FUNCTIONAL_TESTS_DIR, "PC3_QCNORM_n189x59.gct")
+        JJ_PC3_SIM_PATH = os.path.join(FUNCTIONAL_TESTS_DIR, "R_PC3_SIM_n189x189.csv")
 
-        out_df = steep.symmetrize_if_needed(sim_df)
-        self.assertTrue(np.allclose(out_df, e_out_df, equal_nan=True), (
-            "out_df: \n{}".format(out_df)))
+        # Read in PC3 data and JJ's R version of the similarity matrix
+        pc3_qcnorm_gct = parse_gctoo.parse(INPUT_GCT_PATH)
+        jj_pc3_sim_df = pd.read_csv(JJ_PC3_SIM_PATH, index_col=0)
 
-        # Symmetric
-        sym_df = pd.DataFrame(
-            [[0.1, 0.5, np.nan], [0.5, -0.1, 1.2], [np.nan, 1.2, 0.3]])
-        out_df2 = steep.symmetrize_if_needed(sym_df)
-        self.assertTrue(np.allclose(out_df2, sym_df, equal_nan=True), (
-            "out_df2: \n{}".format(out_df2)))
+        # Compute similarity
+        pc3_sim_df = steep.compute_similarity_matrix(pc3_qcnorm_gct.data_df, method="spearman")
+
+        self.assertTrue(np.allclose(pc3_sim_df, jj_pc3_sim_df), (
+            "\npc3_sim_df:\n{}\njj_pc3_sim_df:\n{}".format(pc3_sim_df, jj_pc3_sim_df)))
 
     def test_create_group_ids(self):
         # Create group_id column
@@ -134,30 +132,31 @@ class TestSteep(unittest.TestCase):
              [0.1, -0.1, -0.1, -0.3, 0.6, -0.3, 0.6, -0.3, 1]],
             index=["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9"],
             columns=["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9"])
+        # Output should be sorted case-insensitively
         meta_df = pd.DataFrame(
             [["A", "A375", "24", "X1"], ["A", "A375", "24", "X2"],
-             ["A", "A375", "24", "X3"], ["B", "PC3", "24", "X2"],
-             ["B", "PC3", "24", "X2"], ["B", "PC3", "24", "X3"],
-             ["C", "HT29", "24", "X1"], ["C", "HT29", "24", "X2"],
-             ["C", "HT29", "24", "X3"]],
+             ["A", "A375", "24", "X3"], ["C", "HT29", "24", "X1"],
+             ["C", "HT29", "24", "X2"], ["C", "HT29", "24", "X3"],
+             ["b", "PC3", "24", "X1"], ["b", "PC3", "24", "X2"],
+             ["b", "PC3", "24", "X3"],],
             index=["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9"],
             columns=["pert", "cell", "time", "rep_num"])
         sim_gct = GCToo.GCToo(
             data_df=sim_df, row_metadata_df=meta_df, col_metadata_df=meta_df)
 
         e_out_df_unpivoted = pd.DataFrame.from_dict({
-            "query": ["A_A375_24", "A_A375_24", "A_A375_24", "B_PC3_24",
-                     "B_PC3_24", "B_PC3_24", "C_HT29_24", "C_HT29_24", "C_HT29_24"],
-            "target": ["A_A375_24", "B_PC3_24", "C_HT29_24", "A_A375_24",
-                      "B_PC3_24", "C_HT29_24", "A_A375_24", "B_PC3_24", "C_HT29_24"],
-            "ks_statistic": [0.83, 0.36, 0.47, 0.36, 0.39, 0.33, 0.36, 0.25, 0.38],
-            "p_value": [0.02, 0.42, 0.14, 0.42, 0.72, 0.52, 0.42, 0.85, 0.72],
-            "ks_statistic_signed": [0.83, -0.36, -0.47, 0.36, 0.39, 0.33, -0.36, 0.25, 0.38]})
+            "query": ["A_A375_24", "A_A375_24", "A_A375_24", "b_PC3_24",
+                     "b_PC3_24", "b_PC3_24", "C_HT29_24", "C_HT29_24", "C_HT29_24"],
+            "target": ["A_A375_24", "b_PC3_24", "C_HT29_24", "A_A375_24",
+                      "b_PC3_24", "C_HT29_24", "A_A375_24", "b_PC3_24", "C_HT29_24"],
+            "ks_statistic": [0.83, 0.47, 0.36, 0.36, 0.38, 0.25, 0.36, 0.33, 0.39],
+            "p_value": [0.02, 0.14, 0.42, 0.42, 0.72, 0.85, 0.42, 0.52, 0.72],
+            "ks_statistic_signed": [0.83, -0.47, -0.36, -0.36, 0.38, 0.25, 0.36, 0.33, 0.39]})
         e_out_df_unpivoted = e_out_df_unpivoted[
             ["query", "target", "ks_statistic", "p_value", "ks_statistic_signed"]]
         e_out_meta_df = pd.DataFrame(
-            [["A", "A375", "24"], ["B", "PC3", "24"], ["C", "HT29", "24"]],
-            index=["A_A375_24", "B_PC3_24", "C_HT29_24"],
+            [["A", "A375", "24"], ["C", "HT29", "24"], ["b", "PC3", "24"]],
+            index=["A_A375_24", "C_HT29_24", "b_PC3_24"],
             columns=["pert", "cell", "time"])
 
         (out_df_unpivoted, out_meta_df) = steep.compute_connectivity(
@@ -351,6 +350,53 @@ class TestSteep(unittest.TestCase):
         self.assertItemsEqual(e_unique_perts4, unique_perts4, "\ne_unique_perts4:\n{}\nunique_perts4:\n{}".format(
             e_unique_perts4, unique_perts4))
 
+    def test_assemble_output_conn_gcts(self):
+        conn_df_unpivoted = pd.DataFrame([
+            ["k", "J", 0.1, 0.03, 0.1],
+            ["J", "k", 0.2, 0.04, -0.2],
+            ["k", "l", 0.3, 0.05, 0.3],
+            ["k", "k", 0.4, 0.04, -0.4],
+            ["l", "l", 0.5, 0.03, 0.5],
+            ["J", "J", 0.6, 0.03, 0.6],
+            ["l", "k", 0.8, 0.2, 0.8],
+            ["l", "J", 0.7, 0.3, 0.7],
+            ["J", "l", 0.9, 0.1, -0.9]],
+            columns=["query", "target", "ks_statistic", "p_value", "ks_statistic_signed"])
+        conn_meta_df = pd.DataFrame([["l1", "l2"], ["j1", "j2"], ["k1", "k2"]],
+            index=["l", "J", "k"], columns=["field1", "field2"])
+        e_conn_data_df = pd.DataFrame(
+            [[0.6, 0.2, 0.9], [0.1, 0.4, 0.3], [0.7, 0.8, 0.5]],
+            index=["J", "k", "l"], columns=["J", "k", "l"])
+        e_pval_data_df = pd.DataFrame(
+            [[0.03, 0.04, 0.1], [0.03, 0.04, 0.05], [0.3, 0.2, 0.03]],
+            index=["J", "k", "l"], columns=["J", "k", "l"])
+        e_conn_signed_data_df = pd.DataFrame(
+            [[0.6, -0.2, -0.9], [0.1, -0.4, 0.3], [0.7, 0.8, 0.5]],
+            index=["J", "k", "l"], columns=["J", "k", "l"])
+        e_conn_meta_df = pd.DataFrame([["j1", "j2"], ["k1", "k2"], ["l1", "l2"]],
+            index=["J", "k", "l"], columns=["field1", "field2"])
+
+        (conn_gct, pval_gct, signed_conn_gct) = steep.assemble_output_conn_gcts(
+            conn_df_unpivoted, conn_meta_df)
+
+        # Check matrices
+        self.assertTrue(conn_gct.data_df.equals(e_conn_data_df), (
+            "\nconn_gct.data_df:\n{}\ne_conn_data_df:\n{}".format(
+                conn_gct.data_df, e_conn_data_df)))
+        self.assertTrue(pval_gct.data_df.equals(e_pval_data_df), (
+            "\npval_gct.data_df:\n{}\ne_pval_data_df:\n{}".format(
+                pval_gct.data_df, e_pval_data_df)))
+        self.assertTrue(signed_conn_gct.data_df.equals(e_conn_signed_data_df), (
+            "\nsigned_conn_gct.data_df:\n{}\ne_conn_signed_data_df:\n{}".format(
+                signed_conn_gct.data_df, e_conn_signed_data_df)))
+
+        # Check metadata
+        self.assertTrue(conn_gct.row_metadata_df.equals(e_conn_meta_df))
+        self.assertTrue(conn_gct.col_metadata_df.equals(e_conn_meta_df))
+        self.assertTrue(pval_gct.row_metadata_df.equals(e_conn_meta_df))
+        self.assertTrue(pval_gct.col_metadata_df.equals(e_conn_meta_df))
+        self.assertTrue(signed_conn_gct.row_metadata_df.equals(e_conn_meta_df))
+        self.assertTrue(signed_conn_gct.col_metadata_df.equals(e_conn_meta_df))
 
     def test_configure_out_gct_name(self):
         # Name from args is None
