@@ -16,6 +16,9 @@ logger = logging.getLogger(setup_logger.LOGGER_NAME)
 # Functional tests dir lives within the dry directory
 FUNCTIONAL_TESTS_DIR = "steep/functional_tests"
 
+# Debugging purposes
+import in_out.write_gctoo as wg
+
 
 class TestSteep(unittest.TestCase):
 
@@ -121,46 +124,60 @@ class TestSteep(unittest.TestCase):
 
     def test_compute_connectivity(self):
         sim_df = pd.DataFrame(
-            [[1, 0.5, 1.0, -0.4, 1.1, -0.6, 0.4, -0.2, 0.1],
-             [0.5, 1, 1.2, -0.8, -0.9, 0.4, 0.1, 0.1, -0.1],
-             [1.0, 1.2, 1, 0.1, 0.3, 1.3, -0.9, 1.1, -0.1],
-             [-0.4, -0.8, 0.1, 1, 0.5, -0.2, 0.7, 0.8, -0.3],
-             [1.1, -0.9, 0.3, 0.5, 1, 0.7, 1.6, 0.4, 0.6],
-             [-0.6, 0.4, 1.3, -0.2, 0.7, 1, 0.5, -0.5, -0.3],
-             [0.4, 0.1, -0.9, 0.7, 1.6, 0.5, 1, 0.9, 0.6],
-             [-0.2, 0.1, 1.1, 0.8, 0.4, -0.5, 0.9, 1, -0.3],
-             [0.1, -0.1, -0.1, -0.3, 0.6, -0.3, 0.6, -0.3, 1]],
-            index=["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9"],
-            columns=["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9"])
-        # Output should be sorted case-insensitively
+            [[1, 0.5, 1.0, -0.4, 1.1, -0.6, 0.4, -0.2, 0.1, 0.5, -0.2, 0.1],
+             [0.5, 1, 1.2, -0.8, -0.9, 0.4, 0.1, 0.1, -0.1, -0.7, 0.3, 0.4],
+             [1.0, 1.2, 1, 0.1, 0.3, 1.3, -0.9, 1.1, -0.1, -0.2, 0.2, 0.2],
+             [-0.4, -0.8, 0.1, 1, 0.5, -0.2, 0.7, 0.8, -0.3, -1, 0.1, 0.6],
+             [1.1, -0.9, 0.3, 0.5, 1, 0.7, 1.6, 0.4, 0.6, 0.4, 0.4, 0.4],
+             [-0.6, 0.4, 1.3, -0.2, 0.7, 1, 0.5, -0.5, -0.3, 0.2, -0.9, -0.1],
+             [0.4, 0.1, -0.9, 0.7, 1.6, 0.5, 1, 0.9, 0.6, 0.6, -0.5, -0.1],
+             [-0.2, 0.1, 1.1, 0.8, 0.4, -0.5, 0.9, 1, -0.3, 0.6, -0.7, 0.8],
+             [0.1, -0.1, -0.1, -0.3, 0.6, -0.3, 0.6, -0.3, 1, 0.2, 0.8, -0.9],
+             [0.5, -0.7, -0.2, -1, 0.4, 0.2, 0.6, 0.6, 0.2, 1, -0.2, 0.3],
+             [-0.2, 0.3, 0.2, 0.1, 0.4, -0.9, -0.5, -0.7, 0.8, -0.2, 1, -0.8],
+             [0.1, 0.4, 0.2, 0.6, 0.4, -0.1, -0.1, 0.8, -0.9, 0.3, -0.8, 1]],
+            index=["a1", "a2", "a3", "b1", "b2", "b3",
+                   "c1", "c2", "c3", "d1", "d2", "d3"],
+            columns=["a1", "a2", "a3", "b1", "b2", "b3",
+                   "c1", "c2", "c3", "d1", "d2", "d3"])
         meta_df = pd.DataFrame(
-            [["A", "A375", "24", "X1"], ["A", "A375", "24", "X2"],
-             ["A", "A375", "24", "X3"], ["C", "HT29", "24", "X1"],
-             ["C", "HT29", "24", "X2"], ["C", "HT29", "24", "X3"],
-             ["b", "PC3", "24", "X1"], ["b", "PC3", "24", "X2"],
-             ["b", "PC3", "24", "X3"],],
-            index=["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9"],
-            columns=["pert", "cell", "time", "rep_num"])
+            [["DMSO", "PC3", "24", "X1"], ["DMSO", "PC3", "24", "X2"],
+             ["DMSO", "PC3", "24", "X3"], ["DMSO", "MCF7", "24", "X1"],
+             ["DMSO", "MCF7", "24", "X2"], ["DMSO", "MCF7", "24", "X3"],
+             ["V", "PC3", "24", "X1"], ["V", "PC3", "24", "X2"],
+             ["V", "PC3", "24", "X3"], ["V", "MCF7", "24", "X1"],
+             ["V", "MCF7", "24", "X2"], ["V", "MCF7", "24", "X3"]],
+            index=["a1", "a2", "a3", "b1", "b2", "b3",
+                   "c1", "c2", "c3", "d1", "d2", "d3"],
+            columns=["pert_iname", "cell_id", "pert_time", "rep_num"])
         sim_gct = GCToo.GCToo(
             data_df=sim_df, row_metadata_df=meta_df, col_metadata_df=meta_df)
 
+        # Debugging purposes
+        wg.write(sim_gct, "small_sim_gct_for_testing_connectivity.gct")
+
         e_out_df_unpivoted = pd.DataFrame.from_dict({
-            "query": ["A_A375_24", "A_A375_24", "A_A375_24", "b_PC3_24",
-                     "b_PC3_24", "b_PC3_24", "C_HT29_24", "C_HT29_24", "C_HT29_24"],
-            "target": ["A_A375_24", "b_PC3_24", "C_HT29_24", "A_A375_24",
-                      "b_PC3_24", "C_HT29_24", "A_A375_24", "b_PC3_24", "C_HT29_24"],
-            "ks_statistic": [0.83, 0.47, 0.36, 0.36, 0.38, 0.25, 0.36, 0.33, 0.39],
-            "p_value": [0.02, 0.14, 0.42, 0.42, 0.72, 0.85, 0.42, 0.52, 0.72],
-            "ks_statistic_signed": [0.83, -0.47, -0.36, -0.36, 0.38, 0.25, 0.36, 0.33, 0.39]})
+            "query": ["DMSO_MCF7_24", "DMSO_MCF7_24", "DMSO_MCF7_24", "DMSO_MCF7_24",
+                      "DMSO_PC3_24", "DMSO_PC3_24", "DMSO_PC3_24", "DMSO_PC3_24",
+                      "V_MCF7_24", "V_MCF7_24", "V_MCF7_24", "V_MCF7_24",
+                      "V_PC3_24", "V_PC3_24", "V_PC3_24", "V_PC3_24"],
+            "target": ["DMSO_MCF7_24", "DMSO_PC3_24", "V_MCF7_24", "V_PC3_24",
+                       "DMSO_MCF7_24", "DMSO_PC3_24", "V_MCF7_24", "V_PC3_24",
+                       "DMSO_MCF7_24", "DMSO_PC3_24", "V_MCF7_24", "V_PC3_24",
+                       "DMSO_MCF7_24", "DMSO_PC3_24", "V_MCF7_24", "V_PC3_24"],
+            "ks_statistic": [0.37, 0.35, 0.17, 0.29, 0.30, 0.85, 0.23, 0.41, 0.31, 0.24, 0.37, 0.24, 0.32, 0.35, 0.40, 0.33],
+            "p_value": [0.75, 0.35, 0.98, 0.60, 0.53, 0.02,0.81, 0.18, 0.47, 0.81, 0.75, 0.81, 0.47, 0.35, 0.21, 0.85],
+            "ks_statistic_signed": [0.37, 0.35, 0.17, 0.29, -0.30, 0.85, 0.23, -0.41, -0.31, 0.24, -0.37, 0.24, 0.32, -0.35, 0.40, 0.33]})
         e_out_df_unpivoted = e_out_df_unpivoted[
             ["query", "target", "ks_statistic", "p_value", "ks_statistic_signed"]]
         e_out_meta_df = pd.DataFrame(
-            [["A", "A375", "24"], ["C", "HT29", "24"], ["b", "PC3", "24"]],
-            index=["A_A375_24", "C_HT29_24", "b_PC3_24"],
-            columns=["pert", "cell", "time"])
+            [["DMSO", "PC3", "24"], ["DMSO", "MCF7", "24"],
+             ["V", "PC3", "24"], ["V", "MCF7", "24"]],
+            index=["DMSO_MCF7_24", "DMSO_PC3_24", "V_MCF7_24", "V_PC3_24"],
+            columns=["pert_iname", "cell_id", "pert_time"])
 
         (out_df_unpivoted, out_meta_df) = steep.compute_connectivity(
-            sim_gct, ["pert", "cell", "time"])
+            sim_gct, ["pert_iname", "cell_id", "pert_time"])
         logger.debug("\nout_df_unpivoted:\n{}".format(out_df_unpivoted))
 
         # Check that out_meta_df is correct
