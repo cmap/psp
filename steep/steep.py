@@ -163,7 +163,7 @@ def compute_connectivity(sim_gct, group_fields, is_symmetric=True):
     comparisons) and the distribution of similarities of all other
     perturbations to B.
 
-    N.B. Row and column ids are sorted case-insensitively.
+    N.B. query and target columns in out_df_unpivoted are sorted case-insensitively.
 
     Args:
         sim_gct (pandas df): size of data_df = n x n
