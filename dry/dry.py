@@ -82,13 +82,14 @@ def build_parser():
 
     # Parameters
     parser.add_argument("-sample_nan_thresh", type=float, default=None,
-                        help=("if None, assay-specific default value from ",
+                        help=("if None, assay-specific default value from " +
                               "config file will be used"))
     parser.add_argument("-probe_nan_thresh", type=float, default=None,
-                        help=("if None, assay-specific default value from ",
+                        help=("if None, assay-specific default value from " +
                               "config file will be used"))
-    parser.add_argument("-probe_sd_cutoff", type=float, default=3,
-                        help=("maximum SD for a probe before being filtered out"))
+    parser.add_argument("-probe_sd_cutoff", type=float, default=None,
+                        help=("if None, assay-specific default value from " +
+                              "config file will be used"))
     parser.add_argument("-dist_sd_cutoff", type=float, default=5,
                         help=("maximum SD for a sample's distance metric " +
                               "before being filtered out"))
@@ -459,9 +460,9 @@ def initial_filtering(gct, assay_type, sample_nan_thresh, probe_nan_thresh, prob
     # Record what probes we begin with
     initial_probes = list(gct.data_df.index.values)
 
-    # Check nan thresholds
-    [sample_nan_thresh, probe_nan_thresh] = check_nan_thresh(
-        assay_type, sample_nan_thresh, probe_nan_thresh, config_parameters)
+    # Check assay-specific thresholds
+    [sample_nan_thresh, probe_nan_thresh, probe_sd_cutoff] = check_assay_specific_thresh(
+        assay_type, sample_nan_thresh, probe_nan_thresh, probe_sd_cutoff, config_parameters)
 
     ### FILTER SAMPLES BY NAN
     sample_nan_data_df = filter_samples_by_nan(gct.data_df, sample_nan_thresh)
@@ -496,18 +497,22 @@ def initial_filtering(gct, assay_type, sample_nan_thresh, probe_nan_thresh, prob
     return out_gct, prov_code, post_sample_nan_remaining
 
 # tested #
-def check_nan_thresh(assay_type, sample_nan_thresh, probe_nan_thresh, config_parameters):
-    """Checks if nan_thresh provided. If not, uses value from config file.
+def check_assay_specific_thresh(assay_type, sample_nan_thresh, probe_nan_thresh,
+                                probe_sd_cutoff, config_parameters):
+    """Checks if sample_nan_thresh, probe_nan_thresh, or probe_sd_cutoff were
+     provided. If not, uses values from config file.
 
     Args:
         sample_nan_thresh (float)
         probe_nan_thresh (float)
-        config_parameters (dictionary): contains assay-specific default nan
+        probe_sd_cutoff (float)
+        config_parameters (dictionary): contains assay-specific threshold
             values to use if provided thresholds are None
 
     Returns:
         sample_nan_thresh_out (float)
         probe_nan_thresh_out (float)
+        probe_sd_cutoff_out (float)
 
     """
     if sample_nan_thresh is None:
@@ -526,7 +531,15 @@ def check_nan_thresh(assay_type, sample_nan_thresh, probe_nan_thresh, config_par
     else:
         probe_nan_thresh_out = probe_nan_thresh
 
-    return sample_nan_thresh_out, probe_nan_thresh_out
+    if probe_sd_cutoff is None:
+        if assay_type is "p100":
+            probe_sd_cutoff_out = float(config_parameters["p100_probe_sd_cutoff"])
+        elif assay_type is "gcp":
+            probe_sd_cutoff_out = float(config_parameters["gcp_probe_sd_cutoff"])
+    else:
+        probe_sd_cutoff_out = probe_sd_cutoff
+
+    return sample_nan_thresh_out, probe_nan_thresh_out, probe_sd_cutoff_out
 
 # tested #
 def filter_samples_by_nan(data_df, sample_nan_thresh):
