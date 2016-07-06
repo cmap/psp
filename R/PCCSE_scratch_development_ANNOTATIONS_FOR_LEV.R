@@ -92,11 +92,12 @@ queryDrugAndKStest <- function(raDataDump, drug, assay="Assay") {
   	print(paste0("query: ", drug))
   	print(paste0("target: ", od[j]))
   	print(paste0("test_distrib: ", qd$connectivityScore[which(qd$otherDrug==od[j])]))
+  	print(paste0("test_distrib_interactions: ", qd$interaction[which(qd$otherDrug==od[j])]))
   	print(paste0("num null_distrib elements: ", length(raDataDump$connectivityScore[which(raDataDump$otherDrug==od[j])])))
+  	print(paste0("null_distib: ", raDataDump$connectivityScore[which(raDataDump$otherDrug==od[j])]))
+  	print(paste0("null_distib_interactions: ", raDataDump$interaction[which(raDataDump$otherDrug==od[j])]))
   	print(paste0("KS-test stat: ", ksr$statistic))
   	print(paste0("KS-test pval: ", ksr$p.value))
-  	
-  	stop("DMSO above")
   	
   	med.test<-median(qd$connectivityScore[which(qd$otherDrug==od[j])]);
   	med.bkg<-median(raDataDump$connectivityScore[which(raDataDump$otherDrug==od[j])])
