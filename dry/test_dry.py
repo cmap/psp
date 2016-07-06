@@ -24,7 +24,7 @@ logger = logging.getLogger(setup_logger.LOGGER_NAME)
 FUNCTIONAL_TESTS_DIR = "dry/functional_tests"
 
 # Set to false if you want to see what output is created
-CLEANUP = False
+CLEANUP = True
 
 # N.B. e_out is expected_output.
 class TestDry(unittest.TestCase):
