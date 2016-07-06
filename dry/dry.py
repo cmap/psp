@@ -70,7 +70,7 @@ def build_parser():
     parser.add_argument("-verbose", "-v", action="store_true", default=False,
                         help="increase the number of messages reported")
     parser.add_argument("-psp_config_path", type=str,
-                        default="example_psp.cfg",
+                        default="psp_production.cfg",
                         help="filepath to PSP config file")
     parser.add_argument("-force_assay", choices=["GCP", "P100"], default=None,
                         help=("directly specify assay type here " +

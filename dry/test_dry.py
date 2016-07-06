@@ -24,7 +24,7 @@ logger = logging.getLogger(setup_logger.LOGGER_NAME)
 FUNCTIONAL_TESTS_DIR = "dry/functional_tests"
 
 # Set to false if you want to see what output is created
-CLEANUP = True
+CLEANUP = False
 
 # N.B. e_out is expected_output.
 class TestDry(unittest.TestCase):
@@ -163,7 +163,7 @@ class TestDry(unittest.TestCase):
             os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_PW_NAME))
 
     def test_read_gct_and_config_file(self):
-        PSP_CONFIG_PATH = "example_psp.cfg"
+        PSP_CONFIG_PATH = "psp_production.cfg"
         assert os.path.exists(PSP_CONFIG_PATH), (
             "Config file must exist in order to perform this test.\n" +
             "PSP_CONFIG_PATH: {}".format(PSP_CONFIG_PATH))
@@ -368,21 +368,28 @@ class TestDry(unittest.TestCase):
         self.assertEqual(out_remaining2, e_remaining_samples)
         self.assertEqual(out_prov_code2, e_prov_code2)
 
-    def test_check_nan_thresh(self):
+    def test_check_assay_specific_thresh(self):
         assay_type = "p100"
         sample_nan_thresh = None
         probe_nan_thresh = 0.5
+        probe_sd_cutoff = None
         config_parameters = {"gcp_sample_nan_thresh": "0.1",
                              "gcp_probe_nan_thresh": "0.2",
                              "p100_sample_nan_thresh": "0.3",
-                             "p100_probe_nan_thresh": "0.4"}
+                             "p100_probe_nan_thresh": "0.4",
+                             "gcp_probe_sd_cutoff": "0.5",
+                             "p100_probe_sd_cutoff": "0.6"}
         e_sample_nan_thresh = 0.3
         e_probe_nan_thresh = 0.5
-        [out_sample_thresh, out_probe_thresh] = dry.check_nan_thresh(
-            assay_type, sample_nan_thresh, probe_nan_thresh, config_parameters)
+        e_probe_sd_cutoff = 0.6
+        [out_sample_thresh, out_probe_thresh, out_probe_sd_cutoff] = (
+            dry.check_assay_specific_thresh(
+                assay_type, sample_nan_thresh, probe_nan_thresh,
+                probe_sd_cutoff, config_parameters))
 
         self.assertEqual(e_sample_nan_thresh, out_sample_thresh)
         self.assertEqual(e_probe_nan_thresh, out_probe_thresh)
+        self.assertEqual(e_probe_sd_cutoff, out_probe_sd_cutoff)
 
     def test_filter_samples_by_nan(self):
         df = pd.DataFrame(np.array([[0.5, 0.2, 0.1, 0.25],
