@@ -1,0 +1,27 @@
+name: psp
+dependencies:
+- hdf5=1.8.16=0
+- libgcc=5.2.0=0
+- libgfortran=3.0.0=1
+- mkl=11.3.1=0
+- numexpr=2.5.2=np111py27_0
+- numpy=1.11.0=py27_0
+- openssl=1.0.2h=0
+- pandas=0.18.1=np111py27_0
+- pip=8.1.1=py27_1
+- pytables=3.2.2=np111py27_3
+- python=2.7.11=0
+- python-dateutil=2.5.3=py27_0
+- pytz=2016.4=py27_0
+- readline=6.2=2
+- scipy=0.17.0=np111py27_3
+- setuptools=20.7.0=py27_0
+- six=1.10.0=py27_0
+- sqlite=3.9.2=0
+- tk=8.5.18=0
+- wheel=0.29.0=py27_0
+- zlib=1.2.8=0
+- pip:
+  - psp (/home/lev/code/broadinstitute.psp)==0.2
+  - tables==3.2.2
+
