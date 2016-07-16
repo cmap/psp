@@ -66,12 +66,12 @@ def build_parser():
     parser.add_argument("-out_conn_signed_name", type=str, default=None,
                         help="name of output signed connectivity gct (if None, will use OUT_CONN_SIGNED_NAME_SUFFIX")
     parser.add_argument("-psp_config_path", type=str,
-                        default="example_psp.cfg",
+                        default="psp_production.cfg",
                         help="filepath to PSP config file")
-    parser.add_argument("-all_conn_outputs", action="store_true", default=False,
-                        help="True increases the # of gct files produced")
+    parser.add_argument("-all_conn_outputs", "-aco", action="store_true", default=False,
+                        help="whether to increase the # of gct files produced")
     parser.add_argument("-verbose", "-v", action="store_true", default=False,
-                        help="True increases the # of messages reported")
+                        help="whether to increase the # of messages reported")
 
     return parser
 
@@ -248,12 +248,12 @@ def compute_connectivity(sim_gct, group_fields, is_symmetric=True):
             pvals[count] = pval
             ks_stats_signed[count] = ks_stat_signed
 
-            # See output for DMSO v. DMSO for debugging purposes
+            # See specific output for debugging purposes
             if query=="DMSO_PC3_24" and target=="DMSO_PC3_24":
                 logger.debug("ks_stat: {}, pval: {}".format(ks_stat, pval))
 
-            # Increment counter
-            count = count + 1
+        # Increment counter
+        count = count + 1
 
     # Assemble output arrays into out_df_unpivoted
     out_df_unpivoted = pd.DataFrame.from_dict({
@@ -345,6 +345,8 @@ def create_distributions_for_ks_test(in_df, min_distribution_elements=2):
             test = target_df.loc[:, query].values.flatten()
             test = test[~np.isnan(test)]
 
+            # TODO(lev): need to change here to modify null distribution
+
             # Elements where column!=query is null distribution; remove NaNs
             null = target_df.loc[:, ~target_df.columns.isin([query])].values.flatten()
             null = null[~np.isnan(null)]
@@ -370,6 +372,7 @@ def create_distributions_for_ks_test(in_df, min_distribution_elements=2):
                      "both be set to []. null: {}").format(
                         query, target, min_distribution_elements, null))
                 logger.warning(warning_msg)
+                count = count + 1
                 continue
 
             # Null and test are only assigned if there are enough elements in
@@ -377,7 +380,7 @@ def create_distributions_for_ks_test(in_df, min_distribution_elements=2):
             nulls[count] = null
             tests[count] = test
 
-            # See output for DMSO v. DMSO for debugging purposes
+            # See specific output for debugging purposes
             if query=="DMSO_PC3_24" and target=="DMSO_PC3_24":
                 logger.debug("num of test elements: {}; num of null elements: {}".format(
                     len(test), len(null)))
@@ -540,7 +543,7 @@ def configure_out_gct_name(in_gct, suffix, out_name_from_args):
 
 if __name__ == "__main__":
     args = build_parser().parse_args(sys.argv[1:])
-    setup_logger.setup(verbose=True)
+    setup_logger.setup(verbose=args.verbose)
     logger.debug("args: {}".format(args))
 
     main(args)
