@@ -144,6 +144,8 @@ def assemble_row_metadata(full_df, num_col_metadata, num_data_rows, num_row_meta
     row_metadata_row_inds = range(num_col_metadata, num_col_metadata + num_data_rows)
     row_metadata_col_inds = range(num_row_metadata + 1)
     row_metadata = full_df.iloc[row_metadata_row_inds, row_metadata_col_inds]
+    # TODO(lev): the next line breaks if the 1st element on the 3rd line is not
+    # "id"; create error message that will say this clearly
     row_metadata.set_index("id", inplace=True)
     row_metadata.index.name = "rid"
     row_metadata.columns.name = "rhd"

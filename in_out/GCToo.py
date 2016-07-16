@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 import logging
 import utils.setup_logger as setup_logger
@@ -45,7 +44,7 @@ N.B. The df is transposed from how it looks in a gct file.
 |  |                |
 ---------------------
 
-N.B. rids and cids must be unique.
+N.B. rids, cids, rhds, and chds must be unique.
 
 """
 
@@ -142,30 +141,40 @@ class GCToo(object):
 
     def check_component_dfs(self):
         """Checks that rids are the same between data_df and row_metadata_df,
-        that cids are the same between data_df and col_metadata_df. Also,
-        check that rids and cids are unique."""
+        that cids are the same between data_df and col_metadata_df, that rids
+        and cids are unique, and that rhds and chds are unique."""
 
         # Check rid consistency
-        assert np.array_equal(self.data_df.index.values, self.row_metadata_df.index.values), (
-            ("The rids in data_df do not match the rids in row_metadata_df. " +
-             "self.data_df.index.values: {}, self.row_metadata_df.index.values: {}").format(
+        assert self.data_df.index.equals(self.row_metadata_df.index), (
+            ("The rids are inconsistent between data_df and row_metadata_df.\n" +
+             "self.data_df.index.values:\n{}\nself.row_metadata_df.index.values:\n{}").format(
                 self.data_df.index.values, self.row_metadata_df.index.values))
 
         # Check cid consistency
-        assert np.array_equal(self.data_df.columns.values, self.col_metadata_df.index.values), (
-            ("The cids in data_df do not match the cids in col_metadata_df. " +
-             "self.data_df.columns.values: {}, self.col_metadata_df.index.values: {}").format(
+        assert self.data_df.columns.equals(self.col_metadata_df.index), (
+            ("The cids are inconsistent between data_df and col_metadata_df.\n" +
+             "self.data_df.columns.values:\n{},\nself.col_metadata_df.index.values:\n{}").format(
                 self.data_df.columns.values, self.col_metadata_df.index.values))
 
         # Check rid uniqueness
-        assert len(np.unique(self.data_df.index.values)) == len(self.data_df.index.values), (
+        assert self.data_df.index.is_unique, (
             ("The rids must be unique. self.data_df.index.values:\n{}".format(
                 self.data_df.index.values)))
 
         # Check cid uniqueness
-        assert len(np.unique(self.data_df.columns.values)) == len(self.data_df.columns.values), (
+        assert self.data_df.columns.is_unique, (
             ("The cids must be unique. self.data_df.columns.values:\n{}".format(
-                self.data_df.index.values)))
+                self.data_df.columns.values)))
+
+        # Check rhd uniqueness
+        assert self.row_metadata_df.columns.is_unique, (
+            ("The rhds must be unique. self.row_metadata_df.columns.values:\n{}".format(
+                self.row_metadata_df.columns.values)))
+
+        # Check chd uniqueness
+        assert self.col_metadata_df.columns.is_unique, (
+            ("The chds must be unique. self.col_metadata_df.columns.values:\n{}".format(
+                self.col_metadata_df.columns.values)))
 
 
 def slice(gctoo, row_bool=None, col_bool=None):
@@ -199,6 +208,7 @@ def slice(gctoo, row_bool=None, col_bool=None):
     # If row_bool is None, use all rids
     if row_bool is None:
         row_bool = [True] * gctoo.data_df.shape[0]
+    # If col_bool is None, use all cids
     if col_bool is None:
         col_bool = [True] * gctoo.data_df.shape[1]
 
