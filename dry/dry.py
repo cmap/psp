@@ -77,6 +77,9 @@ def build_parser():
                               "(overrides first entry of provenance code)"))
     parser.add_argument("-no_optim", action="store_true", default=False,
                         help="whether to perform load balancing optimization")
+    # TODO(lev): rewrite documentation related to optimization
+
+
     parser.add_argument("-ignore_subset_norm", action="store_true", default=False,
                         help="whether to perform subset-specific normalization")
 
@@ -744,6 +747,36 @@ def calculate_distances_and_optimize(data_df, optim_bounds):
     # Return the df with offsets applied, the offsets, the optimized distances,
     # and boolean array of samples that converged
     return df_with_offsets, optimized_offsets, optimized_distances, success_bools
+
+
+
+def new_algorithm_for_calculating_offsets(data_df):
+    """
+
+    Args:
+        data_df:
+
+    Returns:
+
+    """
+    # (_, offsets,  _, _) = calculate_distances_and_optimize(data_df, (-7,7))
+    # offsets = data_df.median(axis=1).values
+
+    # TODO(lev): throw warning if an offset is greater than some bounds
+
+    # Calculate the sum of probe medians
+    probe_medians = data_df.median(axis=1)
+    # probe_medians = data_df.mean(axis=1)
+    sum_of_probe_medians = probe_medians.sum()
+
+    # Calculate the sum of each sample in data_df
+    sum_of_sample_values = data_df.sum()
+
+    num_samples = float(data_df.shape[1])
+    optimized_offsets = (sum_of_probe_medians - sum_of_sample_values) / num_samples
+    logger.debug("sum of optimized_offsets: {}".format(optimized_offsets.sum())) # should be zero
+
+    return optimized_offsets
 
 
 # tested #

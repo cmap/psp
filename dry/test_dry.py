@@ -29,6 +29,7 @@ CLEANUP = True
 # N.B. e_out is expected_output.
 class TestDry(unittest.TestCase):
 
+    # TODO(lev): make this its own script and systematically test all GCTs
     def test_p100_main(self):
         INPUT_GCT_PATH = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate29_3H.gct")
         JJ_OUTPUT_GCT = os.path.join(FUNCTIONAL_TESTS_DIR, "JJ_p100_prm_plate29_3H_processed.gct")
@@ -892,6 +893,27 @@ class TestDry(unittest.TestCase):
                         "row_metadata_df is wrong: \n{}".format(out_gct.row_metadata_df))
         self.assertTrue(np.array_equal(out_gct.col_metadata_df, e_col_meta),
                         "col_metadata_df is wrong: \n{}".format(out_gct.col_metadata_df))
+
+    def test_new_algorithm_for_calculating_offsets(self):
+        # df = pd.DataFrame([[10, -3, 1.2],
+        #                    [0.45, 0.2, -0.1],
+        #                    [4.5, -4, 0.3]], dtype=float)
+        df = pd.DataFrame([[1, 3, 7],
+                           [2, 5, 11]], dtype=float)
+
+        (_, old_offsets, old_dists, _) = dry.calculate_distances_and_optimize(df, (-7,7))
+
+        for ii in range(10):
+            print(df)
+            new_offsets = dry.new_algorithm_for_calculating_offsets(df)
+            print("new_offsets: {}".format(new_offsets))
+            df = df + new_offsets
+        print("after: {}".format(df))
+
+
+        self.assertTrue(np.allclose(old_offsets, new_offsets, atol=1e-2),
+                        ("\nold_offsets:\n{} " +
+                         "\nnew_offsets:\n{}").format(old_offsets, new_offsets))
 
 if __name__ == "__main__":
     setup_logger.setup(verbose=True)
