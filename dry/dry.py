@@ -751,30 +751,37 @@ def calculate_distances_and_optimize(data_df, optim_bounds):
 
 
 def new_algorithm_for_calculating_offsets(data_df):
-    """
+    """ New algorithm for calculating offsets that does not require any
+    optimization.
+
+    Equation for calculating offsets:
+    o = (P - s) / N
+
+    o is the vector of offsets
+    P is the scalar value of the sum of probe medians
+    s is the vector of sums of each sample's values
+    N is the scalar of the number of probes
 
     Args:
-        data_df:
+        data_df (pandas df)
 
     Returns:
+        optimized_offsets (pandas series)
 
     """
-    # (_, offsets,  _, _) = calculate_distances_and_optimize(data_df, (-7,7))
-    # offsets = data_df.median(axis=1).values
-
+    # TODO(lev): replace old algorithm with this method
     # TODO(lev): throw warning if an offset is greater than some bounds
 
     # Calculate the sum of probe medians
     probe_medians = data_df.median(axis=1)
-    # probe_medians = data_df.mean(axis=1)
     sum_of_probe_medians = probe_medians.sum()
 
     # Calculate the sum of each sample in data_df
     sum_of_sample_values = data_df.sum()
 
-    num_samples = float(data_df.shape[1])
-    optimized_offsets = (sum_of_probe_medians - sum_of_sample_values) / num_samples
-    logger.debug("sum of optimized_offsets: {}".format(optimized_offsets.sum())) # should be zero
+    num_probes = float(data_df.shape[0])
+    optimized_offsets = (sum_of_probe_medians - sum_of_sample_values) / num_probes
+    logger.debug("sum of optimized_offsets: {}".format(optimized_offsets.sum()))
 
     return optimized_offsets
 
@@ -1034,6 +1041,10 @@ def make_norm_ndarray(row_metadata_df, col_metadata_df, row_subset_field, col_su
 
     # Get sample group vectors
     sample_grps_strs = col_metadata_df[col_subset_field].values
+
+    # Vectors could be strings, or could have been converted to integers if
+    # the vector had length 1; so convert to str just in case
+    sample_grps_strs = sample_grps_strs.astype(str)
 
     # Convert sample group vectors from strs to lists of strings
     sample_grps_lists = [sample_str.split(",") for sample_str in sample_grps_strs]
