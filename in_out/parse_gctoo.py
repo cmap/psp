@@ -2,7 +2,7 @@ import logging
 import utils.setup_logger as setup_logger
 import pandas as pd
 import os.path
-import GCToo
+import in_out.GCToo
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
@@ -57,7 +57,7 @@ def parse(file_path, nan_values=None):
     """
     # Use default nan values if none given
     default_nan_values = ["#N/A", "N/A", "NA", "#NA", "NULL", "NaN", "-NaN", "nan",
-                          "-nan", "#N/A!", "na", "NA", "None"]
+                          "-nan", "#N/A!", "na", "NA", "None", "-666"]
     if nan_values is None:
         nan_values = default_nan_values
 
@@ -144,11 +144,13 @@ def assemble_row_metadata(full_df, num_col_metadata, num_data_rows, num_row_meta
     row_metadata_row_inds = range(num_col_metadata, num_col_metadata + num_data_rows)
     row_metadata_col_inds = range(num_row_metadata + 1)
     row_metadata = full_df.iloc[row_metadata_row_inds, row_metadata_col_inds]
-    # TODO(lev): the next line breaks if the 1st element on the 3rd line is not
-    # "id"; create error message that will say this clearly
-    row_metadata.set_index("id", inplace=True)
+    row_metadata.set_index(row_metadata.columns.values[0], inplace=True)
     row_metadata.index.name = "rid"
     row_metadata.columns.name = "rhd"
+
+    # Convert metadata to numeric if possible
+    row_metadata = row_metadata.apply(lambda x: pd.to_numeric(x, errors="ignore"))
+
     return row_metadata
 
 
@@ -156,17 +158,24 @@ def assemble_col_metadata(full_df, num_col_metadata, num_row_metadata, num_data_
     col_metadata_row_inds = range(num_col_metadata)
     col_metadata_col_inds = [0] + range(1 + num_row_metadata, 1 + num_row_metadata + num_data_cols)
     col_metadata = full_df.iloc[col_metadata_row_inds, col_metadata_col_inds]
-    col_metadata.set_index("id", inplace=True)
+    col_metadata.set_index(col_metadata.columns.values[0], inplace=True)
     col_metadata.index.name = "chd"
     col_metadata.columns.name = "cid"
-    return col_metadata.T  # transpose so that cid is the index
+
+    # Transpose so that cid is the index
+    col_metadata = col_metadata.T
+
+    # Convert metadata to numeric if possible
+    col_metadata = col_metadata.apply(lambda x: pd.to_numeric(x, errors="ignore"))
+
+    return col_metadata
 
 
 def assemble_data(full_df, num_col_metadata, num_data_rows, num_row_metadata, num_data_cols):
     data_row_inds = range(num_col_metadata, num_col_metadata + num_data_rows)
     data_col_inds = [0] + range(1 + num_row_metadata, 1 + num_row_metadata + num_data_cols)
     data = full_df.iloc[data_row_inds, data_col_inds]
-    data.set_index("id", inplace=True)
+    data.set_index(data.columns.values[0], inplace=True)
     data = data.astype(float)  # convert from str to floats
     data.index.name = "rid"
     data.columns.name = "cid"

@@ -16,7 +16,6 @@ DATA:
 |d |                        |
 |  |                        |
 -----------------------------
-
 ROW METADATA:
 --------------------------
 |id|        rhd          |
@@ -27,7 +26,6 @@ ROW METADATA:
 |d |                     |
 |  |                     |
 --------------------------
-
 COLUMN METADATA:
 N.B. The df is transposed from how it looks in a gct file.
 ---------------------
@@ -43,21 +41,18 @@ N.B. The df is transposed from how it looks in a gct file.
 |  |                |
 |  |                |
 ---------------------
-
 N.B. rids, cids, rhds, and chds must be unique.
-
 """
 
 
 class GCToo(object):
     """Class representing parsed gct(x) objects as pandas dataframes.
-
     Contains 3 component dataframes (row_metadata_df, column_metadata_df,
     and data_df) as well as an assembly of these 3 into a multi index df
     that provides an alternate way of selecting data.
     """
     def __init__(self, data_df=None, row_metadata_df=None, col_metadata_df=None,
-                 src=None, version=1.3, logger_name=setup_logger.LOGGER_NAME):
+                 src=None, version=None, logger_name=setup_logger.LOGGER_NAME):
         self.logger = logging.getLogger(logger_name)
 
         self.src = src
@@ -66,16 +61,27 @@ class GCToo(object):
         self.col_metadata_df = col_metadata_df
         self.data_df = data_df
         self.multi_index_df = None
+        
+        # check uniqueness of index values
+        for df in [self.row_metadata_df, self.col_metadata_df, self.data_df]:
+            if df is not None:
+                self.check_uniqueness(df.index)
+                self.check_uniqueness(df.columns)
+                
+        # check rid matching in data & metadata
+        if ((self.data_df is not None) and (self.row_metadata_df is not None)):
+            self.rid_consistency_check()
+        
+        # check cid matching in data & metadata
+        if (self.data_df is not None) and (self.col_metadata_df is not None):
+            self.cid_consistency_check()
 
-        # If all three component dataframes exist, first check that they are
-        # consistent, and then assemble multi_index_df
+        # If all three component dataframes exist, assemble multi_index_df
         if ((self.row_metadata_df is not None) and
                 (self.col_metadata_df is not None) and
                 (self.data_df is not None)):
-            self.check_component_dfs()
             self.assemble_multi_index_df()
-
-
+            
     def __str__(self):
         """Prints a string representation of a GCToo object."""
         version = "GCT v{}\n".format(self.version)
@@ -106,23 +112,19 @@ class GCToo(object):
     def assemble_multi_index_df(self):
         """Assembles three component dataframes into a multiindex dataframe.
         Sets the result to self.multi_index_df.
-
         IMPORTANT: Cross-section ("xs") is the best command for selecting
         data. Be sure to use the flag "drop_level=False" with this command,
         or else the dataframe that is returned will not have the same
         metadata as the input.
-
         N.B. "level" means metadata header.
         N.B. "axis=1" indicates column annotations.
-
         Examples:
             1) Select the probe with pr_lua_id="LUA-3404":
             lua3404_df = multi_index_df.xs("LUA-3404", level="pr_lua_id", drop_level=False)
-
             2) Select all DMSO samples:
             DMSO_df = multi_index_df.xs("DMSO", level="pert_iname", axis=1, drop_level=False)
         """
-	    #prepare row index
+        #prepare row index
         self.logger.debug("Row metadata shape: {}".format(self.row_metadata_df.shape))
         row_copy = pd.DataFrame() if self.row_metadata_df.empty else self.row_metadata_df.copy()
         row_copy["rid"] = row_copy.index
@@ -139,52 +141,35 @@ class GCToo(object):
         self.logger.debug("Data df shape: {}".format(self.data_df.shape))
         self.multi_index_df = pd.DataFrame(data=self.data_df.values, index=row_index, columns=col_index)
 
-    def check_component_dfs(self):
-        """Checks that rids are the same between data_df and row_metadata_df,
-        that cids are the same between data_df and col_metadata_df, that rids
-        and cids are unique, and that rhds and chds are unique."""
+    def check_uniqueness(self, field):
+        """
+        Checks that elements contained within a given field are unique.
+        
+        Input: 
+            - field (pandas.core.index): Either the index or columns of a pandas DataFrame instance
+        """
+        assert field.is_unique, (
+            ("Field must be unique but is not, field.values:\n{}".format(
+                field.values)))
 
-        # Check rid consistency
+    def rid_consistency_check(self):
         assert self.data_df.index.equals(self.row_metadata_df.index), (
             ("The rids are inconsistent between data_df and row_metadata_df.\n" +
              "self.data_df.index.values:\n{}\nself.row_metadata_df.index.values:\n{}").format(
                 self.data_df.index.values, self.row_metadata_df.index.values))
-
-        # Check cid consistency
+                
+    def cid_consistency_check(self):
         assert self.data_df.columns.equals(self.col_metadata_df.index), (
             ("The cids are inconsistent between data_df and col_metadata_df.\n" +
              "self.data_df.columns.values:\n{},\nself.col_metadata_df.index.values:\n{}").format(
                 self.data_df.columns.values, self.col_metadata_df.index.values))
 
-        # Check rid uniqueness
-        assert self.data_df.index.is_unique, (
-            ("The rids must be unique. self.data_df.index.values:\n{}".format(
-                self.data_df.index.values)))
-
-        # Check cid uniqueness
-        assert self.data_df.columns.is_unique, (
-            ("The cids must be unique. self.data_df.columns.values:\n{}".format(
-                self.data_df.columns.values)))
-
-        # Check rhd uniqueness
-        assert self.row_metadata_df.columns.is_unique, (
-            ("The rhds must be unique. self.row_metadata_df.columns.values:\n{}".format(
-                self.row_metadata_df.columns.values)))
-
-        # Check chd uniqueness
-        assert self.col_metadata_df.columns.is_unique, (
-            ("The chds must be unique. self.col_metadata_df.columns.values:\n{}".format(
-                self.col_metadata_df.columns.values)))
-
-
 def slice(gctoo, row_bool=None, col_bool=None):
     """Extract a subset of data from a GCToo object in a variety of ways.
-
     Args:
         gctoo (GCToo object)
         row_bool (list of bools): length must equal gctoo.data_df.shape[0]
         col_bool (list of bools): length must equal gctoo.data_df.shape[1]
-
         NOT YET IMPLEMENTED:
         row_id (list of strings): if empty, will use all rid
         col_id (list of strings): if empty, will use all cid
@@ -195,10 +180,8 @@ def slice(gctoo, row_bool=None, col_bool=None):
         ridx (list of ints): select rows using row indices
         cidx (list of ints): select cols using col indices
         ignore_missing (bool): if true, ignore missing ids (default: False)
-
     Returns:
         out_gctoo (GCToo object): gctoo after slicing
-
     """
     # TODO(lev): should use mutually exclusive groups and argparse here
 
@@ -221,4 +204,3 @@ def slice(gctoo, row_bool=None, col_bool=None):
     out_gctoo.col_metadata_df = gctoo.col_metadata_df.iloc[col_bool, :]
 
     return out_gctoo
-

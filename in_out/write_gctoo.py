@@ -48,13 +48,14 @@ logger = logging.getLogger(setup_logger.LOGGER_NAME)
 VERSION = "1.3"
 
 
-def write(gctoo, out_fname, data_null="NaN", filler_null="-666", data_float_format=None):
+def write(gctoo, out_fname, data_null="NaN", metadata_null="-666", filler_null="-666", data_float_format=None):
     """Write a gctoo object to a gct file.
 
     Args:
         gctoo (gctoo object)
         out_fname (string): filename for output gct file
         data_null (string): how to represent missing values in the data (default = "NaN")
+        metadata_null (string): how to represent missing values in the metadata (default = "-666")
         filler_null (string): what value to fill the top-left filler block with (default = "-666")
         data_float_format (string): how many decimal points to keep in representing data (default = None will keep all digits)
     Returns:
@@ -70,7 +71,9 @@ def write(gctoo, out_fname, data_null="NaN", filler_null="-666", data_float_form
     write_version_and_dims(VERSION, dims, f)
 
     # Convert 3 component dataframes into correct form
-    full_df = assemble_full_df(gctoo.row_metadata_df, gctoo.col_metadata_df, gctoo.data_df, data_null, filler_null)
+    full_df = assemble_full_df(
+        gctoo.row_metadata_df, gctoo.col_metadata_df, gctoo.data_df,
+        data_null, metadata_null, filler_null)
 
     # Write remainder of gct
     write_full_df(full_df, f, data_null, data_float_format)
@@ -93,7 +96,7 @@ def write_version_and_dims(version, dims, f):
     f.write((dims[0] + "\t" + dims[1] + "\t" + dims[2] + "\t" + dims[3] + "\n"))
 
 
-def assemble_full_df(row_metadata_df, col_metadata_df, data_df, data_null, filler_null):
+def assemble_full_df(row_metadata_df, col_metadata_df, data_df, data_null, metadata_null, filler_null):
     """Assemble 3 component dataframes into the correct form for gct files.
 
     Args:
@@ -101,12 +104,21 @@ def assemble_full_df(row_metadata_df, col_metadata_df, data_df, data_null, fille
         col_metadata_df (pandas df)
         data_df (pandas df)
         data_null (string): how to represent missing values in the data
+        metadata_null (string): how to represent missing values in the metadata
         filler_null (string): what value to fill the top-left filler block with
 
     Returns:
         full_df (pandas df): shape = (n_chd + n_rid, 1 + n_rhd + n_cid),
             header will become the 3rd line of the gct file
     """
+    # Convert metadata to strings
+    row_metadata_df = row_metadata_df.astype(str)
+    col_metadata_df = col_metadata_df.astype(str)
+
+    # Replace missing values in metadata with metadata_null
+    row_metadata_df.replace("nan", value=metadata_null, inplace=True)
+    col_metadata_df.replace("nan", value=metadata_null, inplace=True)
+
     # TOP ROW: horz concatenate "id", rhd, and cid
     rhd_and_cid = np.hstack((row_metadata_df.columns.values, data_df.columns.values))
     top_row = np.hstack(("id", rhd_and_cid))
@@ -133,8 +145,9 @@ def assemble_full_df(row_metadata_df, col_metadata_df, data_df, data_null, fille
     full_df = pd.DataFrame(full_df_values, columns=top_row)
 
     # Check that is has correct dims
-    assert(full_df.shape == ((col_metadata_df.shape[1] + data_df.shape[0]),
-                             (1 + row_metadata_df.shape[1] + data_df.shape[1])))
+    assert (full_df.shape == (
+        (col_metadata_df.shape[1] + data_df.shape[0]),
+        (1 + row_metadata_df.shape[1] + data_df.shape[1])))
     return full_df
 
 
