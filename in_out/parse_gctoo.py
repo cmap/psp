@@ -2,7 +2,7 @@ import logging
 import utils.setup_logger as setup_logger
 import pandas as pd
 import os.path
-import in_out.GCToo
+import in_out.GCToo as GCToo
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
