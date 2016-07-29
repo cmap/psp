@@ -139,9 +139,6 @@ class TestSteep(unittest.TestCase):
         sim_gct = GCToo.GCToo(
             data_df=sim_df, row_metadata_df=meta_df, col_metadata_df=meta_df)
 
-        # Debugging purposes
-        wg.write(sim_gct, "small_sim_gct_for_testing_connectivity.gct")
-
         e_out_df_unpivoted = pd.DataFrame.from_dict({
             "query": ["DMSO_MCF7_24", "DMSO_MCF7_24", "DMSO_MCF7_24", "DMSO_MCF7_24",
                       "DMSO_PC3_24", "DMSO_PC3_24", "DMSO_PC3_24", "DMSO_PC3_24",
