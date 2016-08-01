@@ -303,18 +303,16 @@ class TestDry(unittest.TestCase):
                          "\nActual output:\n{}").format(e_out, out))
 
     def test_p100_calculate_dists_and_apply_offsets_if_needed(self):
-        assay_type = "p100"
         no_optim = True
-        optim_bounds = (2,2)
+        offset_bounds = (-2, 2)
         prov_code = ["PR1", "L2X", "filtering"]
-        e_dists = [4,16,36]
-        e_offsets = [2,2,2]
-        e_bools = [True, True, True]
+        e_dists = [14.75, 0.0, 4.75]
+        e_offsets = [3.25, 0.0, -2.25]
         e_prov_code = ["PR1", "L2X", "filtering", "LLB"]
 
-        data = pd.DataFrame([[1,2,3],[4,5,6],[7,8,9],[10,11,12]],
+        data = pd.DataFrame([[1, 2, 3],[5, 7, 11], [13, 17, 19], [23, 29, 31]],
                             index=["a","b","c","d"],
-                            columns=["e","f","g"])
+                            columns=["e","f","g"], dtype=float)
         row_meta = pd.DataFrame([["rm1","rm2"],["rm3","rm4"],["rm5","rm6"],["rm7","rm8"]],
                                 index=["a","b","c","d"],
                                 columns=["row_field1", "row_field2"])
@@ -324,34 +322,38 @@ class TestDry(unittest.TestCase):
         in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
 
         # P100 & optim
-        (out_gct, out_dists, out_offsets, out_bools, out_prov_code) = (
+        (out_gct, out_dists, out_offsets, out_prov_code) = (
             dry.p100_calculate_dists_and_apply_offsets_if_needed(
-                in_gct, assay_type, not no_optim, optim_bounds, prov_code))
+                in_gct, "p100", no_optim_bool=False,
+                offset_bounds=offset_bounds, prov_code=prov_code))
 
-        self.assertTrue(np.allclose(out_dists, e_dists, atol=1e-2))
+        self.assertTrue(np.allclose(out_offsets, e_offsets, atol=1e-2), (
+            "out_offsets:\n{}\ne_offsets:\n{}".format(out_offsets, e_offsets)))
+        self.assertTrue(np.allclose(out_dists, e_dists, atol=1e-2), (
+            "out_dists:\n{}\ne_dists:\n{}".format(out_dists, e_dists)))
         self.assertTrue(np.allclose(out_offsets, e_offsets, atol=1e-2))
-        self.assertTrue(np.allclose(out_bools, e_bools, atol=1e-2))
         self.assertEqual(out_prov_code, e_prov_code)
 
         # P100 but no optim
-        e_dists2 = [4,0,4]
-        (out_gct, out_dists, out_offsets, out_bools, out_prov_code) = (
+        e_dists2 = [57 ,0, 25]
+        (out_gct, out_dists, out_offsets, out_prov_code) = (
             dry.p100_calculate_dists_and_apply_offsets_if_needed(
-                in_gct, assay_type, no_optim, optim_bounds, prov_code))
+                in_gct, "p100", no_optim_bool=True,
+                offset_bounds=offset_bounds, prov_code=prov_code))
 
-        self.assertTrue(np.allclose(out_dists, e_dists2, atol=1e-2))
+        self.assertTrue(np.allclose(out_dists, e_dists2, atol=1e-2), (
+            "out_dists:\n{}\ne_dists2:\n{}".format(out_dists, e_dists2)))
         self.assertEqual(out_offsets, None)
-        self.assertEqual(out_bools, None)
         self.assertEqual(out_prov_code, prov_code)
 
         # GCP
-        (out_gct, out_dists, out_offsets, out_bools, out_prov_code) = (
+        (out_gct, out_dists, out_offsets, out_prov_code) = (
             dry.p100_calculate_dists_and_apply_offsets_if_needed(
-                in_gct, "gcp", not no_optim, optim_bounds, prov_code))
+                in_gct, "gcp", no_optim_bool=True,
+                offset_bounds=offset_bounds, prov_code=prov_code))
 
         self.assertEqual(out_dists, None)
         self.assertEqual(out_offsets, None)
-        self.assertEqual(out_bools, None)
         self.assertEqual(out_prov_code, prov_code)
 
     def test_calculate_distances_and_optimize(self):
@@ -363,7 +365,7 @@ class TestDry(unittest.TestCase):
                              [0.08, -1.16, 0.40]], dtype=float)
         e_offsets = np.array([-4.42, 2.83, 0.10], dtype=float)
         e_dists = np.array([36.62, 12.04, 0.06], dtype=float)
-        (out_df, offsets, dists, success_bools) = dry.calculate_distances_and_optimize(df, (-7,7))
+        (out_df, offsets, dists) = dry.calculate_distances_and_optimize(df, (-7,7))
         self.assertTrue(np.allclose(offsets, e_offsets, atol=1e-2),
                         ("\nExpected offsets:\n{} " +
                          "\nActual offsets:\n{}").format(e_offsets, offsets))
@@ -373,35 +375,23 @@ class TestDry(unittest.TestCase):
         self.assertTrue(np.allclose(out_df, e_df, atol=1e-2),
                         ("\nExpected out_df:\n{} " +
                          "\nActual out_df:\n{}").format(e_df, out_df))
-        self.assertTrue(~all(success_bools),
-                        "All samples should have converged.")
 
-    def test_calculate_distances_only(self):
+    def test_calculate_distances(self):
         df = pd.DataFrame([[10, 3, 1.2],
                            [0.45, 0.2, np.nan],
                            [4.5, 4, 0.3]], dtype=float)
         e_dists = np.array([49.27, 0.02, 16.93])
-        out_dists = dry.calculate_distances_only(df)
+        out_dists = dry.calculate_distances(df)
 
         self.assertTrue(np.allclose(e_dists, out_dists, atol=1e-2),
                         ("The expected distances are {}, " +
                          "not {}.").format(e_dists, out_dists))
 
     def test_distance_function(self):
-        offset = 0.5
-        values = np.array([1, 2.5, 3, 4, 5])
-        medians = np.array([2, 0.5, 0.1, 1.1, 1.5])
-        e_out = 45.62
-        out = dry.distance_function(offset, values, medians)
-        self.assertTrue(np.isclose(out, e_out),
-                        ("\nExpected output: {} " +
-                         "\nActual output: {}").format(e_out, out))
-
-        offset = 0
         values = np.array([1, 2.5, np.nan, 4, 5])
         medians = np.array([2, 0.5, 0.1, 1.1, 1.5])
         e_out = 25.66
-        out = dry.distance_function(offset, values, medians)
+        out = dry.distance_function(values, medians)
         self.assertTrue(np.isclose(out, e_out),
                         ("\nExpected output: {} " +
                          "\nActual output: {}").format(e_out, out))
@@ -410,7 +400,6 @@ class TestDry(unittest.TestCase):
     def test_p100_filter_samples_by_dist(self):
         offsets = np.array([4,3,7], dtype=float)
         dists = np.array([1,6,2], dtype=float)
-        success_bools = np.array([True, True, True], dtype=bool)
         dist_sd_cutoff = 1
         prov_code = ["A", "B"]
         data = pd.DataFrame([[1,2,3],[4,5,6],[7,8,9],[10,11,12]],
@@ -437,7 +426,7 @@ class TestDry(unittest.TestCase):
 
         (out_gct, out_offsets, out_remaining, out_prov_code) = (
             dry.p100_filter_samples_by_dist(
-                in_gct, "p100", offsets, dists, success_bools, dist_sd_cutoff, prov_code))
+                in_gct, "p100", offsets, dists, dist_sd_cutoff, prov_code))
 
         self.assertTrue(np.allclose(out_gct.data_df, e_data, atol=1e-2))
         self.assertTrue(np.array_equal(out_gct.col_metadata_df, e_col_meta))
@@ -449,7 +438,7 @@ class TestDry(unittest.TestCase):
         # GCP
         (out_gct2, out_offsets2, out_remaining2, out_prov_code2) = (
             dry.p100_filter_samples_by_dist(
-                in_gct, "gcp", None, dists, None, dist_sd_cutoff, prov_code))
+                in_gct, "gcp", None, dists, dist_sd_cutoff, prov_code))
 
         self.assertTrue(np.allclose(out_gct2.data_df, data, atol=1e-2))
         self.assertTrue(np.array_equal(out_gct2.col_metadata_df, col_meta))
@@ -465,11 +454,9 @@ class TestDry(unittest.TestCase):
                            [4.5, np.nan, 0.3, 0.4]], dtype=float)
         offsets = np.array([1, 2, 3, 4], dtype=float)
         dists = np.array([0.2, 5, 0.5, 0.4], dtype=float)
-        bools = np.array([True, True, True, False], dtype=bool)
-        (out, out_offsets) = dry.remove_sample_outliers(df, offsets, dists, bools,
-                                         dist_sd_cutoff=1)
-        e_out = df.iloc[:, [0, 2]]
-        e_out_offsets = np.array([1, 3])
+        (out, out_offsets) = dry.remove_sample_outliers(df, offsets, dists, dist_sd_cutoff=1)
+        e_out = df.iloc[:, [0, 2, 3]]
+        e_out_offsets = np.array([1, 3, 4])
         self.assertTrue(out.shape == e_out.shape, (
             "expected_out.shape: {} not the same " +
             "as actual_out.shape: {}").format(e_out.shape, out.shape))
@@ -765,8 +752,7 @@ class TestDry(unittest.TestCase):
         df = pd.DataFrame([[10, -3, 1.2],
                            [0.45, 0.2, -0.1],
                            [4.5, -4, 0.3]], dtype=float)
-        (_, old_offsets, _, _) = dry.calculate_distances_and_optimize(df, (-7,7))
-
+        (_, old_offsets, _) = dry.calculate_distances_and_optimize(df, (-7,7))
         new_offsets = dry.new_algorithm_for_calculating_offsets(df)
         self.assertTrue(np.allclose(old_offsets, new_offsets, atol=1e-2),
                         ("\nold_offsets:\n{} " +
@@ -775,8 +761,7 @@ class TestDry(unittest.TestCase):
         # Case 2
         df2 = pd.DataFrame([[1, 3, 7],
                            [2, 5, 11]], dtype=float)
-        (_, old_offsets2, _, _) = dry.calculate_distances_and_optimize(df2, (-10, 10))
-
+        (_, old_offsets2, _) = dry.calculate_distances_and_optimize(df2, (-7, 7))
         new_offsets2 = dry.new_algorithm_for_calculating_offsets(df2)
         self.assertTrue(np.allclose(old_offsets2, new_offsets2, atol=1e-2),
                         ("\nold_offsets2:\n{} " +

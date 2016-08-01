@@ -76,10 +76,7 @@ def build_parser():
                         help=("directly specify assay type here " +
                               "(overrides first entry of provenance code)"))
     parser.add_argument("-no_optim", action="store_true", default=False,
-                        help="whether to perform load balancing optimization")
-    # TODO(lev): rewrite documentation related to optimization
-
-
+                        help="whether to perform P100 load balancing optimization")
     parser.add_argument("-ignore_subset_norm", action="store_true", default=False,
                         help="whether to perform subset-specific normalization")
 
@@ -128,16 +125,16 @@ def main(args):
         config_metadata["manual_rejection_field"], prov_code)
 
     ### APPLY OFFSETS IF NEEDED (if P100)
-    (offset_gct, dists, offsets, success_bools, prov_code) = (
+    (offset_gct, dists, offsets, prov_code) = (
         p100_calculate_dists_and_apply_offsets_if_needed(
             filt_gct, assay_type, args.no_optim,
-            eval(config_parameters["optim_bounds"]), prov_code))
+            eval(config_parameters["offset_bounds"]), prov_code))
 
     ### FILTER SAMPLES BY DISTANCE (if P100)
     (filt_dist_gct, out_offsets, post_sample_dist_remaining, prov_code) = (
         p100_filter_samples_by_dist(
         offset_gct, assay_type, offsets, dists,
-        success_bools, args.dist_sd_cutoff, prov_code))
+        args.dist_sd_cutoff, prov_code))
 
     ### MEDIAN NORMALIZE
     (med_norm_gct, prov_code) = median_normalize(
@@ -635,47 +632,47 @@ def filter_probes_by_nan_and_sd(data_df, probe_nan_thresh, probe_sd_cutoff):
 
 # tested #
 def p100_calculate_dists_and_apply_offsets_if_needed(gct, assay_type, no_optim_bool,
-                                                     optim_bounds, prov_code):
+                                                     offset_bounds, prov_code):
     """If P100, calculate a distance metric for each sample in order to use it
     later for filtering. The distance metric is how far away each probe is from
     its median value.
 
-    If optimization is also requested (no_optim_bool=False), an offset is calculated
-    for each sample that seeks to minimize the distance metric for that sample.
-    The distance is then recalculated for the data after offsets have been
-    applied. The provenance code is only updated if optimization occurs.
+    Optimization happens by default for P100, but can be turned off by setting
+    no_optim_bool to False. During optimization, an offset is
+    calculated for each sample that seeks to minimize the distance metric for
+    that sample. The distance is then recalculated for the data after offsets
+    have been applied. The provenance code is only updated if optimization occurs.
 
     Args:
         gct (GCToo object)
         assay_type (string)
-        no_optim_bool (bool): if true, optimization will not occur
-        optim_bounds (tuple of floats): the bounds over which optimization should be performed
+        no_optim_bool (bool): if true, optimization will NOT occur
+        offset_bounds (tuple of floats): specifies bounds for the offset;
+            if outside of the bounds, a warning will be thrown
         prov_code (list of strings)
 
     Returns:
         out_gct (GCToo object): updated
         dists (numpy array of floats): distance metric for each sample
         offsets (numpy array of floats): offset that was applied to each sample
-        success_bools (numpy array of bools): for each sample, indicates whether optimization was successful
         prov_code (list of strings): updated
 
     """
     # P100
     if assay_type is "p100":
         if not no_optim_bool:
-            # Perform optimization and return offsets, distances, and success_bools
-            (out_df, offsets, dists, success_bools) = (
-                calculate_distances_and_optimize(gct.data_df, optim_bounds))
+            # Perform optimization and return offsets and distances
+            (out_df, offsets, dists) = (
+                calculate_distances_and_optimize(gct.data_df, offset_bounds))
             prov_code_entry = OPTIMIZATION_PROV_CODE_ENTRY
             (out_gct, prov_code) = update_metadata_and_prov_code(
                 out_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
         else:
             # Simply calculate distance metric for each sample
-            dists = calculate_distances_only(gct.data_df)
+            dists = calculate_distances(gct.data_df)
 
-            # Set offsets and success_bools to None
+            # Set offsets to None
             offsets = None
-            success_bools = None
             out_gct = gct
 
     # GCP
@@ -683,14 +680,13 @@ def p100_calculate_dists_and_apply_offsets_if_needed(gct, assay_type, no_optim_b
     else:
         dists = None
         offsets = None
-        success_bools = None
         out_gct = gct
 
-    return out_gct, dists, offsets, success_bools, prov_code
+    return out_gct, dists, offsets, prov_code
 
 
 # tested #
-def calculate_distances_and_optimize(data_df, optim_bounds):
+def calculate_distances_and_optimize(data_df, offset_bounds):
     """For each sample, perform optimization.
 
     This means finding an offset for each sample that minimizes
@@ -701,52 +697,41 @@ def calculate_distances_and_optimize(data_df, optim_bounds):
 
     Args:
         data_df (pandas df)
-        optim_bounds (tuple of floats): indicates range of values over which to perform optimization
+        offset_bounds (tuple of floats): specifies bounds for the offset;
+            if outside of the bounds, a warning will be thrown
 
     Returns:
         out_df (pandas dataframe): with offsets applied
         optimized_offsets (numpy array): constant to add to each sample to
             minimize the distance function; length = num_samples
-        optim_distances (numpy array): distance with optimized offset added;
+        optimized_dists (numpy array): distance with optimized offset added;
             length = num_samples
-        success_bools: numpy array of bools indicating if optimization converged
-            with length = num_samples
     """
-    # Determine the median value for each probe
-    probe_medians = data_df.median(axis=1)
+    # Compute probe medians
+    orig_probe_medians = data_df.median(axis=1).values
 
-    # Initialize optimization outputs
-    num_samples = data_df.shape[1]
-    optimized_offsets = np.zeros(num_samples, dtype=float)
-    optimized_distances = np.zeros(num_samples, dtype=float)
-    success_bools = np.zeros(num_samples, dtype=bool)
-    # N.B. 0 is the same as False if you specify that dtype is boolean
-
-    # For each sample, perform optimization
-    for sample_ind in range(num_samples):
-        sample_vals = data_df.iloc[:, sample_ind].values
-
-        # Calculate optimized distances
-        optimization_result = minimize_scalar(distance_function, args=(sample_vals, probe_medians),
-                                              method="bounded", bounds=optim_bounds)
-
-        # Return offset, optimized distance, and a flag indicating if the
-        # solution converged
-        optimized_offsets[sample_ind] = optimization_result.x
-        optimized_distances[sample_ind] = optimization_result.fun
-        success_bools[sample_ind] = optimization_result.success
+    # Compute offsets for all samples
+    optimized_offsets = new_algorithm_for_calculating_offsets(data_df)
 
     # Apply the optimized offsets
-    df_with_offsets = data_df.add(optimized_offsets)
+    df_with_offsets = data_df.add(optimized_offsets, axis=1)
 
-    # Report which samples did not converge
-    if not all(success_bools):
-        logger.info(("The following samples failed to converge during " +
-                     "optimization: \n{}").format(data_df.columns[~success_bools].values))
+    # Compute distances after applying offsets
+    optimized_dists = [distance_function(df_with_offsets.loc[:, col].values, orig_probe_medians) for col in df_with_offsets]
 
-    # Return the df with offsets applied, the offsets, the optimized distances,
-    # and boolean array of samples that converged
-    return df_with_offsets, optimized_offsets, optimized_distances, success_bools
+    # Report which samples had offsets greater than the bounds
+    assert offset_bounds[0] < offset_bounds[1]
+    offsets_outside_of_bounds_bool_array = (optimized_offsets < offset_bounds[0]) | (optimized_offsets > offset_bounds[1])
+    if offsets_outside_of_bounds_bool_array.any():
+        offsets_outside_of_bounds = df_with_offsets.columns[offsets_outside_of_bounds_bool_array].values
+        offsets_outside_of_bounds_vals = optimized_offsets[offsets_outside_of_bounds_bool_array]
+        logger.warning((
+            "The following samples have optimized offsets outside the " +
+            "offset_bounds.\n{}").format(
+            zip(offsets_outside_of_bounds, offsets_outside_of_bounds_vals)))
+
+    # Return the df with offsets applied, the offsets, and the optimized dists
+    return df_with_offsets, optimized_offsets, optimized_dists
 
 
 
@@ -766,12 +751,9 @@ def new_algorithm_for_calculating_offsets(data_df):
         data_df (pandas df)
 
     Returns:
-        optimized_offsets (pandas series)
+        optimized_offsets (numpy array)
 
     """
-    # TODO(lev): replace old algorithm with this method
-    # TODO(lev): throw warning if an offset is greater than some bounds
-
     # Calculate the sum of probe medians
     probe_medians = data_df.median(axis=1)
     sum_of_probe_medians = probe_medians.sum()
@@ -781,13 +763,13 @@ def new_algorithm_for_calculating_offsets(data_df):
 
     num_probes = float(data_df.shape[0])
     optimized_offsets = (sum_of_probe_medians - sum_of_sample_values) / num_probes
-    logger.debug("sum of optimized_offsets: {}".format(optimized_offsets.sum()))
+    optimized_offsets = optimized_offsets.values
 
     return optimized_offsets
 
 
 # tested #
-def calculate_distances_only(data_df):
+def calculate_distances(data_df):
     """For each sample, calculate distance metric.
     N.B. Only uses the non-NaN values from each sample.
 
@@ -799,26 +781,22 @@ def calculate_distances_only(data_df):
     # Determine the median value for each probe
     probe_medians = data_df.median(axis=1)
 
-    # Initialize output
-    num_samples = data_df.shape[1]
-    dists = np.zeros(num_samples, dtype=float)
-
-    # For each sample, calculate distance
-    for sample_ind in range(num_samples):
-        sample_vals = data_df.iloc[:, sample_ind].values
-
-        # Calculate unoptimized distances
-        dists[sample_ind] = distance_function(0, sample_vals, probe_medians)
+    # Calculate distances
+    dists = [distance_function(data_df.loc[:, col].values, probe_medians) for col in data_df]
 
     return dists
 
 # tested #
-def distance_function(offset, values, medians):
+def distance_function(values, medians):
     """This function calculates the distance metric.
     N.B. Only uses the non-NaN values.
 
+    dist = sum( (s - m)^2 )
+
+    s is the vector of sample values
+    m is the vector of probe medians
+
     Args:
-        offset (float)
         values (numpy array of floats)
         medians (numpy array of floats)
     Returns:
@@ -829,12 +807,12 @@ def distance_function(offset, values, medians):
 
     non_nan_values = values[non_nan_idx]
     non_nan_medians = medians[non_nan_idx]
-    dist = sum(np.square((offset + non_nan_values) - non_nan_medians))
+    dist = sum(np.square(non_nan_values - non_nan_medians))
     return dist
 
 # tested #
 def p100_filter_samples_by_dist(gct, assay_type, offsets, dists,
-                                success_bools, dist_sd_cutoff, prov_code):
+                                dist_sd_cutoff, prov_code):
     """If P100, filter out samples whose distance metric is above some threshold.
     Also remove samples for which optimization did not converge.
 
@@ -848,7 +826,6 @@ def p100_filter_samples_by_dist(gct, assay_type, offsets, dists,
         assay_type (string)
         offsets (numpy array of floats, or None): offset that was applied to each sample
         dists (numpy array of floats, or None): distance metric for each sample
-        success_bools (numpy array of bools, or None): for each sample, indicates whether optimization was successful
         dist_sd_cutoff (float): maximum SD for a sample's distance metric before being filtered out
         prov_code (list of strings)
 
@@ -861,7 +838,7 @@ def p100_filter_samples_by_dist(gct, assay_type, offsets, dists,
     """
     # P100
     if assay_type is "p100":
-        (out_df, out_offsets) = remove_sample_outliers(gct.data_df, offsets, dists, success_bools, dist_sd_cutoff)
+        (out_df, out_offsets) = remove_sample_outliers(gct.data_df, offsets, dists, dist_sd_cutoff)
         prov_code_entry = "{}{:.0f}".format(
             OUTLIER_SAMPLE_FILTER_PROV_CODE_ENTRY, dist_sd_cutoff)
         (gct, prov_code) = update_metadata_and_prov_code(
@@ -879,18 +856,16 @@ def p100_filter_samples_by_dist(gct, assay_type, offsets, dists,
 
 
 # tested #
-def remove_sample_outliers(data_df, offsets, distances, success_bools, dist_sd_cutoff):
+def remove_sample_outliers(data_df, offsets, distances, dist_sd_cutoff):
     """Calculate distance cutoff for outlier samples and remove outliers.
 
-    Samples are considered outliers if their distance is above the cutoff
-    OR if the optimization process didn't converge for them. Return only the
-    offsets of samples that were not removed.
+    Samples are considered outliers if their distance is above the cutoff.
+    Return only the offsets of samples that were not removed.
 
     Args:
         data_df (pandas df)
         offsets (numpy array of floats): length = num_samples
         distances (numpy array of floats): length = num_samples
-        success_bools (numpy array of bools): length = num_samples
         dist_sd_cutoff (float): maximum SD for a sample's distance metric before being filtered out
 
     Returns:
@@ -903,13 +878,8 @@ def remove_sample_outliers(data_df, offsets, distances, success_bools, dist_sd_c
     # Calculate the distance cutoff
     cutoff = np.mean(distances) + np.multiply(np.std(distances), dist_sd_cutoff)
 
-    # If optimization occurred, consider success_bools; otherwise, ignore them
-    if success_bools is not None:
-        # Keep only samples whose distance metric is less than the cutoff AND
-        # converged during optimization
-        samples_to_keep = np.logical_and(distances < cutoff, success_bools)
-    else:
-        samples_to_keep = distances < cutoff
+    # Determine what samples to keep
+    samples_to_keep = distances < cutoff
 
     out_df = data_df.iloc[:, samples_to_keep]
     assert not out_df.empty, "All samples were filtered out. Try increasing the SD cutoff."
