@@ -703,20 +703,24 @@ class TestDry(unittest.TestCase):
 
         post_sample_nan_remaining = ["c","e","f","g"]
         post_sample_dist_remaining = ["c","f","g"]
+        offsets = pd.Series([0.1, 5, 0.2, 0.3], index=["c", "e", "f", "g"])
         out_path = FUNCTIONAL_TESTS_DIR
         out_name = "test_write_output.pw"
-        e_df = pd.DataFrame([["plate1","A1",True,True],
-                             ["plate1","A2",False,False],
-                             ["plate1","A3",False,True],
-                             ["plate1","A4",True,True],
-                             ["plate1","A5",True,True]])
+        e_df = pd.DataFrame([["plate1", "A1", 0.1, True, True],
+                             ["plate1", "A2", np.nan, False, False],
+                             ["plate1", "A3", 5, False, True],
+                             ["plate1", "A4", 0.2, True, True],
+                             ["plate1", "A5", 0.3, True, True]],
+                            columns=["plate_name", "well_name", "optimization_offset",
+                                   "remains_after_outlier_removal", "remains_after_poor_coverage_filtration"])
 
         dry.write_output_pw(in_gct, post_sample_nan_remaining,
-                            post_sample_dist_remaining, out_path, out_name)
+                            post_sample_dist_remaining, offsets, out_path, out_name)
 
         # Read back the pw file
         df_from_file = pd.read_csv(os.path.join(out_path, out_name), sep="\t")
-        self.assertTrue(np.array_equal(df_from_file, e_df))
+        self.assertTrue(df_from_file.equals(e_df), (
+            "\ndf_from_file:\n{}\ne_df:\n{}".format(df_from_file, e_df)))
 
         # Clean up
         if CLEANUP:

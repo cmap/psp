@@ -133,8 +133,8 @@ def main(args):
     ### FILTER SAMPLES BY DISTANCE (if P100)
     (filt_dist_gct, out_offsets, post_sample_dist_remaining, prov_code) = (
         p100_filter_samples_by_dist(
-        offset_gct, assay_type, offsets, dists,
-        args.dist_sd_cutoff, prov_code))
+            offset_gct, assay_type, offsets, dists,
+            args.dist_sd_cutoff, prov_code))
 
     ### MEDIAN NORMALIZE
     (med_norm_gct, prov_code) = median_normalize(
@@ -152,7 +152,7 @@ def main(args):
 
     ### WRITE PW FILE OF SAMPLES FILTERED
     write_output_pw(in_gct, post_sample_nan_remaining,
-                    post_sample_dist_remaining,
+                    post_sample_dist_remaining, offsets,
                     args.out_path, out_pw_name)
 
     ### WRITE OUTPUT GCT
@@ -724,7 +724,7 @@ def calculate_distances_and_optimize(data_df, offset_bounds):
     offsets_outside_of_bounds_bool_array = (optimized_offsets < offset_bounds[0]) | (optimized_offsets > offset_bounds[1])
     if offsets_outside_of_bounds_bool_array.any():
         offsets_outside_of_bounds = df_with_offsets.columns[offsets_outside_of_bounds_bool_array].values
-        offsets_outside_of_bounds_vals = optimized_offsets[offsets_outside_of_bounds_bool_array]
+        offsets_outside_of_bounds_vals = optimized_offsets[offsets_outside_of_bounds_bool_array].values
         logger.warning((
             "The following samples have optimized offsets outside the " +
             "offset_bounds.\n{}").format(
@@ -751,7 +751,7 @@ def new_algorithm_for_calculating_offsets(data_df):
         data_df (pandas df)
 
     Returns:
-        optimized_offsets (numpy array)
+        optimized_offsets (pandas series)
 
     """
     # Calculate the sum of probe medians
@@ -763,7 +763,6 @@ def new_algorithm_for_calculating_offsets(data_df):
 
     num_probes = float(data_df.shape[0])
     optimized_offsets = (sum_of_probe_medians - sum_of_sample_values) / num_probes
-    optimized_offsets = optimized_offsets.values
 
     return optimized_offsets
 
@@ -824,7 +823,7 @@ def p100_filter_samples_by_dist(gct, assay_type, offsets, dists,
     Args:
         gct (GCToo object)
         assay_type (string)
-        offsets (numpy array of floats, or None): offset that was applied to each sample
+        offsets (pandas series of floats, or None): offset that was applied to each sample
         dists (numpy array of floats, or None): distance metric for each sample
         dist_sd_cutoff (float): maximum SD for a sample's distance metric before being filtered out
         prov_code (list of strings)
@@ -864,7 +863,7 @@ def remove_sample_outliers(data_df, offsets, distances, dist_sd_cutoff):
 
     Args:
         data_df (pandas df)
-        offsets (numpy array of floats): length = num_samples
+        offsets (pandas series of floats): length = num_samples
         distances (numpy array of floats): length = num_samples
         dist_sd_cutoff (float): maximum SD for a sample's distance metric before being filtered out
 
@@ -886,7 +885,7 @@ def remove_sample_outliers(data_df, offsets, distances, dist_sd_cutoff):
 
     # If optimization occurred, return only subsets of remaining samples
     if offsets is not None:
-        out_offsets = offsets[samples_to_keep]
+        out_offsets = offsets[samples_to_keep].values
     else:
         # Otherwise, return None for the offsets
         out_offsets = None
@@ -1134,15 +1133,16 @@ def insert_offsets_and_prov_code(gct, offsets, offsets_field, prov_code, prov_co
     return gct
 
 # tested #
-def write_output_pw(gct, post_sample_nan_remaining,
-                    post_sample_dist_remaining, out_path, out_name):
-    """Save to a .pw file a record of what samples remain after filtering and
-    the optimization offsets that were applied.
+def write_output_pw(gct, post_sample_nan_remaining, post_sample_dist_remaining,
+                    offsets, out_path, out_name):
+    """Save to a .pw file a record of what samples were filtered out and all
+    optimization offsets that were computed.
 
     Args:
         gct (GCToo object): original input gct
         post_sample_nan_remaining (list of strings):
         post_sample_dist_remaining (list of strings): if GCP, this will be None
+        offsets (pandas series of floats): if GCP, this will be None
         out_path (filepath): where to save output file
         out_name (string): what to call output file
 
@@ -1162,11 +1162,20 @@ def write_output_pw(gct, post_sample_nan_remaining,
     if post_sample_dist_remaining is not None:
         post_sample_dist_bools = [sample in post_sample_dist_remaining for sample in original_samples]
 
-        # Assemble plate_names, well_names, and bool arrays into a df
-        out_df = gct2pw.assemble_output_df(
-            plate_names, well_names, {
-                "remains_after_poor_coverage_filtration": post_sample_nan_bools,
-                "remains_after_outlier_removal":post_sample_dist_bools})
+        if offsets is not None:
+            offsets_to_insert = [offsets.loc[sample] if sample in offsets.index else np.nan for sample in original_samples]
+            # Assemble plate_names, well_names, bool arrays, and offsets into a df
+            out_df = gct2pw.assemble_output_df(
+                plate_names, well_names, {
+                    "remains_after_poor_coverage_filtration": post_sample_nan_bools,
+                    "remains_after_outlier_removal":post_sample_dist_bools,
+                    "optimization_offset":offsets_to_insert})
+        else:
+            # Assemble plate_names, well_names, and bool arrays into a df
+            out_df = gct2pw.assemble_output_df(
+                plate_names, well_names, {
+                    "remains_after_poor_coverage_filtration": post_sample_nan_bools,
+                    "remains_after_outlier_removal":post_sample_dist_bools})
     else:
         # Assemble plate_names, well_names, and single bool array into a df
         out_df = gct2pw.assemble_output_df(
