@@ -2,7 +2,8 @@ import setuptools
 
 setuptools.setup(
     name="psp",
-    version="0.3",
+    version="1.0",
+    description="Package for processing GCP and P100 proteomics signatures",
     author="Lev Litichevskiy",
     author_email="lev@broadinstitute.org",
     url="https://github.com/cmap/proteomics-signature-pipeline.git",
