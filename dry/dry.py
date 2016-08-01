@@ -885,7 +885,7 @@ def remove_sample_outliers(data_df, offsets, distances, dist_sd_cutoff):
 
     # If optimization occurred, return only subsets of remaining samples
     if offsets is not None:
-        out_offsets = offsets[samples_to_keep].values
+        out_offsets = offsets[samples_to_keep]
     else:
         # Otherwise, return None for the offsets
         out_offsets = None
