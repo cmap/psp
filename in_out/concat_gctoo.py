@@ -10,9 +10,6 @@ import in_out.GCToo as GCToo
 import in_out.parse_gctoo as parse_gctoo
 import in_out.write_gctoo as write_gctoo
 
-__author__ = "Lev Litichevskiy"
-__email__ = "lev@broadinstitute.org"
-
 """
 concat_gctoo.py
 
@@ -30,7 +27,11 @@ integer index for each sample.
 
 """
 
+__author__ = "Lev Litichevskiy"
+__email__ = "lev@broadinstitute.org"
+
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
+
 
 def build_parser():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -204,20 +205,23 @@ def concat_data(data_dfs):
         data_dfs (list of pandas dfs)
 
     Returns:
-        all_data_df (pandas df)
+        all_data_df_sorted (pandas df)
     """
     # Concatenate the data_dfs
     all_data_df = pd.concat(data_dfs, axis=1)
 
-    # Sanity check: the number of columns in all_data_df should correspond
+    # Sort the index
+    all_data_df_sorted = all_data_df.sort_index()
+
+    # Sanity check: the number of columns in all_data_df_sorted should correspond
     # to the sum of the number of columns in the input dfs
-    n_cols = all_data_df.shape[1]
+    n_cols = all_data_df_sorted.shape[1]
     n_cols_cumulative = sum([df.shape[1] for df in data_dfs])
     assert n_cols == n_cols_cumulative
 
-    logger.debug("all_data_df.shape[1]: {}".format(n_cols))
+    logger.debug("all_data_df_sorted.shape[1]: {}".format(n_cols))
 
-    return all_data_df
+    return all_data_df_sorted
 
 
 def do_reset_sample_ids(all_col_metadata_df, all_data_df):
