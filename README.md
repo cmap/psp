@@ -1,7 +1,7 @@
 Proteomics Signature Pipeline (PSP)
 =========
 
-This is a package of Python scripts used for processing proteomic
+This is a package of Python scripts that enable processing and analysis of proteomic
 signatures produced by the LINCS Proteomic Characterization Center
 for Signaling and Epigenetics (PCCSE) at the Broad Institute. You
 can download the raw data from the [Panorama Repository](https://panoramaweb.org/labkey/project/LINCS/begin.view? "Panorama Repository"). (You will want the unprocessed gcts.)  
@@ -20,7 +20,7 @@ Setting up your environment
 ---------------------------
   1. First, you must clone this repository into a local directory on your computer. For example, I cloned the repository in the directory `/Users/lev/code/proteomics-signature-pipeline`. If you need more information about cloning, go to this page provided by Github: https://help.github.com/articles/cloning-a-repository/.
 
-  2. To manage our Python environment, we'll use a program called conda. Download conda from the following website: http://conda.pydata.org/miniconda.html. Miniconda or Anaconda will do, but I'd recommend Miniconda because it's more light-weight.
+  2. To manage our Python environment, we'll use a program called conda. Download conda from the following website: http://conda.pydata.org/miniconda.html. Miniconda or Anaconda will do, but I'd recommend Miniconda because it's more lightweight.
 
   3. Now, we will continue with the setup in the Terminal, so open the Terminal.
 
@@ -29,17 +29,17 @@ Setting up your environment
   5. We will now create an environment with conda that will allow us to use PSP. Type the following in your Terminal:
 
   ```
-  conda create --name psp python=2 numpy scipy pandas pytables
+  conda create --name psp_env python=2 numpy scipy pandas pytables
   ```
   
-  'psp' will be the name of your conda environment, and the things after it are the packages that you want that environment
-  to contain. Click 'yes' through the various installation steps.
+  'psp_env' will be the name of your conda environment, and the things after it are the packages that you want that environment
+  to contain. Note that we are using python2, rather than python3. Click 'yes' through the various installation steps.
 
-  6. To activate your environment, type `source activate psp`, or if you are on a Windows computer, `activate psp`. You should
-now see `[psp]` or `(psp)` prepended to the start of your command prompt. For example:
+  6. To activate your environment, type `source activate psp_env`, or if you are on a Windows computer, `activate psp_env`. You should
+now see `[psp_env]` or `(psp_env)` prepended to the start of your command prompt. For example:
 
   ```
-  (psp) /Users/lev/code/proteomics-signature-pipeline $
+  (psp_env) /Users/lev/code/proteomics-signature-pipeline $
   ```
 
   7. Finally, we will run one more script to make our environment aware of the contents of the PSP repository that we cloned. Make sure you are in the directory where you cloned your repository, and then type:
@@ -60,6 +60,6 @@ Components
 ----------
 harvest: coming soon  
 dry: level 2 -> level 3 data; performs filtering and normalization  
-steep: level 3 -> level 5 -> level 6 data; computes similarities and connectivities  
-in_out: input/output scripts  
+steep: computes similarities
+in_out: input/output & concatenation scripts  
 utils: miscellanous other scripts  
