@@ -8,7 +8,7 @@ import scipy.stats as stats
 
 import in_out.parse_gctoo as parse_gctoo
 import in_out.GCToo as GCToo
-import steep
+import old_steep
 
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
@@ -32,7 +32,7 @@ class TestSteep(unittest.TestCase):
         jj_pc3_sim_df = pd.read_csv(JJ_PC3_SIM_PATH, index_col=0)
 
         # Compute similarity
-        pc3_sim_df = steep.compute_similarity_matrix(pc3_qcnorm_gct.data_df, method="spearman")
+        pc3_sim_df = old_steep.compute_similarity_matrix(pc3_qcnorm_gct.data_df, method="spearman")
 
         self.assertTrue(np.allclose(pc3_sim_df, jj_pc3_sim_df), (
             "\npc3_sim_df:\n{}\njj_pc3_sim_df:\n{}".format(pc3_sim_df, jj_pc3_sim_df)))

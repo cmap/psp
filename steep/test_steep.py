@@ -100,18 +100,22 @@ class TestSteep(unittest.TestCase):
 
         sim_gct1 = pg.parse(e_out_name1)
         e_index1 = pd.Index(["a", "b"])
+        spearman_series = pd.Series(["spearman", "spearman"],
+                                    index=["a", "b"],
+                                    name="similarity_metric")
+        e_col_meta_df = pd.concat([col_meta_df1, spearman_series], axis=1)
         self.assertTrue(sim_gct1.data_df.index.equals(e_index1), (
             "\nsim_gct1.data_df.index: {}\ne_index1: {}").format(
                 sim_gct1.data_df.index, e_index1))
         self.assertTrue(sim_gct1.data_df.columns.equals(e_index1), (
             "\nsim_gct1.data_df.columns: {}\ne_index1: {}").format(
                 sim_gct1.data_df.columns, e_index1))
-        self.assertTrue(sim_gct1.row_metadata_df.equals(col_meta_df1), (
-            "\nsim_gct1.row_metadata_df: {}\ncol_meta_df1: {}").format(
-                sim_gct1.row_metadata_df, col_meta_df1))
-        self.assertTrue(sim_gct1.col_metadata_df.equals(col_meta_df1), (
-            "\nsim_gct1.col_metadata_df: {}\ncol_meta_df1: {}").format(
-                sim_gct1.col_metadata_df, col_meta_df1))
+        self.assertTrue(sim_gct1.row_metadata_df.equals(e_col_meta_df), (
+            "\nsim_gct1.row_metadata_df:\n{}\ne_col_meta_df:\n{}").format(
+                sim_gct1.row_metadata_df, e_col_meta_df))
+        self.assertTrue(sim_gct1.col_metadata_df.equals(e_col_meta_df), (
+            "\nsim_gct1.col_metadata_df:\n{}\ne_col_meta_df:\n{}").format(
+                sim_gct1.col_metadata_df, e_col_meta_df))
 
         # Compute similarity across gcts
         arg_string2 = "{} ./ {} -in_gct2 {}".format(gct1_name,
@@ -122,18 +126,22 @@ class TestSteep(unittest.TestCase):
         sim_gct2 = pg.parse(e_out_name2)
         e_index2 = pd.Index(["a", "b"])
         e_columns2 = pd.Index(["c", "d", "e"])
+        spearman_series2 = pd.Series(["spearman", "spearman", "spearman"],
+                                    index=["c", "d", "e"],
+                                    name="similarity_metric")
+        e_col_meta_df2 = pd.concat([col_meta_df2, spearman_series2], axis=1)
         self.assertTrue(sim_gct2.data_df.index.equals(e_index2), (
             "\nsim_gct2.data_df.index: {}\ne_index2: {}").format(
                 sim_gct2.data_df.index, e_index2))
         self.assertTrue(sim_gct2.data_df.columns.equals(e_columns2), (
             "\nsim_gct2.data_df.columns: {}\ne_columns2: {}").format(
                 sim_gct2.data_df.columns, e_columns2))
-        self.assertTrue(sim_gct2.row_metadata_df.equals(col_meta_df1), (
-            "\nsim_gct2.row_metadata_df: {}\ncol_meta_df1: {}").format(
-                sim_gct2.row_metadata_df, col_meta_df1))
-        self.assertTrue(sim_gct2.col_metadata_df.equals(col_meta_df2), (
-            "\nsim_gct2.col_metadata_df: {}\ncol_meta_df2: {}").format(
-                sim_gct2.col_metadata_df, col_meta_df2))
+        self.assertTrue(sim_gct2.row_metadata_df.equals(e_col_meta_df), (
+            "\nsim_gct2.row_metadata_df:\n{}\ne_col_meta_df:\n{}").format(
+                sim_gct2.row_metadata_df, e_col_meta_df))
+        self.assertTrue(sim_gct2.col_metadata_df.equals(e_col_meta_df2), (
+            "\nsim_gct2.col_metadata_df:\n{}\ne_col_meta_df2:\n{}").format(
+                sim_gct2.col_metadata_df, e_col_meta_df2))
 
         # Remove the gcts and sim outputs
         for file in files:

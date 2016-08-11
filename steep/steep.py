@@ -25,6 +25,7 @@ output similarity gct.
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
+SIMILARITY_METRIC_FIELD = "similarity_metric"
 
 def build_parser():
     """Build argument parser."""
@@ -70,6 +71,10 @@ def main(args):
         row_metadata_df = gct1.col_metadata_df
         col_metadata_df = gct2.col_metadata_df
 
+        # Append column to both metadata_dfs indicating which similarity_metric was used
+        row_metadata_df[SIMILARITY_METRIC_FIELD] = args.similarity_metric
+        col_metadata_df[SIMILARITY_METRIC_FIELD] = args.similarity_metric
+
         # Assemble output gct
         out_gct = GCToo.GCToo(out_df, row_metadata_df, col_metadata_df)
 
@@ -79,6 +84,9 @@ def main(args):
 
         # Row and column metadata are both from gct1
         metadata_df = gct1.col_metadata_df
+
+        # Append column to metadata_df indicating which similarity_metric was used
+        metadata_df[SIMILARITY_METRIC_FIELD] = args.similarity_metric
 
         # Assemble output gct
         out_gct = GCToo.GCToo(out_df, metadata_df, metadata_df)
