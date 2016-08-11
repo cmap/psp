@@ -25,7 +25,3 @@ Lev Litichevskiy
 lev@broadinstitute.org  
 August 2016
 
-More info
----------
-Please go to the [specs for steep](https://docs.google.com/a/broadinstitute.com/document/d/10--axSFOdRAKgjSl0zIPhMcQs9bSVyEbHVPgcqCu240/edit?usp=sharing).
-TODO(lev): update this spec
