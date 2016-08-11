@@ -25,6 +25,9 @@ However, if you want to concatenate files anyway, you can use the flag
 reset_sample_ids to move the cids to a new metadata field and assign a unique
 integer index for each sample.
 
+N.B. When using the file_wildcard argument from the command line, be sure to
+surround the wildcard in quotes.
+
 """
 
 __author__ = "Lev Litichevskiy"
