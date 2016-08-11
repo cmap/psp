@@ -6,10 +6,6 @@ signatures produced by the LINCS Proteomic Characterization Center
 for Signaling and Epigenetics (PCCSE) at the Broad Institute. You
 can download the raw data from the [Panorama Repository](https://panoramaweb.org/labkey/project/LINCS/begin.view? "Panorama Repository"). (You will want the unprocessed gcts.)  
 
-![alt text][logo]
-
-[logo]: https://github.com/cmap/proteomics-signature-pipeline/blob/1907ca5661ae617e03678e2e800f06b5503b4b29/2016-07-29_proteomics_data_levels.png "Proteomics Data Levels"
-
 Maintainer
 ----------
 Lev Litichevskiy  
@@ -54,7 +50,9 @@ now see `[psp_env]` or `(psp_env)` prepended to the start of your command prompt
   python dry/test_dry.py
   ```
 
-For more information, please refer to the instructions in the [spec for PSP](https://docs.google.com/a/broadinstitute.com/document/d/1A6-q4ss4JuP-pDkBKMpnCvA2C4KT6JaSxlv6eX2fnx4/edit?usp=sharing "Spec for PSP").
+For more information, please refer to the instructions in the [spec for PSP](https://docs.google.com/a/broadinstitute.com/document/d/1A6-q4ss4JuP-pDkBKMpnCvA2C4KT6JaSxlv6eX2fnx4/edit?usp=sharing "Spec for PSP").  
+
+The spec contains several of the most common uses of the PSP repo.
 
 Components
 ----------
@@ -63,3 +61,9 @@ dry: level 2 -> level 3 data; performs filtering and normalization
 steep: computes similarities
 in_out: input/output & concatenation scripts  
 utils: miscellanous other scripts  
+
+Data levels
+-----------
+![alt text][logo]
+
+[logo]: https://github.com/cmap/proteomics-signature-pipeline/blob/1907ca5661ae617e03678e2e800f06b5503b4b29/2016-07-29_proteomics_data_levels.png "Proteomics Data Levels"
