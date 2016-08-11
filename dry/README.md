@@ -20,7 +20,3 @@ Maintainer
 Lev Litichevskiy	
 lev@broadinstitute.org  
 August 2016
-
-More info
----------
-Please go to the [specs for dry](https://docs.google.com/a/broadinstitute.com/document/d/1zxKEX_xO_ZrqI4EbogX1by9WRgs0VO24_O15e11Xw58/edit?usp=sharing).
