@@ -12,7 +12,9 @@ it will look for psp.cfg in your home directory. See example_psp.cfg for an
 example config file.
 
 Example usage:
+```
 python dry/dry.py input.gct /path/to/output/dir output.gct -sample_nan_thresh 0.9 -subset_normalize_bool -optim -force_assay PR1
+```
 
 Maintainer
 ----------
