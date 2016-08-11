@@ -58,7 +58,7 @@ Components
 ----------
 harvest: coming soon  
 dry: level 2 -> level 3 data; performs filtering and normalization  
-steep: computes similarities
+steep: computes similarities  
 in_out: input/output & concatenation scripts  
 utils: miscellanous other scripts  
 
