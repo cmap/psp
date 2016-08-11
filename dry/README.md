@@ -18,8 +18,9 @@ python dry/dry.py input.gct /path/to/output/dir -out_name output.gct -out_pw_nam
 Maintainer
 ----------
 Lev Litichevskiy	
-lev@broadinstitute.org
+lev@broadinstitute.org  
+August 2016
 
-Additional information/documentation
-----------
-Specs for dry: https://docs.google.com/a/broadinstitute.com/document/d/1zxKEX_xO_ZrqI4EbogX1by9WRgs0VO24_O15e11Xw58/edit?usp=sharing
+More info
+---------
+Please go to the [specs for dry](https://docs.google.com/a/broadinstitute.com/document/d/1zxKEX_xO_ZrqI4EbogX1by9WRgs0VO24_O15e11Xw58/edit?usp=sharing).
