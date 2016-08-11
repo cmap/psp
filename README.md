@@ -85,13 +85,13 @@ One output file will be saved to /path/to/output/dir/: the GCT file containing t
 
 ### Use Case 3: concat_gctoo
 
-  A) You have a bunch of files that start with 'LINCS_GCP' in /some/dir that you want to concatenate. You want to save the output gct as concated.gct. Navigate to the top directory of the PSP repository, and type the following in your command line:
+  A. You have a bunch of files that start with 'LINCS_GCP' in /some/dir that you want to concatenate. You want to save the output gct as concated.gct. Navigate to the top directory of the PSP repository, and type the following in your command line:
 
 ```
 python in_out/concat_gctoo.py '/some/dir/LINCS_GCP*' concated.gct
 ```
 
-  B) You have 2 GCToo objects in memory that you want to concatenate. hstack is the method in concat_gctoo.py that actually does the concatenation. From within the Python console or script where you have your 2 GCToos (gct1 & gct2), type the following:
+  B. You have 2 GCToo objects in memory that you want to concatenate. hstack is the method in concat_gctoo.py that actually does the concatenation. From within the Python console or script where you have your 2 GCToos (gct1 & gct2), type the following:
 
 ```
 import in_out.concat_gctoo as cg
@@ -111,7 +111,3 @@ Data levels
 ![alt text][logo]
 
 [logo]: https://github.com/cmap/proteomics-signature-pipeline/blob/1907ca5661ae617e03678e2e800f06b5503b4b29/2016-07-29_proteomics_data_levels.png "Proteomics Data Levels"
-
-More info
----------
-Please see the [spec for PSP](https://docs.google.com/a/broadinstitute.com/document/d/1A6-q4ss4JuP-pDkBKMpnCvA2C4KT6JaSxlv6eX2fnx4/edit?usp=sharing "Spec for PSP").
