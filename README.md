@@ -13,6 +13,8 @@ August 2016
 
 ## Setting up your environment
 
+### To set up your environment the first time:
+
   1. First, you must clone this repository into a local directory on your computer. For example, I cloned the repository in the directory `/Users/lev/code/proteomics-signature-pipeline`. If you need more information about cloning, go to this page provided by Github: https://help.github.com/articles/cloning-a-repository/.
 
   2. To manage our Python environment, we'll use a program called conda. Download conda from the following website: http://conda.pydata.org/miniconda.html. Miniconda or Anaconda will do, but I'd recommend Miniconda because it's more lightweight.
@@ -44,6 +46,16 @@ now see `[psp_env]` or `(psp_env)` prepended to the start of your command prompt
   ```
 
   8. To make sure that everything has been set up correctly, try executing one of the Python test scripts:
+
+  ```
+  python dry/test_dry.py
+  ```
+  
+### To set up your environment after the first time:
+
+  1. Activate your conda environment by typing `source activate psp_env`, or if you are on a Windows computer, `activate psp_env`.
+  2. It's easiest to run your code from the top directory of the PSP repo, so navigate to that directory (i.e. the one that contains the dry, steep, in_out, utils, etc. directories).
+  3. To make sure again that everything is set up correctly, try executing one of the test scripts again:
 
   ```
   python dry/test_dry.py
