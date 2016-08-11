@@ -92,7 +92,7 @@ def read_version_and_dims(file_path):
 
     # Check that the version is 1.3
     if version != "1.3":
-        err_msg = "Only GCT v1.3 is currently supported. version: {}"
+        err_msg = "Only GCT v1.3 is supported. The first row of the GCT file must simply be (without quotes) '#1.3'"
         logger.error(err_msg.format(version))
         raise(Exception(err_msg.format(version)))
 
