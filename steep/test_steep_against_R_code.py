@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 import scipy.stats as stats
 
-import in_out.parse_gctoo as parse_gctoo
-import in_out.GCToo as GCToo
+import parse_gctoo
+import GCToo
 import old_steep
 
 # Setup logger
@@ -15,9 +15,6 @@ logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
 # Functional tests dir lives within the dry directory
 FUNCTIONAL_TESTS_DIR = "steep/functional_tests"
-
-# Debugging purposes
-import in_out.write_gctoo as wg
 
 ## TODO(lev): does not currently work
 

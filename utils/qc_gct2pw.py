@@ -4,7 +4,7 @@ import sys
 import argparse
 import numpy as np
 import pandas as pd
-import in_out.parse_gctoo as parse_gctoo
+import parse_gctoo
 import utils.psp_utils as utils
 
 __author__ = "Lev Litichevskiy"

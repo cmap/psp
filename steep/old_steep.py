@@ -9,8 +9,8 @@ import itertools
 from scipy import stats
 
 import utils.psp_utils as utils
-import in_out.GCToo as GCToo
-import in_out.write_gctoo as write_gctoo
+import GCToo
+import write_gctoo
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"

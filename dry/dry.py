@@ -8,9 +8,9 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize_scalar
 
-import in_out.GCToo as GCToo
-import in_out.parse_gctoo as parse_gctoo
-import in_out.write_gctoo as write_gctoo
+import GCToo
+import parse_gctoo
+import write_gctoo
 import utils.qc_gct2pw as gct2pw
 
 __author__ = "Lev Litichevskiy"
@@ -427,6 +427,7 @@ def gcp_histone_normalize(data_df, gcp_normalization_peptide_id):
 
     # Subtract the normalization values from all rows
     out_df = out_df - norm_values
+
     return out_df
 
 # tested #
@@ -1275,8 +1276,5 @@ if __name__ == "__main__":
     args = build_parser().parse_args(sys.argv[1:])
     setup_logger.setup(verbose=args.verbose)
     logger.debug("args: {}".format(args))
-
-    # Check that config file exists
-    assert os.path.exists(os.path.expanduser(args.psp_config_path))
 
     main(args)

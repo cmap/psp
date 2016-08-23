@@ -5,8 +5,7 @@ import os
 import numpy as np
 import pandas as pd
 
-import in_out.parse_gctoo as parse_gctoo
-import in_out.GCToo as GCToo
+import parse_gctoo
 import dry
 
 """

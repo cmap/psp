@@ -10,9 +10,9 @@ import argparse
 import os
 import sys
 
-import in_out.parse_gctoo as pg
-import in_out.write_gctoo as wg
-import in_out.GCToo as GCToo
+import parse_gctoo as pg
+import write_gctoo as wg
+import GCToo
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 

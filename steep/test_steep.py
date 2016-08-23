@@ -5,9 +5,9 @@ import os
 import numpy as np
 import pandas as pd
 
-import in_out.GCToo as GCToo
-import in_out.parse_gctoo as pg
-import in_out.write_gctoo as wg
+import GCToo
+import parse_gctoo as pg
+import write_gctoo as wg
 import steep
 
 # Setup logger

@@ -6,8 +6,8 @@ import pandas as pd
 import scipy.stats as stats
 
 import utils.setup_logger as setup_logger
-import in_out.parse_gctoo as pg
-import in_out.GCToo as GCToo
+import parse_gctoo as pg
+import GCToo
 import sip
 
 # Setup logger
@@ -207,7 +207,8 @@ class TestSip(unittest.TestCase):
         e_signed_conn_df = pd.DataFrame(
             [[-e_D_v_A, -e_E_v_A], [e_D_v_B, e_E_v_B]], index=["A", "B"], columns=["D", "E"])
 
-        (conn_df, signed_conn_df) = sip.compute_connectivities(test_df, bg_df, "group", "ks_test")
+        (conn_df, signed_conn_df) = sip.compute_connectivities(
+            test_df, bg_df, "group", "group", "ks_test")
 
         self.assertTrue(conn_df.equals(e_conn_df), (
             "\nconn_df:\n{}\ne_conn_df:\n{}").format(conn_df, e_conn_df))
@@ -217,7 +218,7 @@ class TestSip(unittest.TestCase):
 
         # Check that assertion works
         with self.assertRaises(Exception) as e:
-            sip.compute_connectivities(test_df, bg_df, "group", "wtcs")
+            sip.compute_connectivities(test_df, bg_df, "group", "group", "wtcs")
         self.assertIn("connectivity metric must be either ks_test or", str(e.exception))
 
     def test_add_aggregated_level_to_multi_index(self):

@@ -4,7 +4,7 @@ import ConfigParser
 import os
 import numpy as np
 import pandas as pd
-import in_out.parse_gctoo as parse_gctoo
+import parse_gctoo as parse_gctoo
 
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
@@ -29,6 +29,8 @@ def read_gct_and_config_file(gct_path, config_path):
         config_metadata (dictionary)
         config_parameters (dictionary)
     """
+    assert os.path.exists(os.path.expanduser(config_path))
+
     # Read config file
     config_parser = ConfigParser.RawConfigParser()
     config_parser.read(os.path.expanduser(config_path))

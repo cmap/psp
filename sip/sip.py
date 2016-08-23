@@ -7,8 +7,8 @@ from scipy import stats
 
 import utils.setup_logger as setup_logger
 import utils.psp_utils as utils
-import in_out.GCToo as GCToo
-import in_out.write_gctoo as wg
+import GCToo as GCToo
+import write_gctoo as wg
 
 """
 Let's not worry about different cell lines for now. Let's assume test_gct and
