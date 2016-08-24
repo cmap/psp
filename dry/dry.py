@@ -28,10 +28,6 @@ of this config file with the optional argument -psp_config_path. Otherwise,
 it will look for the example configuration file (example_psp.cfg) in the
 current directory.
 
-Example usage:
-    python dry/dry.py input.gct /path/to/output/dir -out_name output.gct
-        -sample_nan_thresh 0.9 -no_optim -force_assay PR1
-
 """
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
@@ -40,7 +36,7 @@ logger = logging.getLogger(setup_logger.LOGGER_NAME)
 LOG_TRANSFORM_PROV_CODE_ENTRY = "L2X"
 GCP_HISTONE_PROV_CODE_ENTRY = "H3N"
 SAMPLE_FILTER_PROV_CODE_ENTRY = "SF"
-MANUAL_PROBE_REJECT_PROV_CODE_ENTRY = "MPR"
+MANUAL_PROBE_REJECT_PROV_CODE_ENTRY = None # "MPR"
 PROBE_FILTER_PROV_CODE_ENTRY = "PF"
 OPTIMIZATION_PROV_CODE_ENTRY = "LLB"
 OUTLIER_SAMPLE_FILTER_PROV_CODE_ENTRY = "OSF"
@@ -58,41 +54,43 @@ def build_parser():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    # Required args
-    parser.add_argument("gct_path", type=str, help="filepath to gct file")
-    parser.add_argument("out_path", type=str, help="path to save directory")
+    # Required arg
+    parser.add_argument("--in_gct_path", "-i", required=True,
+                        help="filepath to input gct")
 
     # Optional args
-    parser.add_argument("-out_name", type=str, default=None,
-                        help="name of output gct (if None, will use <INPUT_GCT>.dry.processed.gct")
-    parser.add_argument("-out_pw_name", type=str, default=None,
+    parser.add_argument("--out_dir", "-o", default=".",
+                        help="path to save directory")
+    parser.add_argument("--out_gct_name", "-og", default=None,
+                        help="name of output gct file (if None, will use <INPUT_GCT>.dry.processed.gct")
+    parser.add_argument("--out_pw_name", "-op", default=None,
                         help="name of output pw file (if None, will use <INPUT_GCT>.dry.processed.pw")
-    parser.add_argument("-verbose", "-v", action="store_true", default=False,
-                        help="increase the number of messages reported")
-    parser.add_argument("-psp_config_path", type=str,
-                        default="psp_production.cfg",
+    parser.add_argument("--psp_config_path", "-p", default="~/psp_production.cfg",
                         help="filepath to PSP config file")
-    parser.add_argument("-force_assay", choices=["GCP", "P100"], default=None,
+    parser.add_argument("--force_assay", "-f",
+                        choices=["GCP", "P100"], default=None,
                         help=("directly specify assay type here " +
                               "(overrides first entry of provenance code)"))
-    parser.add_argument("-no_optim", action="store_true", default=False,
+    parser.add_argument("--no_optim", "-no", action="store_true", default=False,
                         help="whether to perform P100 load balancing optimization")
-    parser.add_argument("-ignore_subset_norm", action="store_true", default=False,
+    parser.add_argument("--ignore_subset_norm", "-ig", action="store_true", default=False,
                         help="whether to perform subset-specific normalization")
 
     # Parameters
-    parser.add_argument("-sample_nan_thresh", type=float, default=None,
+    parser.add_argument("--sample_frac_cutoff", "-sfc", type=float, default=None,
                         help=("if None, assay-specific default value from " +
                               "config file will be used"))
-    parser.add_argument("-probe_nan_thresh", type=float, default=None,
+    parser.add_argument("--probe_frac_cutoff", "-pfc", type=float, default=None,
                         help=("if None, assay-specific default value from " +
                               "config file will be used"))
-    parser.add_argument("-probe_sd_cutoff", type=float, default=None,
+    parser.add_argument("--probe_sd_cutoff", "-psc", type=float, default=None,
                         help=("if None, assay-specific default value from " +
                               "config file will be used"))
-    parser.add_argument("-dist_sd_cutoff", type=float, default=5,
+    parser.add_argument("--dist_sd_cutoff", "-dsc", type=float, default=5,
                         help=("maximum SD for a sample's distance metric " +
                               "before being filtered out"))
+    parser.add_argument("-verbose", "-v", action="store_true", default=False,
+                        help="increase the number of messages reported")
 
     return parser
 
@@ -109,7 +107,7 @@ def main(args):
     ### READ GCT AND CONFIG FILE
     (in_gct, assay_type, prov_code, config_io, config_metadata, config_parameters) = (
         read_gct_and_config_file(
-            args.gct_path, args.psp_config_path, args.force_assay))
+            args.in_gct_path, args.psp_config_path, args.force_assay))
 
     ### LOG TRANSFORM
     (l2x_gct, prov_code) = log_transform_if_needed(in_gct, prov_code)
@@ -120,7 +118,7 @@ def main(args):
 
     ### INITIAL FILTERING
     (filt_gct, prov_code, post_sample_nan_remaining) = initial_filtering(
-        hist_norm_gct, assay_type, args.sample_nan_thresh, args.probe_nan_thresh,
+        hist_norm_gct, assay_type, args.sample_frac_cutoff, args.probe_frac_cutoff,
         args.probe_sd_cutoff, config_parameters,
         config_metadata["manual_rejection_field"], prov_code)
 
@@ -148,22 +146,22 @@ def main(args):
 
     ### CONFIGURE OUT NAMES
     (out_gct_name, out_pw_name) = configure_out_names(
-        args.gct_path, args.out_name, args.out_pw_name)
+        args.in_gct_path, args.out_gct_name, args.out_pw_name)
 
     ### WRITE PW FILE OF SAMPLES FILTERED
     write_output_pw(in_gct, post_sample_nan_remaining,
                     post_sample_dist_remaining, offsets,
-                    args.out_path, out_pw_name)
+                    args.out_dir, out_pw_name)
 
     ### WRITE OUTPUT GCT
-    write_output_gct(out_gct, args.out_path, out_gct_name,
+    write_output_gct(out_gct, args.out_dir, out_gct_name,
                      config_io["data_null"], config_io["filler_null"])
 
     return out_gct
 
 
 # tested #
-def read_gct_and_config_file(gct_path, config_path, forced_assay_type):
+def read_gct_and_config_file(in_gct_path, config_path, forced_assay_type):
     """Read gct and config file.
 
     The config file has three sections: io, metadata, and parameters.
@@ -177,7 +175,7 @@ def read_gct_and_config_file(gct_path, config_path, forced_assay_type):
     assay_type is set to forced_assay_type.
 
     Args:
-        gct_path (string): filepath to gct file
+        in_gct_path (string): filepath to gct file
         config_path (string): filepath to config file
         forced_assay_type (string, or None)
 
@@ -202,7 +200,7 @@ def read_gct_and_config_file(gct_path, config_path, forced_assay_type):
     psp_nan_values = eval(config_io["nan_values"])
 
     # Parse the gct file and return GCToo object
-    gct = parse_gctoo.parse(gct_path, nan_values=psp_nan_values)
+    gct = parse_gctoo.parse(in_gct_path, nan_values=psp_nan_values)
 
     # Extract the plate's provenance code
     prov_code = extract_prov_code(gct.col_metadata_df,
@@ -288,14 +286,14 @@ def check_assay_type(assay_type, p100_assays, gcp_assays):
 
 
 # tested #
-def configure_out_names(gct_path, out_name_from_args, out_pw_name_from_args):
-    """If out_name_from_args is None, append DEFAULT_GCT_SUFFIX to the input
+def configure_out_names(in_gct_path, out_gct_name_from_args, out_pw_name_from_args):
+    """If out_gct_name_from_args is None, append DEFAULT_GCT_SUFFIX to the input
     gct name. If out_pw_name_from_args is None, append DEFAULT_PW_SUFFIX to the
     input gct name.
 
     Args:
-        gct_path:
-        out_name_from_args:
+        in_gct_path:
+        out_gct_name_from_args:
         out_pw_name_from_args:
 
     Returns:
@@ -303,11 +301,12 @@ def configure_out_names(gct_path, out_name_from_args, out_pw_name_from_args):
         out_pw_name (file path)
 
     """
-    input_basename = os.path.basename(gct_path)
-    if out_name_from_args is None:
+    input_basename = os.path.basename(in_gct_path)
+
+    if out_gct_name_from_args is None:
         out_gct_name = input_basename + DEFAULT_GCT_SUFFIX
     else:
-        out_gct_name = out_name_from_args
+        out_gct_name = out_gct_name_from_args
         assert os.path.splitext(out_gct_name)[1] == ".gct", (
             "The output gct name must end with .gct; out_gct_name: {}".format(
                 out_gct_name))
@@ -431,7 +430,7 @@ def gcp_histone_normalize(data_df, gcp_normalization_peptide_id):
     return out_df
 
 # tested #
-def initial_filtering(gct, assay_type, sample_nan_thresh, probe_nan_thresh, probe_sd_cutoff,
+def initial_filtering(gct, assay_type, sample_frac_cutoff, probe_frac_cutoff, probe_sd_cutoff,
                       config_parameters, manual_rejection_field, prov_code):
     """Performs three types of filtering. filter_samples_by_nan removes
     samples that have too many nan values. manual_probe_rejection removes
@@ -446,8 +445,8 @@ def initial_filtering(gct, assay_type, sample_nan_thresh, probe_nan_thresh, prob
     Args:
         gct (GCToo object)
         assay_type (string)
-        sample_nan_thresh (float b/w 0 and 1)
-        probe_nan_thresh (float b/w 0 and 1)
+        sample_frac_cutoff (float b/w 0 and 1)
+        probe_frac_cutoff (float b/w 0 and 1)
         probe_sd_cutoff (float)
         config_parameters (dictionary)
         manual_rejection_field (string)
@@ -462,12 +461,12 @@ def initial_filtering(gct, assay_type, sample_nan_thresh, probe_nan_thresh, prob
     initial_probes = list(gct.data_df.index.values)
 
     # Check assay-specific thresholds
-    [sample_nan_thresh, probe_nan_thresh, probe_sd_cutoff] = check_assay_specific_thresh(
-        assay_type, sample_nan_thresh, probe_nan_thresh, probe_sd_cutoff, config_parameters)
+    [sample_frac_cutoff, probe_frac_cutoff, probe_sd_cutoff] = check_assay_specific_thresh(
+        assay_type, sample_frac_cutoff, probe_frac_cutoff, probe_sd_cutoff, config_parameters)
 
     ### FILTER SAMPLES BY NAN
-    sample_nan_data_df = filter_samples_by_nan(gct.data_df, sample_nan_thresh)
-    thresh_digit = ("{:.1f}".format(sample_nan_thresh)).split(".")[1]
+    sample_nan_data_df = filter_samples_by_nan(gct.data_df, sample_frac_cutoff)
+    thresh_digit = ("{:.1f}".format(sample_frac_cutoff)).split(".")[1]
     prov_code_entry = "{}{}".format(SAMPLE_FILTER_PROV_CODE_ENTRY, thresh_digit)
     (out_gct, prov_code) = update_metadata_and_prov_code(
         sample_nan_data_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
@@ -484,13 +483,13 @@ def initial_filtering(gct, assay_type, sample_nan_thresh, probe_nan_thresh, prob
 
     # Only update prov code if probes were actually rejected
     if probes_removed:
-        prov_code_entry = "MPR"
+        prov_code_entry = MANUAL_PROBE_REJECT_PROV_CODE_ENTRY
         (out_gct, prov_code) = update_metadata_and_prov_code(
             probe_manual_data_df, out_gct.row_metadata_df, out_gct.col_metadata_df, prov_code_entry, prov_code)
 
     ### FILTER PROBES BY NAN AND SD
-    probe_nan_sd_data_df = filter_probes_by_nan_and_sd(out_gct.data_df, probe_nan_thresh, probe_sd_cutoff)
-    thresh_digit = ("{:.1f}".format(probe_nan_thresh)).split(".")[1]
+    probe_nan_sd_data_df = filter_probes_by_nan_and_sd(out_gct.data_df, probe_frac_cutoff, probe_sd_cutoff)
+    thresh_digit = ("{:.1f}".format(probe_frac_cutoff)).split(".")[1]
     prov_code_entry = "{}{}".format(PROBE_FILTER_PROV_CODE_ENTRY, thresh_digit)
     (out_gct, prov_code) = update_metadata_and_prov_code(
         probe_nan_sd_data_df, out_gct.row_metadata_df, out_gct.col_metadata_df, prov_code_entry, prov_code)
@@ -498,39 +497,39 @@ def initial_filtering(gct, assay_type, sample_nan_thresh, probe_nan_thresh, prob
     return out_gct, prov_code, post_sample_nan_remaining
 
 # tested #
-def check_assay_specific_thresh(assay_type, sample_nan_thresh, probe_nan_thresh,
+def check_assay_specific_thresh(assay_type, sample_frac_cutoff, probe_frac_cutoff,
                                 probe_sd_cutoff, config_parameters):
-    """Checks if sample_nan_thresh, probe_nan_thresh, or probe_sd_cutoff were
+    """Checks if sample_frac_cutoff, probe_frac_cutoff, or probe_sd_cutoff were
      provided. If not, uses values from config file.
 
     Args:
-        sample_nan_thresh (float)
-        probe_nan_thresh (float)
+        sample_frac_cutoff (float)
+        probe_frac_cutoff (float)
         probe_sd_cutoff (float)
         config_parameters (dictionary): contains assay-specific threshold
             values to use if provided thresholds are None
 
     Returns:
-        sample_nan_thresh_out (float)
-        probe_nan_thresh_out (float)
+        sample_frac_cutoff_out (float)
+        probe_frac_cutoff_out (float)
         probe_sd_cutoff_out (float)
 
     """
-    if sample_nan_thresh is None:
+    if sample_frac_cutoff is None:
         if assay_type is "p100":
-            sample_nan_thresh_out = float(config_parameters["p100_sample_nan_thresh"])
+            sample_frac_cutoff_out = float(config_parameters["p100_sample_frac_cutoff"])
         elif assay_type is "gcp":
-            sample_nan_thresh_out = float(config_parameters["gcp_sample_nan_thresh"])
+            sample_frac_cutoff_out = float(config_parameters["gcp_sample_frac_cutoff"])
     else:
-        sample_nan_thresh_out = sample_nan_thresh
+        sample_frac_cutoff_out = sample_frac_cutoff
 
-    if probe_nan_thresh is None:
+    if probe_frac_cutoff is None:
         if assay_type is "p100":
-            probe_nan_thresh_out = float(config_parameters["p100_probe_nan_thresh"])
+            probe_frac_cutoff_out = float(config_parameters["p100_probe_frac_cutoff"])
         elif assay_type is "gcp":
-            probe_nan_thresh_out = float(config_parameters["gcp_probe_nan_thresh"])
+            probe_frac_cutoff_out = float(config_parameters["gcp_probe_frac_cutoff"])
     else:
-        probe_nan_thresh_out = probe_nan_thresh
+        probe_frac_cutoff_out = probe_frac_cutoff
 
     if probe_sd_cutoff is None:
         if assay_type is "p100":
@@ -540,15 +539,15 @@ def check_assay_specific_thresh(assay_type, sample_nan_thresh, probe_nan_thresh,
     else:
         probe_sd_cutoff_out = probe_sd_cutoff
 
-    return sample_nan_thresh_out, probe_nan_thresh_out, probe_sd_cutoff_out
+    return sample_frac_cutoff_out, probe_frac_cutoff_out, probe_sd_cutoff_out
 
 # tested #
-def filter_samples_by_nan(data_df, sample_nan_thresh):
-    """Remove samples (i.e. columns) with less than sample_nan_thresh non-NaN values.
+def filter_samples_by_nan(data_df, sample_frac_cutoff):
+    """ Filter out samples whose fraction of probes measured is less than sample_frac_cutoff.
 
     Args:
         data_df (pandas df)
-        sample_nan_thresh (float b/w 0 and 1)
+        sample_frac_cutoff (float b/w 0 and 1)
     Returns:
         out_df (pandas df): potentially smaller than input
     """
@@ -558,11 +557,11 @@ def filter_samples_by_nan(data_df, sample_nan_thresh):
     # Number of rows
     num_rows = data_df.shape[0]
 
-    # Percent non-NaN per sample
-    pct_non_nan_per_sample = 1 - num_nans / num_rows
+    # Fraction non-NaN per sample
+    frac_non_nan_per_sample = 1 - num_nans/num_rows
 
-    # Only return samples with fewer % of NaNs than the cutoff
-    out_df = data_df.loc[:, pct_non_nan_per_sample > sample_nan_thresh]
+    # Only return samples with more non-NaN data than sample_frac_cutoff
+    out_df = data_df.loc[:, frac_non_nan_per_sample > sample_frac_cutoff]
     assert not out_df.empty, "All samples were filtered out. Try reducing the threshold."
 
     return out_df
@@ -595,36 +594,32 @@ def manual_probe_rejection(data_df, row_metadata_df, manual_rejection_field):
     return out_df
 
 # tested #
-def filter_probes_by_nan_and_sd(data_df, probe_nan_thresh, probe_sd_cutoff):
-    """Remove probes (i.e. rows) with less than probe_nan_thresh non-NaN values.
+def filter_probes_by_nan_and_sd(data_df, probe_frac_cutoff, probe_sd_cutoff):
+    """ Filter out probes whose fraction of samples measured is less than probe_frac_cutoff.
     Also remove probes with standard deviation higher than probe_sd_cutoff.
 
     Args:
         data_df (pandas df)
-        probe_nan_thresh (float b/w 0 and 1)
+        probe_frac_cutoff (float b/w 0 and 1)
         probe_sd_cutoff (float)
     Returns:
         out_df (pandas df): potentially smaller than original df
     """
-    # Input should be a pandas dataframe
-    assert isinstance(data_df, pd.DataFrame), (
-        "data_df must be a pandas dataframe, not type(data_df): {}").format(type(data_df))
-
     # Number of NaNs per probe
     num_nans = data_df.isnull().sum(axis=1)
 
     # Number of samples
     num_samples = data_df.shape[1]
 
-    # Percent non-NaN per probe
-    pct_non_nans_per_probe = 1 - num_nans / num_samples
+    # Fraction non-NaN per probe
+    frac_non_nans_per_probe = 1 - num_nans/num_samples
 
     # Probe standard deviations
     probe_sds = data_df.std(axis=1)
 
-    # Only return probes with fewer % of NaNs than the threshold
+    # Only return probes with more non-NaN data than probe_frac_cutoff
     # and lower sd than the cutoff
-    probes_to_keep = ((pct_non_nans_per_probe > probe_nan_thresh) &
+    probes_to_keep = ((frac_non_nans_per_probe > probe_frac_cutoff) &
                       (probe_sds < probe_sd_cutoff))
     out_df = data_df.loc[probes_to_keep, :]
     assert not out_df.empty, (
@@ -839,8 +834,9 @@ def p100_filter_samples_by_dist(gct, assay_type, offsets, dists,
     # P100
     if assay_type is "p100":
         (out_df, out_offsets) = remove_sample_outliers(gct.data_df, offsets, dists, dist_sd_cutoff)
-        prov_code_entry = "{}{:.0f}".format(
-            OUTLIER_SAMPLE_FILTER_PROV_CODE_ENTRY, dist_sd_cutoff)
+        # prov_code_entry = "{}{:.0f}".format(
+        #     OUTLIER_SAMPLE_FILTER_PROV_CODE_ENTRY, dist_sd_cutoff)
+        prov_code_entry = OUTLIER_SAMPLE_FILTER_PROV_CODE_ENTRY
         (gct, prov_code) = update_metadata_and_prov_code(
             out_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
 
@@ -1024,7 +1020,7 @@ def make_norm_ndarray(row_metadata_df, col_metadata_df, row_subset_field, col_su
     assert all([len(sample_list) == length_of_first_list for sample_list in sample_grps_lists])
 
     # Convert from lists of strings to ndarray of ints
-    sample_grp_ndarray = np.array(sample_grps_lists, dtype="int")
+    sample_grp_ndarray = np.array(sample_grps_lists, dtype="float").astype("int")
 
     # Get probe groups and unique probe groups; convert to ints
     probe_grps = row_metadata_df[row_subset_field].values.astype("int")
@@ -1123,7 +1119,7 @@ def insert_offsets_and_prov_code(gct, offsets, offsets_field, prov_code, prov_co
     # If offsets is not none, insert into col_metadata_df
     if offsets is not None:
         assert len(offsets) == gct.col_metadata_df.shape[0]
-        gct.col_metadata_df[offsets_field] = offsets.astype(str)
+        gct.col_metadata_df[offsets_field] = offsets
 
     # Convert provenance code to delimiter separated string
     prov_code_str = prov_code_delimiter.join(prov_code)
@@ -1135,7 +1131,7 @@ def insert_offsets_and_prov_code(gct, offsets, offsets_field, prov_code, prov_co
 
 # tested #
 def write_output_pw(gct, post_sample_nan_remaining, post_sample_dist_remaining,
-                    offsets, out_path, out_name):
+                    offsets, out_dir, out_pw_name):
     """Save to a .pw file a record of what samples were filtered out and all
     optimization offsets that were computed.
 
@@ -1144,11 +1140,11 @@ def write_output_pw(gct, post_sample_nan_remaining, post_sample_dist_remaining,
         post_sample_nan_remaining (list of strings):
         post_sample_dist_remaining (list of strings): if GCP, this will be None
         offsets (pandas series of floats): if GCP, this will be None
-        out_path (filepath): where to save output file
-        out_name (string): what to call output file
+        out_dir (filepath): where to save output file
+        out_pw_name (string): what to call output file
 
     Returns:
-        .pw file called out_name
+        .pw file called out_pw_name
 
     """
     # Extract plate and well names
@@ -1184,18 +1180,18 @@ def write_output_pw(gct, post_sample_nan_remaining, post_sample_dist_remaining,
                 "remains_after_poor_coverage_filtration":post_sample_nan_bools})
 
     # Write to pw file
-    full_out_name = os.path.join(out_path, out_name)
-    out_df.to_csv(full_out_name, sep="\t", na_rep="NaN", index=False)
-    logger.info("PW file written to {}".format(full_out_name))
+    full_out_pw_name = os.path.join(out_dir, out_pw_name)
+    out_df.to_csv(full_out_pw_name, sep="\t", na_rep="NaN", index=False)
+    logger.info("PW file written to {}".format(full_out_pw_name))
 
 
-def write_output_gct(gct, out_path, out_name, data_null, filler_null):
+def write_output_gct(gct, out_dir, out_gct_name, data_null, filler_null):
     """Write output gct file.
 
     Args:
         gct (GCToo object)
-        out_path (string): path to save directory
-        out_name (string): name of output gct
+        out_dir (string): path to save directory
+        out_gct_name (string): name of output gct
         data_null (string): string with which to represent NaN in data
         filler_null (string): string with which to fill the empty top-left quadrant in the output gct
 
@@ -1203,7 +1199,7 @@ def write_output_gct(gct, out_path, out_name, data_null, filler_null):
         None
 
     """
-    out_fname = os.path.join(out_path, out_name)
+    out_fname = os.path.join(out_dir, out_gct_name)
     write_gctoo.write(gct, out_fname, data_null=data_null,
                       filler_null=filler_null, data_float_format=None)
 
