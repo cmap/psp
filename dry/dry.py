@@ -1,5 +1,4 @@
 import logging
-import utils.setup_logger as setup_logger
 import ConfigParser
 import argparse
 import sys
@@ -8,6 +7,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize_scalar
 
+import utils.setup_logger as setup_logger
 import GCToo
 import parse_gctoo
 import write_gctoo
@@ -16,17 +16,14 @@ import utils.qc_gct2pw as gct2pw
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
 
-"""Performs filtering and normalization of P100 and GCP data.
+"""
+dry.py
 
-Converts level 2 to level 3 data. Required input is a filepath to a gct file and
-a filepath to an output file. Output is writing a processed gct file and a pw
-(plate-well) file listing what samples were filtered out at two sample
-filtration steps.
+Performs filtering and normalization of P100 and GCP data.
 
-N.B. This script requires a configuration file. You can specify the location
-of this config file with the optional argument -psp_config_path. Otherwise,
-it will look for the example configuration file (example_psp.cfg) in the
-current directory.
+Converts level 2 to level 3 data. Required input (--in_gct_path) is a path to a
+gct file. Output is writing a processed gct file and a pw (plate-well) file
+with QC information.
 
 """
 # Setup logger
@@ -833,6 +830,7 @@ def p100_filter_samples_by_dist(gct, assay_type, offsets, dists,
     """
     # P100
     if assay_type is "p100":
+
         (out_df, out_offsets) = remove_sample_outliers(gct.data_df, offsets, dists, dist_sd_cutoff)
         # prov_code_entry = "{}{:.0f}".format(
         #     OUTLIER_SAMPLE_FILTER_PROV_CODE_ENTRY, dist_sd_cutoff)
@@ -907,19 +905,21 @@ def median_normalize(gct, ignore_subset_norm, row_subset_field, col_subset_field
         updated_prov_code (list of strings)
 
     """
+    # Create copy so as not to modify original gct
+    out_gct = gct
+
     # Check if subsets_exist
     subsets_exist = check_for_subsets(gct.row_metadata_df, gct.col_metadata_df,
                                       row_subset_field, col_subset_field)
 
     if (subsets_exist) and not ignore_subset_norm:
         logger.debug("Performing subset normalization.")
-        out_gct = subset_normalize(gct, row_subset_field, col_subset_field)
+        out_gct = subset_normalize(out_gct, row_subset_field, col_subset_field)
         prov_code_entry = SUBSET_NORMALIZE_PROV_CODE_ENTRY
         updated_prov_code = prov_code + [prov_code_entry]
     else:
         # Subtract median of whole row from each entry in the row
-        gct.data_df = row_median_normalize(gct.data_df)
-        out_gct = gct
+        out_gct.data_df = row_median_normalize(out_gct.data_df)
         prov_code_entry = ROW_NORMALIZE_PROV_CODE_ENTRY
         updated_prov_code = prov_code + [prov_code_entry]
 
@@ -982,6 +982,7 @@ def subset_normalize(gct, row_subset_field, col_subset_field):
     # Iterate over norm ndarray and actually perform normalization
     gct.data_df = iterate_over_norm_ndarray_and_normalize(gct.data_df, norm_ndarray)
 
+    # TODO(lev): redo so that only df is returned
     return gct
 
 # tested #
