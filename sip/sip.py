@@ -51,7 +51,7 @@ def build_parser():
                         help="path to output directory")
 
     # Optional args
-    parser.add_argument("--out_name", "-o",
+    parser.add_argument("--out_name", "-o", default="sip_output.gct",
                         help="what to name the output connectivity file")
     parser.add_argument("--connectivity_metric", "-c", default="ks_test",
                         choices=["ks_test", "percentile_score"],
