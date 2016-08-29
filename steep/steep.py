@@ -13,13 +13,14 @@ import write_gctoo as wg
 """
 steep.py
 
-This module computes similarity (Pearson or Spearman correlation). If given 1
-gct, steep will compute all pairwise similarities between its columns. If given
-2 gcts, steep will compute pairwise similarities between the columns of gct1
-and the columns of gct2, but not the similarities within a single gct.
+Computes similarity (Pearson or Spearman correlation).
 
-Required arguments are 1 gct, the output directory, and the name for the
-output similarity gct.
+If given 1 gct, steep will compute all pairwise similarities between its columns.
+If given 2 gcts, steep will compute pairwise similarities between the columns of
+gct1 and the columns of gct2.
+
+Required input is a path to a gct file. Output is a gct file containing a
+similarity matrix.
 
 """
 
