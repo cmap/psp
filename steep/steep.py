@@ -1,15 +1,3 @@
-import sys
-import os
-import logging
-import pandas as pd
-import argparse
-
-import utils.setup_logger as setup_logger
-import utils.psp_utils as psp_utils
-import GCToo
-import parse_gctoo as pg
-import write_gctoo as wg
-
 """
 steep.py
 
@@ -24,6 +12,21 @@ similarity matrix.
 
 """
 
+import sys
+import os
+import logging
+import pandas as pd
+import argparse
+
+import utils.setup_logger as setup_logger
+import utils.psp_utils as psp_utils
+import GCToo
+import parse_gctoo as pg
+import write_gctoo as wg
+
+__author__ = "Lev Litichevskiy"
+__email__ = "lev@broadinstitute.org"
+
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
 SIMILARITY_METRIC_FIELD = "similarity_metric"
@@ -35,19 +38,18 @@ def build_parser():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     # Required args
-    parser.add_argument("in_gct", type=str, help="path to input gct file")
-    parser.add_argument("out_dir", type=str, help="path to output directory")
-    parser.add_argument("out_name", type=str, help="what to name the output similarity file")
+    parser.add_argument("--in_gct", "-i", required=True, help="path to input gct file")
 
     # Optional args
-    parser.add_argument("-in_gct2", type=str, help="path to second gct file")
-    parser.add_argument("-similarity_metric", type=str, default="spearman",
+    parser.add_argument("--in_gct2", "-i2", help="path to second gct file")
+    parser.add_argument("--out_name", "-o", default="steep_output.gct",
+                        help="what to name the output similarity file")
+    parser.add_argument("--similarity_metric", "-s", default="spearman",
                         choices=["spearman", "pearson"],
                         help="similarity metric to use for comparing columns")
-    parser.add_argument("-psp_config_path", type=str,
-                        default="psp_production.cfg",
+    parser.add_argument("--psp_config_path", "-p", default="psp_production.cfg",
                         help="filepath to PSP config file")
-    parser.add_argument("-verbose", "-v", action="store_true", default=False,
+    parser.add_argument("--verbose", "-v", action="store_true", default=False,
                         help="whether to increase the # of messages reported")
 
     return parser
@@ -93,9 +95,7 @@ def main(args):
         out_gct = GCToo.GCToo(out_df, metadata_df, metadata_df)
 
     # Write output gct
-    correct_out_name = wg.append_dims_and_file_extension(args.out_name, out_df)
-    full_out_name = os.path.join(args.out_dir, correct_out_name)
-    wg.write(out_gct, full_out_name, data_null="NaN", metadata_null="NaN", filler_null="NaN")
+    wg.write(out_gct, args.out_name, data_null="NaN", metadata_null="NaN", filler_null="NaN")
 
 
 def compute_similarity_bw_two_dfs(df1, df2, similarity_metric):

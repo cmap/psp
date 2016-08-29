@@ -84,21 +84,18 @@ class TestSteep(unittest.TestCase):
         gct2_name = "test_steep_main_gct2.gct"
         out_name1 = "test_steep_main_sim1.gct"
         out_name2 = "test_steep_main_sim2.gct"
-        e_out_name1 = "test_steep_main_sim1_n2x2.gct"
-        e_out_name2 = "test_steep_main_sim2_n3x2.gct"
-        files = [gct1_name, gct2_name,
-                 e_out_name1, e_out_name2]
+        files = [gct1_name, gct2_name, out_name1, out_name2]
 
         # Write the gcts
         wg.write(gct1, gct1_name)
         wg.write(gct2, gct2_name)
 
         # Compute similarity within gct
-        arg_string1 = "{} ./ {}".format(gct1_name, out_name1)
+        arg_string1 = "-i {} -o {}".format(gct1_name, out_name1)
         args1 = steep.build_parser().parse_args(arg_string1.split())
         steep.main(args1)
 
-        sim_gct1 = pg.parse(e_out_name1)
+        sim_gct1 = pg.parse(out_name1)
         e_index1 = pd.Index(["a", "b"])
         spearman_series = pd.Series(["spearman", "spearman"],
                                     index=["a", "b"],
@@ -118,12 +115,12 @@ class TestSteep(unittest.TestCase):
                 sim_gct1.col_metadata_df, e_col_meta_df))
 
         # Compute similarity across gcts
-        arg_string2 = "{} ./ {} -in_gct2 {}".format(gct1_name,
+        arg_string2 = "-i {} -o {} -i2 {}".format(gct1_name,
             out_name2, gct2_name)
         args2 = steep.build_parser().parse_args(arg_string2.split())
         steep.main(args2)
 
-        sim_gct2 = pg.parse(e_out_name2)
+        sim_gct2 = pg.parse(out_name2)
         e_index2 = pd.Index(["a", "b"])
         e_columns2 = pd.Index(["c", "d", "e"])
         spearman_series2 = pd.Series(["spearman", "spearman", "spearman"],
