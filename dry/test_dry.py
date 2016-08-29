@@ -95,13 +95,13 @@ class TestDry(unittest.TestCase):
         in_gct = GCToo.GCToo(data_df=in_df, row_metadata_df=None, col_metadata_df=None)
 
         # Nothing should happen
-        (out_gct, out_prov_code) = dry.log_transform_if_needed(in_gct, prov_code)
+        (out_gct, out_prov_code) = dry.log_transform_if_needed(in_gct, prov_code, "L2X")
         self.assertTrue(np.allclose(out_gct.data_df, in_df, atol=1e-3, equal_nan=True))
         self.assertEqual(out_prov_code, prov_code)
 
         # L2X should occur
         prov_code2 = ["GR1"]
-        (_, out_prov_code2) = dry.log_transform_if_needed(in_gct, prov_code2)
+        (_, out_prov_code2) = dry.log_transform_if_needed(in_gct, prov_code2, "L2X")
         self.assertEqual(out_prov_code2, prov_code)
 
 
@@ -119,20 +119,20 @@ class TestDry(unittest.TestCase):
 
     def test_gcp_histone_normalize_if_needed(self):
         data = pd.DataFrame([[1,2],[3,4],[5,6]],
-                            index=["a","b","c"],
-                            columns=["d","e"])
+                            index=["a", "b", "c"],
+                            columns=["d", "e"])
         e_data = pd.DataFrame([[-2,-2],[2,2]],
-                            index=["a","c"],
-                            columns=["d","e"])
-        row_meta = pd.DataFrame([["rm1","rm2"],["rm3","rm4"],["rm5","rm6"]],
-                                index=["a","b","c"],
+                            index=["a", "c"],
+                            columns=["d", "e"])
+        row_meta = pd.DataFrame([["rm1", "rm2"],["rm3", "rm4"],["rm5", "rm6"]],
+                                index=["a", "b", "c"],
                                 columns=["row_field1", "row_field2"])
-        e_row_meta = pd.DataFrame([["rm1","rm2"],["rm5","rm6"]],
-                                index=["a","c"],
+        e_row_meta = pd.DataFrame([["rm1", "rm2"],["rm5", "rm6"]],
+                                index=["a", "c"],
                                 columns=["row_field1", "row_field2"])
-        col_meta = pd.DataFrame([["cm1","cm2"],["cm3","cm4"]],
-                                index=["d","e"],
-                                columns=["col_field1","col_field2"])
+        col_meta = pd.DataFrame([["cm1", "cm2"],["cm3", "cm4"]],
+                                index=["d", "e"],
+                                columns=["col_field1", "col_field2"])
         in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
         assay_type = "gcp"
         norm_peptide = "b"
@@ -141,7 +141,7 @@ class TestDry(unittest.TestCase):
 
         # Happy path
         (out_gct, out_prov_code) = dry.gcp_histone_normalize_if_needed(
-            in_gct, assay_type, norm_peptide, prov_code)
+            in_gct, assay_type, norm_peptide, prov_code, "H3N")
 
         self.assertTrue(np.allclose(out_gct.data_df, e_data, atol=1e-3))
         self.assertTrue(np.array_equal(out_gct.row_metadata_df, e_row_meta))
@@ -150,7 +150,7 @@ class TestDry(unittest.TestCase):
 
         # GCP but no peptide ID
         (out_gct2, out_prov_code2) = dry.gcp_histone_normalize_if_needed(
-            in_gct, assay_type, None, prov_code)
+            in_gct, assay_type, None, prov_code, "H3N")
 
         self.assertTrue(np.allclose(out_gct2.data_df, data, atol=1e-3))
         self.assertTrue(np.array_equal(out_gct2.row_metadata_df, row_meta))
@@ -159,11 +159,11 @@ class TestDry(unittest.TestCase):
 
     def test_gcp_histone_normalize(self):
         df = pd.DataFrame([[1.1, 2.0, 3.3], [4.1, 5.8, 6.0]],
-                          index=["a","b"],
-                          columns=["c1","c2","c3"])
+                          index=["a", "b"],
+                          columns=["c1", "c2", "c3"])
         e_df = pd.DataFrame([[3.0, 3.8, 2.7]],
                           index=["b"],
-                          columns=["c1","c2","c3"])
+                          columns=["c1", "c2", "c3"])
 
         out_df = dry.gcp_histone_normalize(df, "a")
         self.assertTrue(out_df.shape == e_df.shape,
@@ -174,37 +174,37 @@ class TestDry(unittest.TestCase):
                          "\nActual output:\n{}").format(e_df, out_df))
 
     def test_initial_filtering(self):
-        sample_nan_thresh = 0.3
-        probe_nan_thresh = 0.5
+        sample_frac_cutoff = 0.3
+        probe_frac_cutoff = 0.5
         probe_sd_cutoff = 3
         assay_type = "p100"
         manual_rejection_field = "rej"
-        prov_code = ["A","B"]
-        e_prov_code = ["A","B","SF3","MPR","PF5"]
-        e_remaining_samples = ["e","f","g"]
+        prov_code = ["A", "B"]
+        e_prov_code = ["A", "B", "SF3", "MPR", "PF5"]
+        e_remaining_samples = ["e", "f", "g"]
 
-        data = pd.DataFrame([[1,2,3],[np.nan,5,np.nan],[7,8,9],[10,11,12]],
-                            index=["a","b","c","d"],
-                            columns=["e","f","g"])
-        e_data = pd.DataFrame([[1,2,3],[7,8,9]],
-                              index=["a","c",],
-                              columns=["e","f","g"])
-        row_meta = pd.DataFrame([["rm1","TRUE"],["rm3","TRUE"],["rm5","TRUE"],["rm7","FALSE"]],
-                                index=["a","b","c","d"],
+        data = pd.DataFrame([[1, 2, 3], [np.nan, 5, np.nan], [7, 8, 9], [10, 11, 12]],
+                            index=["a", "b", "c", "d"],
+                            columns=["e", "f", "g"])
+        e_data = pd.DataFrame([[1, 2, 3], [7, 8, 9]],
+                              index=["a", "c",],
+                              columns=["e", "f", "g"])
+        row_meta = pd.DataFrame([["rm1", "TRUE"],["rm3", "TRUE"],["rm5", "TRUE"],["rm7", "FALSE"]],
+                                index=["a", "b", "c", "d"],
                                 columns=["row_field1", "rej"])
-        e_row_meta = pd.DataFrame([["rm1","TRUE"],["rm5","TRUE"]],
-                                index=["a","c"],
+        e_row_meta = pd.DataFrame([["rm1", "TRUE"],["rm5", "TRUE"]],
+                                index=["a", "c"],
                                 columns=["row_field1", "rej"])
-        col_meta = pd.DataFrame([["cm1","cm2"],["cm3","cm4"],["cm5","cm6"]],
-                                index=["e","f","g"],
-                                columns=["col_field1","col_field2"])
+        col_meta = pd.DataFrame([["cm1", "cm2"],["cm3", "cm4"],["cm5", "cm6"]],
+                                index=["e", "f", "g"],
+                                columns=["col_field1", "col_field2"])
         in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
         original_gct = in_gct
 
         (out_gct, out_prov_code, out_remaining) = dry.initial_filtering(
-            in_gct, assay_type, sample_nan_thresh, probe_nan_thresh,
-            probe_sd_cutoff, {},
-            manual_rejection_field, prov_code)
+            in_gct, assay_type, sample_frac_cutoff, probe_frac_cutoff,
+            probe_sd_cutoff, {}, manual_rejection_field, prov_code,
+            "SF", "MPR", "PF")
 
         self.assertTrue(np.allclose(out_gct.data_df, e_data, atol=1e-3))
         self.assertTrue(np.array_equal(out_gct.row_metadata_df, e_row_meta))
@@ -217,19 +217,20 @@ class TestDry(unittest.TestCase):
                                     atol=1e-3, equal_nan=True))
 
         # Check that manual rejection doesn't happen if no probes marked for rejection
-        row_meta2 = pd.DataFrame([["rm1","TRUE"],["rm3","TRUE"],["rm5","TRUE"],["rm7","TRUE"]],
-                                index=["a","b","c","d"],
+        row_meta2 = pd.DataFrame([["rm1", "TRUE"],["rm3", "TRUE"],["rm5", "TRUE"],["rm7", "TRUE"]],
+                                index=["a", "b", "c", "d"],
                                 columns=["row_field1", "rej"])
         e_data2 = pd.DataFrame([[1,2,3],[7,8,9],[10,11,12]],
-                              index=["a","c","d"],
-                              columns=["e","f","g"])
-        e_prov_code2 = ["A","B","SF3","PF5"]
+                              index=["a", "c", "d"],
+                              columns=["e", "f", "g"])
+        e_prov_code2 = ["A", "B", "SF3", "PF5"]
 
         in_gct2 = GCToo.GCToo(data_df=data, row_metadata_df=row_meta2, col_metadata_df=col_meta)
         (out_gct2, out_prov_code2, out_remaining2) = dry.initial_filtering(
-            in_gct2, assay_type, sample_nan_thresh, probe_nan_thresh,
+            in_gct2, assay_type, sample_frac_cutoff, probe_frac_cutoff,
             probe_sd_cutoff, {},
-            manual_rejection_field, prov_code)
+            manual_rejection_field, prov_code,
+            "SF", "MPR", "PF")
 
         self.assertTrue(np.allclose(out_gct2.data_df, e_data2, atol=1e-3))
         self.assertEqual(out_remaining2, e_remaining_samples)
@@ -237,25 +238,25 @@ class TestDry(unittest.TestCase):
 
     def test_check_assay_specific_thresh(self):
         assay_type = "p100"
-        sample_nan_thresh = None
-        probe_nan_thresh = 0.5
+        sample_frac_cutoff = None
+        probe_frac_cutoff = 0.5
         probe_sd_cutoff = None
-        config_parameters = {"gcp_sample_nan_thresh": "0.1",
-                             "gcp_probe_nan_thresh": "0.2",
-                             "p100_sample_nan_thresh": "0.3",
-                             "p100_probe_nan_thresh": "0.4",
+        config_parameters = {"gcp_sample_frac_cutoff": "0.1",
+                             "gcp_probe_frac_cutoff": "0.2",
+                             "p100_sample_frac_cutoff": "0.3",
+                             "p100_probe_frac_cutoff": "0.4",
                              "gcp_probe_sd_cutoff": "0.5",
                              "p100_probe_sd_cutoff": "0.6"}
-        e_sample_nan_thresh = 0.3
-        e_probe_nan_thresh = 0.5
+        e_sample_frac_cutoff = 0.3
+        e_probe_frac_cutoff = 0.5
         e_probe_sd_cutoff = 0.6
         [out_sample_thresh, out_probe_thresh, out_probe_sd_cutoff] = (
             dry.check_assay_specific_thresh(
-                assay_type, sample_nan_thresh, probe_nan_thresh,
+                assay_type, sample_frac_cutoff, probe_frac_cutoff,
                 probe_sd_cutoff, config_parameters))
 
-        self.assertEqual(e_sample_nan_thresh, out_sample_thresh)
-        self.assertEqual(e_probe_nan_thresh, out_probe_thresh)
+        self.assertEqual(e_sample_frac_cutoff, out_sample_thresh)
+        self.assertEqual(e_probe_frac_cutoff, out_probe_thresh)
         self.assertEqual(e_probe_sd_cutoff, out_probe_sd_cutoff)
 
     def test_filter_samples_by_nan(self):
@@ -265,7 +266,7 @@ class TestDry(unittest.TestCase):
         e_out = pd.DataFrame(np.array([[0.2, 0.1, 0.25],
                                        [0.45, 0.2, -0.1],
                                        [0.02, np.nan, 0.3]], dtype=float))
-        out = dry.filter_samples_by_nan(df, sample_nan_thresh=0.6)
+        out = dry.filter_samples_by_nan(df, sample_frac_cutoff=0.6)
         self.assertTrue(out.shape == e_out.shape,
                         ("expected_out.shape: {} not the same " +
                          "as actual_out.shape: {}").format(e_out.shape, out.shape))
@@ -294,7 +295,7 @@ class TestDry(unittest.TestCase):
                                     [np.nan, 0.45, 0.2, -0.1],
                                     [np.nan, 0.02, np.nan, 0.3]], dtype=float))
         e_out = df.iloc[[1], :]
-        out = dry.filter_probes_by_nan_and_sd(df, probe_nan_thresh=0.6, probe_sd_cutoff=3)
+        out = dry.filter_probes_by_nan_and_sd(df, probe_frac_cutoff=0.6, probe_sd_cutoff=3)
         self.assertTrue(out.shape == e_out.shape,
                         ("expected_out.shape: {} not the same " +
                          "as actual_out.shape: {}").format(e_out.shape, out.shape))
@@ -311,21 +312,22 @@ class TestDry(unittest.TestCase):
         e_prov_code = ["PR1", "L2X", "filtering", "LLB"]
 
         data = pd.DataFrame([[1, 2, 3],[5, 7, 11], [13, 17, 19], [23, 29, 31]],
-                            index=["a","b","c","d"],
-                            columns=["e","f","g"], dtype=float)
-        row_meta = pd.DataFrame([["rm1","rm2"],["rm3","rm4"],["rm5","rm6"],["rm7","rm8"]],
-                                index=["a","b","c","d"],
+                            index=["a", "b", "c", "d"],
+                            columns=["e", "f", "g"], dtype=float)
+        row_meta = pd.DataFrame([["rm1", "rm2"],["rm3", "rm4"],["rm5", "rm6"],["rm7", "rm8"]],
+                                index=["a", "b", "c", "d"],
                                 columns=["row_field1", "row_field2"])
-        col_meta = pd.DataFrame([["cm1","cm2"],["cm3","cm4"],["cm5","cm6"]],
-                                index=["e","f","g"],
-                                columns=["col_field1","col_field2"])
+        col_meta = pd.DataFrame([["cm1", "cm2"],["cm3", "cm4"],["cm5", "cm6"]],
+                                index=["e", "f", "g"],
+                                columns=["col_field1", "col_field2"])
         in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
 
         # P100 & optim
         (out_gct, out_dists, out_offsets, out_prov_code) = (
             dry.p100_calculate_dists_and_apply_offsets_if_needed(
                 in_gct, "p100", no_optim_bool=False,
-                offset_bounds=offset_bounds, prov_code=prov_code))
+                offset_bounds=offset_bounds, prov_code=prov_code,
+                prov_code_entry="LLB"))
 
         self.assertTrue(np.allclose(out_offsets, e_offsets, atol=1e-2), (
             "out_offsets:\n{}\ne_offsets:\n{}".format(out_offsets, e_offsets)))
@@ -339,7 +341,8 @@ class TestDry(unittest.TestCase):
         (out_gct, out_dists, out_offsets, out_prov_code) = (
             dry.p100_calculate_dists_and_apply_offsets_if_needed(
                 in_gct, "p100", no_optim_bool=True,
-                offset_bounds=offset_bounds, prov_code=prov_code))
+                offset_bounds=offset_bounds, prov_code=prov_code,
+                prov_code_entry="LLB"))
 
         self.assertTrue(np.allclose(out_dists, e_dists2, atol=1e-2), (
             "out_dists:\n{}\ne_dists2:\n{}".format(out_dists, e_dists2)))
@@ -350,7 +353,8 @@ class TestDry(unittest.TestCase):
         (out_gct, out_dists, out_offsets, out_prov_code) = (
             dry.p100_calculate_dists_and_apply_offsets_if_needed(
                 in_gct, "gcp", no_optim_bool=True,
-                offset_bounds=offset_bounds, prov_code=prov_code))
+                offset_bounds=offset_bounds, prov_code=prov_code,
+                prov_code_entry="LLB"))
 
         self.assertEqual(out_dists, None)
         self.assertEqual(out_offsets, None)
@@ -403,30 +407,30 @@ class TestDry(unittest.TestCase):
         dist_sd_cutoff = 1
         prov_code = ["A", "B"]
         data = pd.DataFrame([[1,2,3],[4,5,6],[7,8,9],[10,11,12]],
-                            index=["a","b","c","d"],
-                            columns=["e","f","g"])
-        row_meta = pd.DataFrame([["rm1","rm2"],["rm3","rm4"],["rm5","rm6"],["rm7","rm8"]],
-                                index=["a","b","c","d"],
+                            index=["a", "b", "c", "d"],
+                            columns=["e", "f", "g"])
+        row_meta = pd.DataFrame([["rm1", "rm2"],["rm3", "rm4"],["rm5", "rm6"],["rm7", "rm8"]],
+                                index=["a", "b", "c", "d"],
                                 columns=["row_field1", "row_field2"])
-        col_meta = pd.DataFrame([["cm1","cm2"],["cm3","cm4"],["cm5","cm6"]],
-                                index=["e","f","g"],
-                                columns=["col_field1","col_field2"])
+        col_meta = pd.DataFrame([["cm1", "cm2"],["cm3", "cm4"],["cm5", "cm6"]],
+                                index=["e", "f", "g"],
+                                columns=["col_field1", "col_field2"])
         in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
 
         # P100
         e_data = pd.DataFrame([[1,3],[4,6],[7,9],[10,12]],
-                            index=["a","b","c","d"],
-                            columns=["e","g"])
-        e_col_meta = pd.DataFrame([["cm1","cm2"],["cm5","cm6"]],
-                                index=["e","g"],
-                                columns=["col_field1","col_field2"])
+                            index=["a", "b", "c", "d"],
+                            columns=["e", "g"])
+        e_col_meta = pd.DataFrame([["cm1", "cm2"],["cm5", "cm6"]],
+                                index=["e", "g"],
+                                columns=["col_field1", "col_field2"])
         e_offsets = np.array([4,7], dtype=float)
-        e_remaining = ["e","g"]
+        e_remaining = ["e", "g"]
         e_prov_code = ["A", "B", "OSF1"]
 
         (out_gct, out_offsets, out_remaining, out_prov_code) = (
             dry.p100_filter_samples_by_dist(
-                in_gct, "p100", offsets, dists, dist_sd_cutoff, prov_code))
+                in_gct, "p100", offsets, dists, dist_sd_cutoff, prov_code, "OSF"))
 
         self.assertTrue(np.allclose(out_gct.data_df, e_data, atol=1e-2))
         self.assertTrue(np.array_equal(out_gct.col_metadata_df, e_col_meta))
@@ -438,7 +442,7 @@ class TestDry(unittest.TestCase):
         # GCP
         (out_gct2, out_offsets2, out_remaining2, out_prov_code2) = (
             dry.p100_filter_samples_by_dist(
-                in_gct, "gcp", None, dists, dist_sd_cutoff, prov_code))
+                in_gct, "gcp", None, dists, dist_sd_cutoff, prov_code, "OSF"))
 
         self.assertTrue(np.allclose(out_gct2.data_df, data, atol=1e-2))
         self.assertTrue(np.array_equal(out_gct2.col_metadata_df, col_meta))
@@ -466,15 +470,15 @@ class TestDry(unittest.TestCase):
 
     def test_median_normalize(self):
         data = pd.DataFrame([[1,2,3],[4,5,6],[7,8,9],[10,11,12]],
-                            index=["a","b","c","d"],
-                            columns=["e","f","g"],
+                            index=["a", "b", "c", "d"],
+                            columns=["e", "f", "g"],
                             dtype=float)
-        row_meta = pd.DataFrame([["1","rm2"],["1","rm4"],["1","rm6"],["1","rm8"]],
-                                index=["a","b","c","d"],
+        row_meta = pd.DataFrame([["1", "rm2"],["1", "rm4"],["1", "rm6"],["1", "rm8"]],
+                                index=["a", "b", "c", "d"],
                                 columns=["row_subset", "row_field2"])
-        col_meta = pd.DataFrame([["cm1","1"],["cm3","2"],["cm5","2"]],
-                                index=["e","f","g"],
-                                columns=["col_field1","col_subset"])
+        col_meta = pd.DataFrame([["cm1", "1"],["cm3", "2"],["cm5", "2"]],
+                                index=["e", "f", "g"],
+                                columns=["col_field1", "col_subset"])
         in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
         row_subset_field = "row_subset"
         col_subset_field = "col_subset"
@@ -483,12 +487,13 @@ class TestDry(unittest.TestCase):
         # Subset normalize
         ignore_subset_norm = False
         e_data = pd.DataFrame([[0,-0.5,0.5],[0,-0.5,0.5],[0,-0.5,0.5],[0,-0.5,0.5]],
-                            index=["a","b","c","d"],
-                            columns=["e","f","g"])
+                            index=["a", "b", "c", "d"],
+                            columns=["e", "f", "g"])
         e_prov_code = ["A", "B", "GMN"]
 
         (out_gct, out_prov_code) = dry.median_normalize(
-            in_gct, ignore_subset_norm, row_subset_field, col_subset_field, prov_code)
+            in_gct, ignore_subset_norm, row_subset_field, col_subset_field, prov_code,
+            "GMN", "RMN")
 
         self.assertTrue(np.allclose(out_gct.data_df, e_data, atol=1e-2))
         self.assertTrue(np.array_equal(out_gct.row_metadata_df, row_meta))
@@ -498,20 +503,21 @@ class TestDry(unittest.TestCase):
         # Ordinary normalization
         ignore_subset_norm2 = True
         e_data2 = pd.DataFrame([[-1,0,1],[-1,0,1],[-1,0,1],[-1,0,1]],
-                               index=["a","b","c","d"],
-                               columns=["e","f","g"],
+                               index=["a", "b", "c", "d"],
+                               columns=["e", "f", "g"],
                                dtype=float)
-        row_meta2 = pd.DataFrame([["1","rm2"],["1","rm4"],["1","rm6"],["1","rm8"]],
-                                index=["a","b","c","d"],
+        row_meta2 = pd.DataFrame([["1", "rm2"],["1", "rm4"],["1", "rm6"],["1", "rm8"]],
+                                index=["a", "b", "c", "d"],
                                 columns=["row_subset", "row_field2"])
-        col_meta2 = pd.DataFrame([["cm1","1"],["cm3","1"],["cm5","1"]],
-                                index=["e","f","g"],
-                                columns=["col_field1","col_subset"])
+        col_meta2 = pd.DataFrame([["cm1", "1"],["cm3", "1"],["cm5", "1"]],
+                                index=["e", "f", "g"],
+                                columns=["col_field1", "col_subset"])
         in_gct2 = GCToo.GCToo(data_df=data, row_metadata_df=row_meta2, col_metadata_df=col_meta2)
         e_prov_code2 = ["A", "B", "RMN"]
 
         (out_gct2, out_prov_code2) = dry.median_normalize(
-            in_gct2, ignore_subset_norm2, row_subset_field, col_subset_field, prov_code)
+            in_gct2, ignore_subset_norm2, row_subset_field, col_subset_field, prov_code,
+            "GMN", "RMN")
 
         self.assertTrue(np.allclose(out_gct2.data_df, e_data2, atol=1e-2))
         self.assertTrue(np.array_equal(out_gct2.row_metadata_df, row_meta2))
@@ -520,13 +526,13 @@ class TestDry(unittest.TestCase):
 
 
     def test_check_for_subsets(self):
-        row_meta = pd.DataFrame([["rm1","rm2"],["rm3","rm4"],
-                                 ["rm5","rm6"],["rm7","rm8"]],
-                                index=["a","b","c","d"],
+        row_meta = pd.DataFrame([["rm1", "rm2"],["rm3", "rm4"],
+                                 ["rm5", "rm6"],["rm7", "rm8"]],
+                                index=["a", "b", "c", "d"],
                                 columns=["row_field1", "row_field2"])
-        col_meta = pd.DataFrame([["cm1","cm2"],["cm3","cm4"],["cm5","cm6"]],
-                                index=["e","f","g"],
-                                columns=["col_field1","col_field2"])
+        col_meta = pd.DataFrame([["cm1", "cm2"],["cm3", "cm4"],["cm5", "cm6"]],
+                                index=["e", "f", "g"],
+                                columns=["col_field1", "col_field2"])
         row_field = "row_field1"
         col_field = "col_field2"
         subsets_exist = dry.check_for_subsets(row_meta, col_meta, row_field, col_field)
@@ -599,7 +605,7 @@ class TestDry(unittest.TestCase):
                                          [9, 7, 4, 9, 2],
                                          [8, 6, 7, 8, 2],
                                          [4, 8, 5, 5, 7]]),
-                                        index = ["a","b","c","d"],
+                                        index = ["a", "b", "c", "d"],
                                         dtype="float")
         norm_ndarray = np.array([[1, 1, 1, 2, 2],
                                  [1, 1, 1, 2, 2],
@@ -644,25 +650,25 @@ class TestDry(unittest.TestCase):
 
     def test_insert_offsets_and_prov_code(self):
         data = pd.DataFrame([[1,2,3],[4,5,6],[7,8,9],[10,11,12]],
-                            index=["a","b","c","d"],
-                            columns=["e","f","g"])
-        row_meta = pd.DataFrame([["rm1","rm2"],["rm3","rm4"],["rm5","rm6"],["rm7","rm8"]],
-                                index=["a","b","c","d"],
+                            index=["a", "b", "c", "d"],
+                            columns=["e", "f", "g"])
+        row_meta = pd.DataFrame([["rm1", "rm2"],["rm3", "rm4"],["rm5", "rm6"],["rm7", "rm8"]],
+                                index=["a", "b", "c", "d"],
                                 columns=["row_field1", "row_field2"])
-        col_meta = pd.DataFrame([["cm1","cm2"],["cm3","cm4"],["cm5","cm6"]],
-                                index=["e","f","g"],
-                                columns=["col_field1","col_field2"])
+        col_meta = pd.DataFrame([["cm1", "cm2"],["cm3", "cm4"],["cm5", "cm6"]],
+                                index=["e", "f", "g"],
+                                columns=["col_field1", "col_field2"])
         in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
         offsets = np.array([3.0,5.0,8.0], dtype=float)
         offsets_field = "offsets"
         prov_code = ["A", "B", "C", "D"]
         prov_code_field = "col_field2"
         prov_code_delimiter = "+"
-        e_col_meta = pd.DataFrame([["cm1","A+B+C+D","3.0"],
-                                   ["cm3","A+B+C+D","5.0"],
-                                   ["cm5","A+B+C+D","8.0"]],
-                                  index=["e","f","g"],
-                                  columns=["col_field1","col_field2","offsets"])
+        e_col_meta = pd.DataFrame([["cm1", "A+B+C+D", "3.0"],
+                                   ["cm3", "A+B+C+D", "5.0"],
+                                   ["cm5", "A+B+C+D", "8.0"]],
+                                  index=["e", "f", "g"],
+                                  columns=["col_field1", "col_field2", "offsets"])
 
         out_gct = dry.insert_offsets_and_prov_code(
             in_gct, offsets, offsets_field, prov_code, prov_code_field, prov_code_delimiter)
@@ -690,19 +696,19 @@ class TestDry(unittest.TestCase):
 
     def test_write_output_pw(self):
         data = pd.DataFrame([[1,2,3,4,5],[6,7,8,9,10]],
-                            index=["a","b"],
-                            columns=["c","d","e","f","g"])
-        row_meta = pd.DataFrame([["rm1","rm2"],["rm3","rm4"]],
-                                index=["a","b"],
+                            index=["a", "b"],
+                            columns=["c", "d", "e", "f", "g"])
+        row_meta = pd.DataFrame([["rm1", "rm2"],["rm3", "rm4"]],
+                                index=["a", "b"],
                                 columns=["row_field1", "row_field2"])
-        col_meta = pd.DataFrame([["plate1","A1"],["plate1","A2"],["plate1","A3"],
-                                 ["plate1","A4"], ["plate1","A5"]],
-                                index=["c","d","e","f","g"],
-                                columns=["det_plate","det_well"])
+        col_meta = pd.DataFrame([["plate1", "A1"],["plate1", "A2"],["plate1", "A3"],
+                                 ["plate1", "A4"], ["plate1", "A5"]],
+                                index=["c", "d", "e", "f", "g"],
+                                columns=["det_plate", "det_well"])
         in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
 
-        post_sample_nan_remaining = ["c","e","f","g"]
-        post_sample_dist_remaining = ["c","f","g"]
+        post_sample_nan_remaining = ["c", "e", "f", "g"]
+        post_sample_dist_remaining = ["c", "f", "g"]
         offsets = pd.Series([0.1, 5, 0.2, 0.3], index=["c", "e", "f", "g"])
         out_path = FUNCTIONAL_TESTS_DIR
         out_name = "test_write_output.pw"
@@ -729,21 +735,21 @@ class TestDry(unittest.TestCase):
 
     def test_slice_metadata_using_already_sliced_data_df(self):
         data = pd.DataFrame([[2,3],[5,6],[11,12]],
-                            index=["a","b","d"],
-                            columns=["f","g"])
-        row_meta = pd.DataFrame([["rm1","rm2"],["rm3","rm4"],
-                                 ["rm5","rm6"],["rm7","rm8"]],
-                                index=["a","b","c","d"],
+                            index=["a", "b", "d"],
+                            columns=["f", "g"])
+        row_meta = pd.DataFrame([["rm1", "rm2"],["rm3", "rm4"],
+                                 ["rm5", "rm6"],["rm7", "rm8"]],
+                                index=["a", "b", "c", "d"],
                                 columns=["row_field1", "row_field2"])
-        col_meta = pd.DataFrame([["cm1","cm2"],["cm3","cm4"],["cm5","cm6"]],
-                                index=["e","f","g"],
-                                columns=["col_field1","col_field2"])
-        e_row_meta = pd.DataFrame([["rm1","rm2"],["rm3","rm4"],["rm7","rm8"]],
-                                index=["a","b","d"],
+        col_meta = pd.DataFrame([["cm1", "cm2"],["cm3", "cm4"],["cm5", "cm6"]],
+                                index=["e", "f", "g"],
+                                columns=["col_field1", "col_field2"])
+        e_row_meta = pd.DataFrame([["rm1", "rm2"],["rm3", "rm4"],["rm7", "rm8"]],
+                                index=["a", "b", "d"],
                                 columns=["row_field1", "row_field2"])
-        e_col_meta = pd.DataFrame([["cm3","cm4"],["cm5","cm6"]],
-                                index=["f","g"],
-                                columns=["col_field1","col_field2"])
+        e_col_meta = pd.DataFrame([["cm3", "cm4"],["cm5", "cm6"]],
+                                index=["f", "g"],
+                                columns=["col_field1", "col_field2"])
 
         out_gct = dry.slice_metadata_using_already_sliced_data_df(data, row_meta, col_meta)
         self.assertTrue(np.array_equal(out_gct.row_metadata_df, e_row_meta),

@@ -30,17 +30,6 @@ __email__ = "lev@broadinstitute.org"
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
-# Provenance code entries
-LOG_TRANSFORM_PROV_CODE_ENTRY = "L2X"
-GCP_HISTONE_PROV_CODE_ENTRY = "H3N"
-SAMPLE_FILTER_PROV_CODE_ENTRY = "SF"
-MANUAL_PROBE_REJECT_PROV_CODE_ENTRY = None # "MPR"
-PROBE_FILTER_PROV_CODE_ENTRY = "PF"
-OPTIMIZATION_PROV_CODE_ENTRY = "LLB"
-OUTLIER_SAMPLE_FILTER_PROV_CODE_ENTRY = "OSF"
-SUBSET_NORMALIZE_PROV_CODE_ENTRY = "GMN"
-ROW_NORMALIZE_PROV_CODE_ENTRY = "RMN"
-
 # Default output suffixes
 DEFAULT_GCT_SUFFIX = ".dry.processed.gct"
 DEFAULT_PW_SUFFIX = ".dry.processed.pw"
@@ -60,9 +49,9 @@ def build_parser():
     parser.add_argument("--out_dir", "-o", default=".",
                         help="path to save directory")
     parser.add_argument("--out_gct_name", "-og", default=None,
-                        help="name of output gct file (if None, will use <INPUT_GCT>.dry.processed.gct")
+                        help="name of output gct file (default is <INPUT_GCT>.dry.processed.gct")
     parser.add_argument("--out_pw_name", "-op", default=None,
-                        help="name of output pw file (if None, will use <INPUT_GCT>.dry.processed.pw")
+                        help="name of output pw file (default is <INPUT_GCT>.dry.processed.pw")
     parser.add_argument("--psp_config_path", "-p", default="~/psp_production.cfg",
                         help="filepath to PSP config file")
     parser.add_argument("--force_assay", "-f",
@@ -108,34 +97,39 @@ def main(args):
             args.in_gct_path, args.psp_config_path, args.force_assay))
 
     ### LOG TRANSFORM
-    (l2x_gct, prov_code) = log_transform_if_needed(in_gct, prov_code)
+    (l2x_gct, prov_code) = log_transform_if_needed(
+        in_gct, prov_code, config_metadata["log_transform_prov_code_entry"])
 
     ### HISTONE NORMALIZE (if GCP)
-    (hist_norm_gct, prov_code) = gcp_histone_normalize_if_needed(l2x_gct, assay_type,
-        config_metadata["gcp_normalization_peptide_id"], prov_code)
+    (hist_norm_gct, prov_code) = gcp_histone_normalize_if_needed(
+        l2x_gct, assay_type, config_metadata["gcp_normalization_peptide_id"],
+        prov_code, config_metadata["gcp_histone_prov_code_entry"])
 
     ### INITIAL FILTERING
     (filt_gct, prov_code, post_sample_nan_remaining) = initial_filtering(
         hist_norm_gct, assay_type, args.sample_frac_cutoff, args.probe_frac_cutoff,
         args.probe_sd_cutoff, config_parameters,
-        config_metadata["manual_rejection_field"], prov_code)
+        config_metadata["manual_rejection_field"],
+        prov_code, config_metadata["sample_filter_prov_code_entry"])
 
     ### APPLY OFFSETS IF NEEDED (if P100)
-    (offset_gct, dists, offsets, prov_code) = (
-        p100_calculate_dists_and_apply_offsets_if_needed(
+    (offset_gct, dists, offsets, prov_code) = p100_calculate_dists_and_apply_offsets_if_needed(
             filt_gct, assay_type, args.no_optim,
-            eval(config_parameters["offset_bounds"]), prov_code))
+            eval(config_parameters["offset_bounds"]), prov_code,
+            config_metadata["optimization_prov_code_entry"])
 
     ### FILTER SAMPLES BY DISTANCE (if P100)
-    (filt_dist_gct, out_offsets, post_sample_dist_remaining, prov_code) = (
-        p100_filter_samples_by_dist(
+    (filt_dist_gct, out_offsets, post_sample_dist_remaining, prov_code) = p100_filter_samples_by_dist(
             offset_gct, assay_type, offsets, dists,
-            args.dist_sd_cutoff, prov_code))
+            args.dist_sd_cutoff, prov_code,
+            config_metadata["outlier_sample_filter_prov_code_entry"])
 
     ### MEDIAN NORMALIZE
     (med_norm_gct, prov_code) = median_normalize(
         filt_dist_gct, args.ignore_subset_norm, config_metadata["row_subset_field"],
-        config_metadata["col_subset_field"], prov_code)
+        config_metadata["col_subset_field"], prov_code,
+        config_metadata["subset_normalize_prov_code_entry"],
+        config_metadata["row_normalize_prov_code_entry"])
 
     ### INSERT OFFSETS AND UPDATE PROVENANCE CODE
     out_gct = insert_offsets_and_prov_code(
@@ -321,12 +315,13 @@ def configure_out_names(in_gct_path, out_gct_name_from_args, out_pw_name_from_ar
 
 
 # tested #
-def log_transform_if_needed(gct, prov_code):
+def log_transform_if_needed(gct, prov_code, prov_code_entry):
     """Perform log2 transformation if it hasn't already been done.
 
     Args:
         gct (GCToo object)
         prov_code (list of strings)
+        prov_code_entry (string)
 
     Returns:
         out_gct (GCToo object)
@@ -336,12 +331,11 @@ def log_transform_if_needed(gct, prov_code):
     out_gct = gct
 
     # Check if log2 transformation has already occurred
-    if LOG_TRANSFORM_PROV_CODE_ENTRY in prov_code:
-        logger.info("{} has already occurred.".format(LOG_TRANSFORM_PROV_CODE_ENTRY))
+    if prov_code_entry in prov_code:
+        logger.info("{} has already occurred.".format(prov_code_entry))
         updated_prov_code = prov_code
     else:
         out_gct.data_df = log_transform(gct.data_df, log_base=2)
-        prov_code_entry = LOG_TRANSFORM_PROV_CODE_ENTRY
         updated_prov_code = prov_code + [prov_code_entry]
 
     return out_gct, updated_prov_code
@@ -366,7 +360,7 @@ def log_transform(data_df, log_base):
     return out_df
 
 # tested #
-def gcp_histone_normalize_if_needed(gct, assay_type, gcp_normalization_peptide_id, prov_code):
+def gcp_histone_normalize_if_needed(gct, assay_type, gcp_normalization_peptide_id, prov_code, prov_code_entry):
     """If GCP and gcp_normalization_peptide_id is not None, perform
      histone normalization. This subtracts the normalization probe row
      from all the other probe rows. It also removes the normalization probe
@@ -377,6 +371,7 @@ def gcp_histone_normalize_if_needed(gct, assay_type, gcp_normalization_peptide_i
         assay_type (string)
         gcp_normalization_peptide_id (string, or None)
         prov_code (list of strings)
+        prov_code_entry (string)
 
     Returns:
         out_gct (GCToo object): updated data and metadata dfs;
@@ -388,7 +383,6 @@ def gcp_histone_normalize_if_needed(gct, assay_type, gcp_normalization_peptide_i
         out_df = gcp_histone_normalize(gct.data_df, gcp_normalization_peptide_id)
 
         # Update gct object and provenance code
-        prov_code_entry = GCP_HISTONE_PROV_CODE_ENTRY
         (out_gct, updated_prov_code) = update_metadata_and_prov_code(
             out_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
 
@@ -429,7 +423,8 @@ def gcp_histone_normalize(data_df, gcp_normalization_peptide_id):
 
 # tested #
 def initial_filtering(gct, assay_type, sample_frac_cutoff, probe_frac_cutoff, probe_sd_cutoff,
-                      config_parameters, manual_rejection_field, prov_code):
+                      config_parameters, manual_rejection_field, prov_code,
+                      sample_filt_prov_code_entry, manual_reject_prov_code_entry, probe_filt_prov_code_entry):
     """Performs three types of filtering. filter_samples_by_nan removes
     samples that have too many nan values. manual_probe_rejection removes
     probes that were manually labeled for removal. filter_probes_by_nan_and_sd
@@ -449,6 +444,9 @@ def initial_filtering(gct, assay_type, sample_frac_cutoff, probe_frac_cutoff, pr
         config_parameters (dictionary)
         manual_rejection_field (string)
         prov_code (list of strings)
+        sample_filt_prov_code_entry (string)
+        manual_reject_prov_code_entry (string)
+        probe_filt_prov_code_entry (string)
 
     Returns:
         out_gct (GCToo object): updated
@@ -465,9 +463,9 @@ def initial_filtering(gct, assay_type, sample_frac_cutoff, probe_frac_cutoff, pr
     ### FILTER SAMPLES BY NAN
     sample_nan_data_df = filter_samples_by_nan(gct.data_df, sample_frac_cutoff)
     thresh_digit = ("{:.1f}".format(sample_frac_cutoff)).split(".")[1]
-    prov_code_entry = "{}{}".format(SAMPLE_FILTER_PROV_CODE_ENTRY, thresh_digit)
+    sample_filt_prov_code_entry_formatted = "{}{}".format(sample_filt_prov_code_entry, thresh_digit)
     (out_gct, prov_code) = update_metadata_and_prov_code(
-        sample_nan_data_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
+        sample_nan_data_df, gct.row_metadata_df, gct.col_metadata_df, sample_filt_prov_code_entry_formatted, prov_code)
 
     # Record what samples remain
     post_sample_nan_remaining = list(out_gct.data_df.columns.values)
@@ -481,16 +479,16 @@ def initial_filtering(gct, assay_type, sample_frac_cutoff, probe_frac_cutoff, pr
 
     # Only update prov code if probes were actually rejected
     if probes_removed:
-        prov_code_entry = MANUAL_PROBE_REJECT_PROV_CODE_ENTRY
         (out_gct, prov_code) = update_metadata_and_prov_code(
-            probe_manual_data_df, out_gct.row_metadata_df, out_gct.col_metadata_df, prov_code_entry, prov_code)
+            probe_manual_data_df, out_gct.row_metadata_df, out_gct.col_metadata_df,
+            manual_reject_prov_code_entry, prov_code)
 
     ### FILTER PROBES BY NAN AND SD
     probe_nan_sd_data_df = filter_probes_by_nan_and_sd(out_gct.data_df, probe_frac_cutoff, probe_sd_cutoff)
     thresh_digit = ("{:.1f}".format(probe_frac_cutoff)).split(".")[1]
-    prov_code_entry = "{}{}".format(PROBE_FILTER_PROV_CODE_ENTRY, thresh_digit)
+    probe_filt_prov_code_entry_formatted = "{}{}".format(probe_filt_prov_code_entry, thresh_digit)
     (out_gct, prov_code) = update_metadata_and_prov_code(
-        probe_nan_sd_data_df, out_gct.row_metadata_df, out_gct.col_metadata_df, prov_code_entry, prov_code)
+        probe_nan_sd_data_df, out_gct.row_metadata_df, out_gct.col_metadata_df, probe_filt_prov_code_entry_formatted, prov_code)
 
     return out_gct, prov_code, post_sample_nan_remaining
 
@@ -626,7 +624,7 @@ def filter_probes_by_nan_and_sd(data_df, probe_frac_cutoff, probe_sd_cutoff):
 
 # tested #
 def p100_calculate_dists_and_apply_offsets_if_needed(gct, assay_type, no_optim_bool,
-                                                     offset_bounds, prov_code):
+                                                     offset_bounds, prov_code, prov_code_entry):
     """If P100, calculate a distance metric for each sample in order to use it
     later for filtering. The distance metric is how far away each probe is from
     its median value.
@@ -644,6 +642,7 @@ def p100_calculate_dists_and_apply_offsets_if_needed(gct, assay_type, no_optim_b
         offset_bounds (tuple of floats): specifies bounds for the offset;
             if outside of the bounds, a warning will be thrown
         prov_code (list of strings)
+        prov_code_entry (string)
 
     Returns:
         out_gct (GCToo object): updated
@@ -658,7 +657,6 @@ def p100_calculate_dists_and_apply_offsets_if_needed(gct, assay_type, no_optim_b
             # Perform optimization and return offsets and distances
             (out_df, offsets, dists) = (
                 calculate_distances_and_optimize(gct.data_df, offset_bounds))
-            prov_code_entry = OPTIMIZATION_PROV_CODE_ENTRY
             (out_gct, prov_code) = update_metadata_and_prov_code(
                 out_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
         else:
@@ -805,7 +803,7 @@ def distance_function(values, medians):
 
 # tested #
 def p100_filter_samples_by_dist(gct, assay_type, offsets, dists,
-                                dist_sd_cutoff, prov_code):
+                                dist_sd_cutoff, prov_code, prov_code_entry):
     """If P100, filter out samples whose distance metric is above some threshold.
     Also remove samples for which optimization did not converge.
 
@@ -821,6 +819,7 @@ def p100_filter_samples_by_dist(gct, assay_type, offsets, dists,
         dists (numpy array of floats, or None): distance metric for each sample
         dist_sd_cutoff (float): maximum SD for a sample's distance metric before being filtered out
         prov_code (list of strings)
+        prov_code_entry (string)
 
     Returns:
         gct (GCToo object): updated
@@ -833,9 +832,7 @@ def p100_filter_samples_by_dist(gct, assay_type, offsets, dists,
     if assay_type is "p100":
 
         (out_df, out_offsets) = remove_sample_outliers(gct.data_df, offsets, dists, dist_sd_cutoff)
-        # prov_code_entry = "{}{:.0f}".format(
-        #     OUTLIER_SAMPLE_FILTER_PROV_CODE_ENTRY, dist_sd_cutoff)
-        prov_code_entry = OUTLIER_SAMPLE_FILTER_PROV_CODE_ENTRY
+        # prov_code_entry_formatted = "{}{:.0f}".format(prov_code_entry, dist_sd_cutoff)
         (gct, prov_code) = update_metadata_and_prov_code(
             out_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
 
@@ -889,7 +886,7 @@ def remove_sample_outliers(data_df, offsets, distances, dist_sd_cutoff):
     return out_df, out_offsets
 
 # tested #
-def median_normalize(gct, ignore_subset_norm, row_subset_field, col_subset_field, prov_code):
+def median_normalize(gct, ignore_subset_norm, row_subset_field, col_subset_field, prov_code, subset_prov_code_entry, row_median_prov_code_entry):
     """Subset normalize if the metadata shows that subsets exist for either
     rows or columns AND ignore_subset_norm is False. Otherwise, use the
     whole row for median normalization.
@@ -900,6 +897,8 @@ def median_normalize(gct, ignore_subset_norm, row_subset_field, col_subset_field
         row_subset_field (string): row metadata field indicating the row subset group
         col_subset_field (string): col metadata field indicating the col subset group
         prov_code (list of strings)
+        subset_prov_code_entry (string)
+        row_median_prov_code_entry (string)
 
     Returns:
         gct (GCToo object): updated
@@ -916,12 +915,12 @@ def median_normalize(gct, ignore_subset_norm, row_subset_field, col_subset_field
     if (subsets_exist) and not ignore_subset_norm:
         logger.debug("Performing subset normalization.")
         out_gct = subset_normalize(out_gct, row_subset_field, col_subset_field)
-        prov_code_entry = SUBSET_NORMALIZE_PROV_CODE_ENTRY
+        prov_code_entry = subset_prov_code_entry
         updated_prov_code = prov_code + [prov_code_entry]
     else:
         # Subtract median of whole row from each entry in the row
         out_gct.data_df = row_median_normalize(out_gct.data_df)
-        prov_code_entry = ROW_NORMALIZE_PROV_CODE_ENTRY
+        prov_code_entry = row_median_prov_code_entry
         updated_prov_code = prov_code + [prov_code_entry]
 
     return out_gct, updated_prov_code
