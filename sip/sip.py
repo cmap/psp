@@ -10,37 +10,33 @@ import utils.psp_utils as utils
 import GCToo as GCToo
 import write_gctoo as wg
 
-"""
-Let's not worry about different cell lines for now. Let's assume test_gct and
-bg_gct both just have 1 cell line.
-
-Make sure that the rows of bg_df have elements in common with the rows of
-test_df.
+__author__ = "Lev Litichevskiy"
+__email__ = "lev@broadinstitute.org"
 
 """
+sip.py
 
+Computes connectivity (KS-test or percentile scores) between a test similarity
+gct and a background similarity gct.
+
+Required inputs are paths to the test and background gct files. Output is a
+connectivity gct.
+
+The dimensions of the connectivity gct will be equal to the dimensions of the
+test gct. It is important that the rows of the background gct include the rows
+(i.e. targets) of the test gct; any target that is not in the background gct
+will not have a background distribution, and therefore connectivity cannot be
+computed for that target.
+
+N.B. The connectivity gct results will be sorted (case-insensitively, which is
+the Python default).
+
+"""
+
+# Set up logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
-setup_logger.setup(verbose=True)
-
-# test_gct_path = "/cmap/data/proteomics/produced_by_jjaffe_code/steep/GCP/GCP_A375_SIM.gct"
-# bg_gct_path = "/cmap/data/proteomics/produced_by_jjaffe_code/steep/GCP/GCP_A375_SIM.gct"
-# psp_config_path = "/Users/lev/code/broadinstitute.psp/psp_production.cfg"
-# fields_to_aggregate_in_test_gct = ["pert_iname"]
-# fields_to_aggregate_in_bg_gct = ["pert_iname"]
-# aggregated_field_name = "aggregated"
-# connectivity_metric = "ks_test"
-# out_name = "connectivity.gct"
-# separator = ":"
 
 CONNECTIVITY_METRIC_FIELD = "connectivity_metric"
-
-"""
-
-Outputs will be sorted case-insensitively (Python default).
-
-"""
-
-# TODO(lev): separate pert_field for test_gct and bg_gcts
 
 def build_parser():
     """ Build argument parser. """
@@ -63,16 +59,16 @@ def build_parser():
     parser.add_argument("--psp_config_path", "-p",
                         default="~/psp_production.cfg",
                         help="filepath to PSP config file")
-    parser.add_argument("-fields_to_aggregate_in_test_gct", "-test_fields",
+    parser.add_argument("--fields_to_aggregate_in_test_gct", "-tf",
                         type=list, default=["pert_iname"],
                         help="list of metadata fields in the test gct to aggregate")
-    parser.add_argument("-fields_to_aggregate_in_bg_gct", "-bg_fields",
+    parser.add_argument("--fields_to_aggregate_in_bg_gct", "-bf",
                         type=list, default=["pert_iname"],
                         help="list of metadata fields in the bg gct to aggregate")
-    parser.add_argument("-aggregated_field_name", "-a",
+    parser.add_argument("--aggregated_field_name", "-a",
                         type=str, default="aggregated",
                         help="what to call the aggregated metadata field")
-    parser.add_argument("-separator", "-s", type=str, default=":",
+    parser.add_argument("--separator", "-s", type=str, default=":",
                         help="string separator for the aggregated field")
     parser.add_argument("-verbose", "-v", action="store_true", default=False,
                         help="whether to increase the # of messages reported")
@@ -81,6 +77,7 @@ def build_parser():
 
 
 def main(args):
+    """ The main method. """
 
     # Read test gct and config file
     # TODO(lev): add some args to config file
@@ -159,24 +156,23 @@ def prepare_multi_index_df(df, levels_to_aggregate, sep):
 
 
 def compute_connectivities(test_df, bg_df, test_gct_field, bg_gct_field, connectivity_metric):
-    """
+    """ Compute all connectivities for a single test_df and a single bg_df.
+
 
     Args:
-        test_df:
-        bg_df:
-        test_gct_field:
-        bg_gct_field:
-        connectivity_metric:
+        test_df (pandas df): m x n, where n is the # of queries, m is the # of targets
+        bg_df (pandas df): M x M, where M includes m entries
+        test_gct_field (string)
+        bg_gct_field (string)
+        connectivity_metric (string)
 
     Returns:
-        conn_df (pandas df): m x n, where m is the # of targets, n is the #
-            of queries
+        conn_df (pandas df): m x n, where n is the # of queries, m is the # of targets
 
     """
-
     logger.info("Computing connectivities...")
 
-    # TODO(lev): check if background matrix is symmetric
+    # TODO(lev): should be able to support a non-symmetric background matrix
     is_sym = bg_df.index.equals(bg_df.columns)
     assert is_sym, "bg_df must be symmetric"
 
