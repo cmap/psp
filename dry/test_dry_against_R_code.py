@@ -2,6 +2,7 @@ import glob
 import os
 import numpy as np
 import logging
+import pandas as pd
 
 import parse_gctoo as pg
 import utils.setup_logger as setup_logger
@@ -15,7 +16,7 @@ pulled down from Panorama.
 
 # Location of gcts processed using R code
 gct_loc_r_code = "/cmap/data/proteomics/produced_by_jjaffe_code/dry/wget_processed/"
-gct_r_code_suffix = "*P100*.gct"
+gct_r_code_suffix = "*.gct"
 
 # Location of gcts processed using dry
 gct_loc_dry = "/cmap/data/proteomics/dry/"
@@ -27,12 +28,13 @@ dry_suffix = ".gct.dry.processed.gct"
 
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
-setup_logger.setup(verbose=True)
+setup_logger.setup(verbose=False)
 
 # Get R files
 all_r_files = glob.glob(gct_loc_r_code + gct_r_code_suffix)
-assert len(all_r_files) > 1, "No R files were found!"
-logger.info("{} R files found".format(len(all_r_files)))
+
+assert len(all_r_files) > 0, "No R files were found!"
+logger.debug("{} R files found".format(len(all_r_files)))
 
 # For each R file, see if we can find its complementary file created with dry
 # Only keep the R files with a complement
@@ -50,64 +52,73 @@ for r_file in all_r_files:
             dry_file_path))
 
 # Do the comparison
-failed_comparisons = []
+failed_data = []
+failed_col_metadata = []
+failed_row_metadata = []
+mean_diffs = []
 for dry_file, r_file in zip(dry_files, r_files):
 
     dry_gct = pg.parse(dry_file)
     r_gct = pg.parse(r_file)
 
-    logger.info("dry_file: {}".format(dry_file))
-    logger.info("r_file: {}".format(r_file))
+    logger.debug("dry_file: {}".format(dry_file))
+    logger.debug("r_file: {}".format(r_file))
 
-    assert dry_gct.data_df.shape == r_gct.data_df.shape, "Shape of data_df is wrong!"
-
+    # Check col metadata
     try:
-
-        # Check data in 2 stages
-        strict_atol = 0.1
-        lenient_atol = 1
-        try:
-            # More strict
-            assert np.allclose(dry_gct.data_df, r_gct.data_df, atol=strict_atol, equal_nan=True), (
-                "data_df does not match up.")
-
-        except:
-
-            # Return number of differences above strict_atol
-            differences = dry_gct.data_df.subtract(r_gct.data_df).values.flatten()
-            logger.warning("number of differences > {}: {}".format(strict_atol, (differences > strict_atol).sum()))
-
-            # Less strict (absolute tolerance of 1)
-            assert np.allclose(dry_gct.data_df, r_gct.data_df, atol=lenient_atol, equal_nan=True), (
-                "data_df STILL does not match up!")
-
-
-        # Check col metadata
         if "P100" in dry_file:
             # P100 column metadata should have one more header
             assert dry_gct.col_metadata_df.shape[1] == r_gct.col_metadata_df.shape[1] + 1, (
                 "dry_gct.col_metadata_df.shape: {}, r_gct.col_metadata_df.shape: {}").format(
                 dry_gct.col_metadata_df.shape, r_gct.col_metadata_df.shape[1])
 
-            assert dry_gct.col_metadata_df.iloc[:, :-1].equals(r_gct.col_metadata_df), (
-                "col_metadata_df does not match up.")
+            pd.util.testing.assert_frame_equal(dry_gct.col_metadata_df.iloc[:, :-1], r_gct.col_metadata_df, obj="col_metadata_df")
 
         else:
-            assert dry_gct.col_metadata_df.equals(r_gct.col_metadata_df), (
-                "col_metadata_df does not match up.")
+            pd.util.testing.assert_frame_equal(dry_gct.col_metadata_df, r_gct.col_metadata_df, obj="col_metadata_df")
+    except:
+        failed_col_metadata.append(dry_file)
 
-        # Check row metadata
-        assert dry_gct.row_metadata_df.equals(r_gct.row_metadata_df), (
-            "row_metadata_df does not match up.")
+
+    # Check row metadata
+    try:
+        pd.util.testing.assert_frame_equal(dry_gct.row_metadata_df, r_gct.row_metadata_df, obj="row_metadata_df")
 
     except:
-        failed_comparisons.append(dry_file)
+        failed_row_metadata.append(dry_file)
 
-# Return summary result
-if len(failed_comparisons) == 0:
-    logger.info("Yay! All files matched.")
+    # Return some information about the differences
+    atol = 0.1
+    abs_diffs = abs(dry_gct.data_df.subtract(r_gct.data_df, axis=1).values.flatten())
+    logger.info("number of differences > {}: {}".format(atol, (abs_diffs > atol).sum()))
+    mean_diff = np.nanmean(abs_diffs)
+    logger.info("mean_abs_diff: {}".format(mean_diff))
+    mean_diffs = np.append(mean_diffs, mean_diff)
 
-else:
-    logger.warning("The following {} files did not match up.".format(len(failed_comparisons)))
-    for fail in failed_comparisons:
-        print fail
+    # Check data in 2 stages
+    try:
+        # Check that 5 digits are correct
+        pd.util.testing.assert_frame_equal(dry_gct.data_df, r_gct.data_df, obj="data_df_strict")
+
+    except:
+
+        try:
+            # Check that first digit is correct
+            pd.util.testing.assert_frame_equal(dry_gct.data_df, r_gct.data_df,
+                                               check_less_precise=0, obj="data_df_lenient")
+
+        except:
+            failed_data.append(dry_file)
+
+logger.info("total number of comparisons: {}".format(len(dry_files)))
+logger.info("number of failed data comparisons: {}".format(len(failed_data)))
+logger.info("number of failed col_metadata comparisons: {}".format(len(failed_col_metadata)))
+logger.info("number of failed row_metadata comparisons: {}".format(len(failed_row_metadata)))
+logger.info("average of average differences: {}".format(np.mean(mean_diffs)))
+
+### Results:
+# - All GCP plates pass
+# - All P100 plates fail the data_df comparison because they have a small number
+#       of samples with pretty big deviations; however, the average difference
+#       of differences for P100 plates is 0.0259
+# - P100, PRM, plate 26 removes 1 sample by distance filtration, even though R code doesn't
