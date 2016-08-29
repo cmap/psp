@@ -1,3 +1,14 @@
+"""
+dry.py
+
+Performs filtering and normalization of P100 and GCP data.
+
+Converts level 2 to level 3 data. Required input (--in_gct_path) is a path to a
+gct file. Output is writing a processed gct file and a pw (plate-well) file
+with QC information.
+
+"""
+
 import logging
 import ConfigParser
 import argparse
@@ -16,16 +27,6 @@ import utils.qc_gct2pw as gct2pw
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
 
-"""
-dry.py
-
-Performs filtering and normalization of P100 and GCP data.
-
-Converts level 2 to level 3 data. Required input (--in_gct_path) is a path to a
-gct file. Output is writing a processed gct file and a pw (plate-well) file
-with QC information.
-
-"""
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 

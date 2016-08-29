@@ -1,18 +1,3 @@
-import logging
-import argparse
-import sys
-import pandas as pd
-import numpy as np
-from scipy import stats
-
-import utils.setup_logger as setup_logger
-import utils.psp_utils as utils
-import GCToo as GCToo
-import write_gctoo as wg
-
-__author__ = "Lev Litichevskiy"
-__email__ = "lev@broadinstitute.org"
-
 """
 sip.py
 
@@ -32,6 +17,21 @@ N.B. The connectivity gct results will be sorted (case-insensitively, which is
 the Python default).
 
 """
+
+import logging
+import argparse
+import sys
+import pandas as pd
+import numpy as np
+from scipy import stats
+
+import utils.setup_logger as setup_logger
+import utils.psp_utils as utils
+import GCToo as GCToo
+import write_gctoo as wg
+
+__author__ = "Lev Litichevskiy"
+__email__ = "lev@broadinstitute.org"
 
 # Set up logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)

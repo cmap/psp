@@ -38,10 +38,10 @@ def build_parser():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     # Required args
-    parser.add_argument("--in_gct", "-i", required=True, help="path to input gct file")
+    parser.add_argument("--in_gct_path", "-i", required=True, help="path to input gct file")
 
     # Optional args
-    parser.add_argument("--in_gct2", "-i2", help="path to second gct file")
+    parser.add_argument("--in_gct2_path", "-i2", help="path to second gct file")
     parser.add_argument("--out_name", "-o", default="steep_output.gct",
                         help="what to name the output similarity file")
     parser.add_argument("--similarity_metric", "-s", default="spearman",
@@ -57,15 +57,15 @@ def build_parser():
 def main(args):
 
     # Read in the first gct
-    (gct1, _, _, _) = psp_utils.read_gct_and_config_file(args.in_gct, args.psp_config_path)
+    (gct1, _, _, _) = psp_utils.read_gct_and_config_file(args.in_gct_path, args.psp_config_path)
 
     # If second gct provided, compute similarity between 2 gcts
-    if args.in_gct2 is not None:
-        logger.info("in_gct2 was provided. Will compute pairwise similarities " +
+    if args.in_gct2_path is not None:
+        logger.info("in_gct2_path was provided. Will compute pairwise similarities " +
                     "between the columns of in_gct and in_gct2.")
 
         # Read in the second gct
-        (gct2, _, _, _) = psp_utils.read_gct_and_config_file(args.in_gct2, args.psp_config_path)
+        (gct2, _, _, _) = psp_utils.read_gct_and_config_file(args.in_gct2_path, args.psp_config_path)
 
         # Compute similarities between gct1 and gct2
         out_df = compute_similarity_bw_two_dfs(gct1.data_df, gct2.data_df, args.similarity_metric)
