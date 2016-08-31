@@ -184,13 +184,12 @@ def compute_connectivities(test_df, bg_df, test_gct_field, bg_gct_field, connect
     conn_df = pd.DataFrame(np.zeros([len(targets), len(queries)]) * np.nan,
                            index=targets, columns=queries)
     signed_conn_df = conn_df.copy()
-
-    for query in queries:
-        for target in targets:
+    for target in targets:
+        bg_vals = extract_bg_vals_from_sym(target, bg_gct_field, bg_df)
+        for query in queries:     
             logger.debug("query: {}, target: {}".format(query, target))
             test_vals = extract_test_vals(query, target, test_gct_field, test_df)
-            bg_vals = extract_bg_vals_from_sym(target, bg_gct_field, bg_df)
-
+        
             if connectivity_metric == "ks_test":
 
                 # Compute single connectivity
