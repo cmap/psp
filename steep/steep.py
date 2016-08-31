@@ -95,7 +95,7 @@ def main(args):
         out_gct = GCToo.GCToo(out_df, metadata_df, metadata_df)
 
     # Write output gct
-    wg.write(out_gct, args.out_name, data_null="NaN", metadata_null="NaN", filler_null="NaN")
+    wg.write(out_gct, args.out_name, data_null="NaN", metadata_null="NA", filler_null="NA")
 
 
 def compute_similarity_bw_two_dfs(df1, df2, similarity_metric):
