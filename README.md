@@ -44,10 +44,10 @@ August 2016
 
   8. This repository is dependent on another repository ([l1ktools](https://github.com/cmap/l1ktools "l1ktools")) for the code that parses and writes gct and gctx files. So you must also clone l1ktools onto your computer (like step 1). For example, I cloned l1ktools into `/Users/lev/code/l1ktools`.   
   
-  9. We will now a run a script to make our environment aware of files that we need. Navigate to the GCToo folder and run another setup script by typing the following:
+  9. We will now a run a script to make our environment aware of files that we need. (You may need to checkout a different branch first: try `git checkout add_GCToo`.) Navigate to the `io` folder and run another setup script by typing the following:
     
       ```
-      cd python/cmap/io/GCToo
+      cd python/cmap/io
       python setup_GCToo.py develop
       ```
   
