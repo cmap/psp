@@ -1,18 +1,16 @@
+"""
+This script programmatically compares the output of dry to the processed gcts
+pulled down from Panorama.
+"""
+
 import glob
 import os
 import numpy as np
 import logging
 import pandas as pd
 
-import parse_gctoo as pg
+import GCToo.parse_gctoo as pg
 import utils.setup_logger as setup_logger
-
-"""
-
-This script programmatically compares the output of dry to the processed gcts
-pulled down from Panorama.
-
-"""
 
 # Location of gcts processed using R code
 gct_loc_r_code = "/cmap/data/proteomics/produced_by_jjaffe_code/dry/wget_processed/"
