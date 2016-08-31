@@ -33,9 +33,9 @@ def build_parser():
                               "(make sure to surround in quotes when calling from command line!)"))
 
     # Optional args
-    parser.add_argument("--prefix_separator", "-p", default="_cs_",
-                        help=("separator for spltting the file name in order " +
-                              "to create a sensible output file name"))
+    parser.add_argument("--prefix_separator", "-p", default="_SIM_",
+                        help=("split input filename along this separator " +
+                              "and use as prefix for output filename"))
     parser.add_argument("--output_suffix", "-s", default="_RANK.gct",
                         help=("separator for spltting the file name in order " +
                               "to create a sensible output file name"))
@@ -85,7 +85,7 @@ def main(args):
             col_metadata_df=g.col_metadata_df)
 
         # Save the rank_df to file
-        out_name = out_dir + prefix + args.output_suffix
+        out_name = args.out_dir + prefix + args.output_suffix
         wg.write(rank_gctoo, out_name, filler_null="NaN", data_null="NaN", metadata_null="NaN")
 
 if __name__ == "__main__":
