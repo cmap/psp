@@ -1,13 +1,13 @@
 import unittest
 import logging
-import utils.setup_logger as setup_logger
 import os
 import numpy as np
 import pandas as pd
 
-import GCToo
-import parse_gctoo as pg
-import write_gctoo as wg
+import utils.setup_logger as setup_logger
+import GCToo.GCToo as GCToo
+import GCToo.parse_gctoo as pg
+import GCToo.write_gctoo as wg
 import steep
 
 # Setup logger

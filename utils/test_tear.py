@@ -1,9 +1,10 @@
 import unittest
 import logging
-import utils.setup_logger as setup_logger
 import os
 import numpy as np
 import pandas as pd
+
+import utils.setup_logger as setup_logger
 import tear
 
 # Setup logger

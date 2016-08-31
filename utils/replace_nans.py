@@ -1,18 +1,20 @@
 """
 Replace NaNs in the data df of a GCT with either...
+
 0) zero,
 1) the probe median, or
 2) the probe mean.
 """
+
 import logging
-import utils.setup_logger as setup_logger
 import argparse
 import os
 import sys
 
-import parse_gctoo as pg
-import write_gctoo as wg
-import GCToo
+import utils.setup_logger as setup_logger
+import GCToo.GCToo as GCToo
+import GCToo.parse_gctoo as pg
+import GCToo.write_gctoo as wg
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 

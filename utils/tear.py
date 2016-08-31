@@ -1,20 +1,8 @@
-import logging
-import utils.setup_logger as setup_logger
-import argparse
-import sys
-import dry.dry as dry
-
-
-__author__ = "Lev Litichevskiy"
-__email__ = "lev@broadinstitute.org"
-
 """ Z-scores data.
 
 Converts level 3 to level 4 data. Required input is a filepath to a gct file and
 a filepath to an output file. Output is writing a processed gct file.
 
-TODO(lev): borrows functionality from dry. Might consider saving common methods
-elsewhere... or combining with dry.
 
 N.B. This script requires a configuration file. You can specify the location
 of this config file with the optional argument -psp_config_path. Otherwise,
@@ -25,10 +13,22 @@ TODO(lev) --> Example usage:
 
 """
 
-ZSCORE_PROV_CODE_ENTRY = "ZSC"
+import logging
+import argparse
+import sys
+
+import utils.setup_logger as setup_logger
+import dry.dry as dry
+
+__author__ = "Lev Litichevskiy"
+__email__ = "lev@broadinstitute.org"
 
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
+
+ZSCORE_PROV_CODE_ENTRY = "ZSC"
+
+# TODO(lev): fix me up
 
 
 def build_parser():
@@ -45,7 +45,7 @@ def build_parser():
     parser.add_argument("-out_name", type=str, default=None,
                         help="name of output gct (if None, will use <INPUT_GCT>.tear.processed.gct")
     parser.add_argument("-psp_config_path", type=str,
-                        default="example_psp.cfg",
+                        default="~/psp_production.cfg",
                         help="filepath to PSP config file")
     parser.add_argument("-verbose", "-v", action="store_true", default=False,
                         help="increase the number of messages reported")
@@ -56,7 +56,7 @@ def build_parser():
 def main(args):
     # Read gct and config file
     (in_gct, _, prov_code, config_io, config_metadata, _) = (
-        dry.read_gct_and_config_file(
+        dry.read_dry_gct_and_config_file(
             args.gct_path, args.psp_config_path, None))
 
     # Robust z-score

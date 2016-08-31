@@ -1,13 +1,10 @@
 import logging
-import utils.setup_logger as setup_logger
 import ConfigParser
 import os
 import numpy as np
 import pandas as pd
-import parse_gctoo as parse_gctoo
 
-# Setup logger
-logger = logging.getLogger(setup_logger.LOGGER_NAME)
+import GCToo.parse_gctoo as pg
 
 
 def read_gct_and_config_file(gct_path, config_path):
@@ -45,7 +42,7 @@ def read_gct_and_config_file(gct_path, config_path):
     psp_nan_values = eval(config_io["nan_values"])
 
     # Parse the gct file and return GCToo object
-    gct = parse_gctoo.parse(gct_path, nan_values=psp_nan_values)
+    gct = pg.parse(gct_path, nan_values=psp_nan_values)
 
     return gct, config_io, config_metadata, config_parameters
 
@@ -83,5 +80,4 @@ def extract_prov_code(col_meta_df, prov_code_field, prov_code_delim):
     else:
         err_msg = ("All columns should have the same provenance code, " +
                    "but actually np.unique(prov_code_list_series.values) = {}")
-        logger.error(err_msg.format(np.unique(prov_code_list_series.values)))
         raise(Exception(err_msg.format(np.unique(prov_code_list_series.values))))

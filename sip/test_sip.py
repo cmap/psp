@@ -6,8 +6,8 @@ import pandas as pd
 import scipy.stats as stats
 
 import utils.setup_logger as setup_logger
-import parse_gctoo as pg
-import GCToo
+import GCToo.GCToo as GCToo
+import GCToo.parse_gctoo as pg
 import sip
 
 # Setup logger

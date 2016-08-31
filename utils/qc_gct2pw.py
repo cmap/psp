@@ -1,15 +1,3 @@
-import logging
-import utils.setup_logger as setup_logger
-import sys
-import argparse
-import numpy as np
-import pandas as pd
-import parse_gctoo
-import utils.psp_utils as utils
-
-__author__ = "Lev Litichevskiy"
-__email__ = "lev@broadinstitute.org"
-
 """
 QC_GCT2PW.PY: Converts a QC gct file into a .pw (plate-well) file that can
 be used easily with Plato.
@@ -20,6 +8,19 @@ median, mean, MAD, and SD for each column.
 Input is a gct file. Output is a pw file.
 """
 
+import logging
+import sys
+import argparse
+import numpy as np
+import pandas as pd
+
+import utils.setup_logger as setup_logger
+import utils.psp_utils as utils
+import GCToo.parse_gctoo as pg
+
+__author__ = "Lev Litichevskiy"
+__email__ = "lev@broadinstitute.org"
+
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
@@ -28,6 +29,7 @@ WELL_FIELD = "well_name"
 PROV_CODE_FIELD = "provenance_code"
 PROV_CODE_DELIMITER = "+"
 LOG_TRANSFORM_PROV_CODE_ENTRY = "L2X"
+
 
 def build_parser():
     parser = argparse.ArgumentParser(
@@ -49,7 +51,7 @@ def build_parser():
 
 def main(args):
     # Import gct
-    gct = parse_gctoo.parse(args.gct_file_path)
+    gct = pg.parse(args.gct_file_path)
 
     # Get plate and well names
     (plate_names, well_names) = extract_plate_and_well_names(

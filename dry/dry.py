@@ -17,11 +17,12 @@ import os
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize_scalar
+import copy
 
 import utils.setup_logger as setup_logger
-import GCToo
-import parse_gctoo
-import write_gctoo
+import utils.psp_utils as psp_utils
+import GCToo.GCToo as GCToo
+import GCToo.write_gctoo as wg
 import utils.qc_gct2pw as gct2pw
 
 __author__ = "Lev Litichevskiy"
@@ -153,15 +154,10 @@ def main(args):
 
 
 # tested #
-def read_gct_and_config_file(in_gct_path, config_path, forced_assay_type):
-    """Read gct and config file.
+def read_dry_gct_and_config_file(in_gct_path, config_path, forced_assay_type):
+    """ Read gct and config file.
 
-    The config file has three sections: io, metadata, and parameters.
-    These are returned as dictionaries. The field "nan_values" in "io" indicates
-    what values to consider NaN when reading in the gct file. The fields
-    "gcp_assays" and "p100_assays" are used to figure out if the given
-    assay type is P100 or GCP.
-
+    Uses the utility function read_gct_and_config_file from psp_utils.
     Provenance code is extracted from the col metadata. It must be non-empty
     and the same for all samples. If forced_assay_type is not None,
     assay_type is set to forced_assay_type.
@@ -179,20 +175,8 @@ def read_gct_and_config_file(in_gct_path, config_path, forced_assay_type):
         config_metadata (dictionary)
         config_parameters (dictionary)
     """
-
-    # Read from config file
-    config_parser = ConfigParser.RawConfigParser()
-    config_parser.read(os.path.expanduser(config_path))
-    config_io = dict(config_parser.items("io"))
-    config_metadata = dict(config_parser.items("metadata"))
-    config_parameters = dict(config_parser.items("parameters"))
-
-    # Extract what values to consider NaN
-    # N.B. eval used to convert string from config file to list
-    psp_nan_values = eval(config_io["nan_values"])
-
-    # Parse the gct file and return GCToo object
-    gct = parse_gctoo.parse(in_gct_path, nan_values=psp_nan_values)
+    # Read gct and config file
+    (gct, config_io, config_metadata, config_parameters) = psp_utils.read_gct_and_config_file(in_gct_path, config_path)
 
     # Extract the plate's provenance code
     prov_code = extract_prov_code(gct.col_metadata_df,
@@ -832,9 +816,9 @@ def p100_filter_samples_by_dist(gct, assay_type, offsets, dists,
     if assay_type is "p100":
 
         (out_df, out_offsets) = remove_sample_outliers(gct.data_df, offsets, dists, dist_sd_cutoff)
-        # prov_code_entry_formatted = "{}{:.0f}".format(prov_code_entry, dist_sd_cutoff)
+        prov_code_entry_formatted = "{}{:.0f}".format(prov_code_entry, dist_sd_cutoff)
         (gct, prov_code) = update_metadata_and_prov_code(
-            out_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
+            out_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry_formatted, prov_code)
 
          # Record what samples remain
         post_sample_dist_remaining = list(gct.data_df.columns.values)
@@ -905,7 +889,7 @@ def median_normalize(gct, ignore_subset_norm, row_subset_field, col_subset_field
         updated_prov_code (list of strings)
 
     """
-    # Create copy so as not to modify original gct
+    # TODO(lev): fix this so that original gct does not get modified
     out_gct = gct
 
     # Check if subsets_exist
@@ -1201,8 +1185,7 @@ def write_output_gct(gct, out_dir, out_gct_name, data_null, filler_null):
 
     """
     out_fname = os.path.join(out_dir, out_gct_name)
-    write_gctoo.write(gct, out_fname, data_null=data_null,
-                      filler_null=filler_null, data_float_format=None)
+    wg.write(gct, out_fname, data_null=data_null, filler_null=filler_null, data_float_format=None)
 
 
 def update_metadata_and_prov_code(data_df, row_meta_df, col_meta_df, prov_code_entry, prov_code):
@@ -1230,6 +1213,7 @@ def update_metadata_and_prov_code(data_df, row_meta_df, col_meta_df, prov_code_e
 
 
 # tested #
+# TODO(lev): refactor to use ds_slice
 def slice_metadata_using_already_sliced_data_df(data_df, row_meta_df, col_meta_df):
     """Slice row_meta_df and col_meta_df to only contain the row_ids and col_ids
     in data_df.

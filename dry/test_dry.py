@@ -1,14 +1,3 @@
-import unittest
-import logging
-import utils.setup_logger as setup_logger
-import os
-import numpy as np
-import pandas as pd
-
-import parse_gctoo
-import GCToo
-import dry
-
 """
 This code should be run from broadinstitute.psp.
 
@@ -17,6 +6,18 @@ that has the assets required for the 3 functional tests below. For
 functional tests, I just check that they run to completion.
 
 """
+
+import unittest
+import logging
+import os
+import numpy as np
+import pandas as pd
+
+import utils.setup_logger as setup_logger
+import GCToo as GCToo
+import GCToo.parse_gctoo
+import dry
+
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
@@ -29,12 +30,8 @@ CLEANUP = True
 # N.B. e_out is expected_output.
 class TestDry(unittest.TestCase):
 
-    def test_read_gct_and_config_file(self):
+    def test_read_dry_gct_and_config_file(self):
         PSP_CONFIG_PATH = "psp_production.cfg"
-        assert os.path.exists(PSP_CONFIG_PATH), (
-            "Config file must exist in order to perform this test.\n" +
-            "PSP_CONFIG_PATH: {}".format(PSP_CONFIG_PATH))
-
         INPUT_GCT_PATH = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate29_3H.gct")
         e_data_df_shape = (96, 96)
         e_assay_type = "p100"
@@ -43,7 +40,7 @@ class TestDry(unittest.TestCase):
 
         # Happy path
         (out_gct, out_assay_type, out_prov_code, config_io, config_metadata,
-         config_parameters) = dry.read_gct_and_config_file(
+         config_parameters) = dry.read_dry_gct_and_config_file(
             INPUT_GCT_PATH, PSP_CONFIG_PATH, None)
 
         self.assertEqual(out_gct.data_df.shape, e_data_df_shape,
@@ -62,7 +59,7 @@ class TestDry(unittest.TestCase):
 
         # Check that force-assay works
         e_forced_assay_type = "gcp"
-        (_, out_forced_assay_type, _, _, _, _) = dry.read_gct_and_config_file(
+        (_, out_forced_assay_type, _, _, _, _) = dry.read_dry_gct_and_config_file(
             INPUT_GCT_PATH, PSP_CONFIG_PATH, "GR1")
         self.assertEqual(out_forced_assay_type, e_forced_assay_type,
                          ("The expected assay type is {}, " +
@@ -92,7 +89,8 @@ class TestDry(unittest.TestCase):
         in_df = pd.DataFrame([[10, -3, 1.2],
                               [0.45, 0.2, 0],
                               [4.5, np.nan, 0.3]], dtype=float)
-        in_gct = GCToo.GCToo(data_df=in_df, row_metadata_df=None, col_metadata_df=None)
+
+        in_gct = GCToo.GCToo.GCToo(data_df=in_df, row_metadata_df=None, col_metadata_df=None)
 
         # Nothing should happen
         (out_gct, out_prov_code) = dry.log_transform_if_needed(in_gct, prov_code, "L2X")
@@ -118,10 +116,10 @@ class TestDry(unittest.TestCase):
                          "\nActual output:\n{}").format(e_df, out_df))
 
     def test_gcp_histone_normalize_if_needed(self):
-        data = pd.DataFrame([[1,2],[3,4],[5,6]],
+        data = pd.DataFrame([[1, 2], [3, 4], [5, 6]],
                             index=["a", "b", "c"],
                             columns=["d", "e"])
-        e_data = pd.DataFrame([[-2,-2],[2,2]],
+        e_data = pd.DataFrame([[-2, -2], [2, 2]],
                             index=["a", "c"],
                             columns=["d", "e"])
         row_meta = pd.DataFrame([["rm1", "rm2"],["rm3", "rm4"],["rm5", "rm6"]],
@@ -133,7 +131,7 @@ class TestDry(unittest.TestCase):
         col_meta = pd.DataFrame([["cm1", "cm2"],["cm3", "cm4"]],
                                 index=["d", "e"],
                                 columns=["col_field1", "col_field2"])
-        in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
+        in_gct = GCToo.GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
         assay_type = "gcp"
         norm_peptide = "b"
         prov_code = ["GR1", "L2X"]
@@ -198,7 +196,7 @@ class TestDry(unittest.TestCase):
         col_meta = pd.DataFrame([["cm1", "cm2"],["cm3", "cm4"],["cm5", "cm6"]],
                                 index=["e", "f", "g"],
                                 columns=["col_field1", "col_field2"])
-        in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
+        in_gct = GCToo.GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
         original_gct = in_gct
 
         (out_gct, out_prov_code, out_remaining) = dry.initial_filtering(
@@ -220,12 +218,12 @@ class TestDry(unittest.TestCase):
         row_meta2 = pd.DataFrame([["rm1", "TRUE"],["rm3", "TRUE"],["rm5", "TRUE"],["rm7", "TRUE"]],
                                 index=["a", "b", "c", "d"],
                                 columns=["row_field1", "rej"])
-        e_data2 = pd.DataFrame([[1,2,3],[7,8,9],[10,11,12]],
+        e_data2 = pd.DataFrame([[1, 2, 3], [7, 8, 9], [10, 11, 12]],
                               index=["a", "c", "d"],
                               columns=["e", "f", "g"])
         e_prov_code2 = ["A", "B", "SF3", "PF5"]
 
-        in_gct2 = GCToo.GCToo(data_df=data, row_metadata_df=row_meta2, col_metadata_df=col_meta)
+        in_gct2 = GCToo.GCToo.GCToo(data_df=data, row_metadata_df=row_meta2, col_metadata_df=col_meta)
         (out_gct2, out_prov_code2, out_remaining2) = dry.initial_filtering(
             in_gct2, assay_type, sample_frac_cutoff, probe_frac_cutoff,
             probe_sd_cutoff, {},
@@ -320,7 +318,7 @@ class TestDry(unittest.TestCase):
         col_meta = pd.DataFrame([["cm1", "cm2"],["cm3", "cm4"],["cm5", "cm6"]],
                                 index=["e", "f", "g"],
                                 columns=["col_field1", "col_field2"])
-        in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
+        in_gct = GCToo.GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
 
         # P100 & optim
         (out_gct, out_dists, out_offsets, out_prov_code) = (
@@ -337,7 +335,7 @@ class TestDry(unittest.TestCase):
         self.assertEqual(out_prov_code, e_prov_code)
 
         # P100 but no optim
-        e_dists2 = [57 ,0, 25]
+        e_dists2 = [57, 0, 25]
         (out_gct, out_dists, out_offsets, out_prov_code) = (
             dry.p100_calculate_dists_and_apply_offsets_if_needed(
                 in_gct, "p100", no_optim_bool=True,
@@ -369,7 +367,7 @@ class TestDry(unittest.TestCase):
                              [0.08, -1.16, 0.40]], dtype=float)
         e_offsets = np.array([-4.42, 2.83, 0.10], dtype=float)
         e_dists = np.array([36.62, 12.04, 0.06], dtype=float)
-        (out_df, offsets, dists) = dry.calculate_distances_and_optimize(df, (-7,7))
+        (out_df, offsets, dists) = dry.calculate_distances_and_optimize(df, (-7, 7))
         self.assertTrue(np.allclose(offsets, e_offsets, atol=1e-2),
                         ("\nExpected offsets:\n{} " +
                          "\nActual offsets:\n{}").format(e_offsets, offsets))
@@ -402,11 +400,11 @@ class TestDry(unittest.TestCase):
 
 
     def test_p100_filter_samples_by_dist(self):
-        offsets = np.array([4,3,7], dtype=float)
-        dists = np.array([1,6,2], dtype=float)
+        offsets = np.array([4, 3, 7], dtype=float)
+        dists = np.array([1, 6, 2], dtype=float)
         dist_sd_cutoff = 1
         prov_code = ["A", "B"]
-        data = pd.DataFrame([[1,2,3],[4,5,6],[7,8,9],[10,11,12]],
+        data = pd.DataFrame([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]],
                             index=["a", "b", "c", "d"],
                             columns=["e", "f", "g"])
         row_meta = pd.DataFrame([["rm1", "rm2"],["rm3", "rm4"],["rm5", "rm6"],["rm7", "rm8"]],
@@ -415,16 +413,16 @@ class TestDry(unittest.TestCase):
         col_meta = pd.DataFrame([["cm1", "cm2"],["cm3", "cm4"],["cm5", "cm6"]],
                                 index=["e", "f", "g"],
                                 columns=["col_field1", "col_field2"])
-        in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
+        in_gct = GCToo.GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
 
         # P100
-        e_data = pd.DataFrame([[1,3],[4,6],[7,9],[10,12]],
+        e_data = pd.DataFrame([[1, 3], [4, 6], [7, 9], [10, 12]],
                             index=["a", "b", "c", "d"],
                             columns=["e", "g"])
         e_col_meta = pd.DataFrame([["cm1", "cm2"],["cm5", "cm6"]],
                                 index=["e", "g"],
                                 columns=["col_field1", "col_field2"])
-        e_offsets = np.array([4,7], dtype=float)
+        e_offsets = np.array([4, 7], dtype=float)
         e_remaining = ["e", "g"]
         e_prov_code = ["A", "B", "OSF1"]
 
@@ -469,7 +467,7 @@ class TestDry(unittest.TestCase):
                          "\nActual out:\n{}").format(e_out_offsets, out_offsets))
 
     def test_median_normalize(self):
-        data = pd.DataFrame([[1,2,3],[4,5,6],[7,8,9],[10,11,12]],
+        data = pd.DataFrame([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]],
                             index=["a", "b", "c", "d"],
                             columns=["e", "f", "g"],
                             dtype=float)
@@ -479,14 +477,14 @@ class TestDry(unittest.TestCase):
         col_meta = pd.DataFrame([["cm1", "1"],["cm3", "2"],["cm5", "2"]],
                                 index=["e", "f", "g"],
                                 columns=["col_field1", "col_subset"])
-        in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
+        in_gct = GCToo.GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
         row_subset_field = "row_subset"
         col_subset_field = "col_subset"
         prov_code = ["A", "B"]
 
         # Subset normalize
         ignore_subset_norm = False
-        e_data = pd.DataFrame([[0,-0.5,0.5],[0,-0.5,0.5],[0,-0.5,0.5],[0,-0.5,0.5]],
+        e_data = pd.DataFrame([[0, -0.5, 0.5], [0, -0.5, 0.5], [0, -0.5, 0.5],[0, -0.5, 0.5]],
                             index=["a", "b", "c", "d"],
                             columns=["e", "f", "g"])
         e_prov_code = ["A", "B", "GMN"]
@@ -502,7 +500,7 @@ class TestDry(unittest.TestCase):
 
         # Ordinary normalization
         ignore_subset_norm2 = True
-        e_data2 = pd.DataFrame([[-1,0,1],[-1,0,1],[-1,0,1],[-1,0,1]],
+        e_data2 = pd.DataFrame([[-1, 0, 1], [-1, 0, 1], [-1, 0, 1], [-1, 0, 1]],
                                index=["a", "b", "c", "d"],
                                columns=["e", "f", "g"],
                                dtype=float)
@@ -512,7 +510,7 @@ class TestDry(unittest.TestCase):
         col_meta2 = pd.DataFrame([["cm1", "1"],["cm3", "1"],["cm5", "1"]],
                                 index=["e", "f", "g"],
                                 columns=["col_field1", "col_subset"])
-        in_gct2 = GCToo.GCToo(data_df=data, row_metadata_df=row_meta2, col_metadata_df=col_meta2)
+        in_gct2 = GCToo.GCToo.GCToo(data_df=data, row_metadata_df=row_meta2, col_metadata_df=col_meta2)
         e_prov_code2 = ["A", "B", "RMN"]
 
         (out_gct2, out_prov_code2) = dry.median_normalize(
@@ -570,7 +568,7 @@ class TestDry(unittest.TestCase):
                                index=["r1", "r2", "r3", "r4"],
                                columns=["c1", "c2", "c3", "c4", "c5"],
                                dtype=float)
-        in_gct = GCToo.GCToo(data_df=data_df, row_metadata_df=row_df, col_metadata_df=col_df)
+        in_gct = GCToo.GCToo.GCToo(data_df=data_df, row_metadata_df=row_df, col_metadata_df=col_df)
         e_df = pd.DataFrame(np.array([[0, 1, -4, -0.5, 0.5],
                                       [2, 0, -3, 3.5, -3.5],
                                       [1, -1, 0, 1, -5],
@@ -649,7 +647,7 @@ class TestDry(unittest.TestCase):
                          "\nActual out:\n{}").format(e_df, out_df))
 
     def test_insert_offsets_and_prov_code(self):
-        data = pd.DataFrame([[1,2,3],[4,5,6],[7,8,9],[10,11,12]],
+        data = pd.DataFrame([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]],
                             index=["a", "b", "c", "d"],
                             columns=["e", "f", "g"])
         row_meta = pd.DataFrame([["rm1", "rm2"],["rm3", "rm4"],["rm5", "rm6"],["rm7", "rm8"]],
@@ -658,15 +656,15 @@ class TestDry(unittest.TestCase):
         col_meta = pd.DataFrame([["cm1", "cm2"],["cm3", "cm4"],["cm5", "cm6"]],
                                 index=["e", "f", "g"],
                                 columns=["col_field1", "col_field2"])
-        in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
-        offsets = np.array([3.0,5.0,8.0], dtype=float)
+        in_gct = GCToo.GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
+        offsets = np.array([3.0, 5.0, 8.0])
         offsets_field = "offsets"
         prov_code = ["A", "B", "C", "D"]
         prov_code_field = "col_field2"
         prov_code_delimiter = "+"
-        e_col_meta = pd.DataFrame([["cm1", "A+B+C+D", "3.0"],
-                                   ["cm3", "A+B+C+D", "5.0"],
-                                   ["cm5", "A+B+C+D", "8.0"]],
+        e_col_meta = pd.DataFrame([["cm1", "A+B+C+D", 3.0],
+                                   ["cm3", "A+B+C+D", 5.0],
+                                   ["cm5", "A+B+C+D", 8.0]],
                                   index=["e", "f", "g"],
                                   columns=["col_field1", "col_field2", "offsets"])
 
@@ -695,7 +693,7 @@ class TestDry(unittest.TestCase):
         self.assertEqual(out_pw_name2, "input.gct.dry.processed.pw")
 
     def test_write_output_pw(self):
-        data = pd.DataFrame([[1,2,3,4,5],[6,7,8,9,10]],
+        data = pd.DataFrame([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]],
                             index=["a", "b"],
                             columns=["c", "d", "e", "f", "g"])
         row_meta = pd.DataFrame([["rm1", "rm2"],["rm3", "rm4"]],
@@ -705,7 +703,7 @@ class TestDry(unittest.TestCase):
                                  ["plate1", "A4"], ["plate1", "A5"]],
                                 index=["c", "d", "e", "f", "g"],
                                 columns=["det_plate", "det_well"])
-        in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
+        in_gct = GCToo.GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
 
         post_sample_nan_remaining = ["c", "e", "f", "g"]
         post_sample_dist_remaining = ["c", "f", "g"]
@@ -734,7 +732,7 @@ class TestDry(unittest.TestCase):
 
 
     def test_slice_metadata_using_already_sliced_data_df(self):
-        data = pd.DataFrame([[2,3],[5,6],[11,12]],
+        data = pd.DataFrame([[2, 3], [5, 6], [11, 12]],
                             index=["a", "b", "d"],
                             columns=["f", "g"])
         row_meta = pd.DataFrame([["rm1", "rm2"],["rm3", "rm4"],
@@ -762,7 +760,7 @@ class TestDry(unittest.TestCase):
         df = pd.DataFrame([[10, -3, 1.2],
                            [0.45, 0.2, -0.1],
                            [4.5, -4, 0.3]], dtype=float)
-        (_, old_offsets, _) = dry.calculate_distances_and_optimize(df, (-7,7))
+        (_, old_offsets, _) = dry.calculate_distances_and_optimize(df, (-7, 7))
         new_offsets = dry.new_algorithm_for_calculating_offsets(df)
         self.assertTrue(np.allclose(old_offsets, new_offsets, atol=1e-2),
                         ("\nold_offsets:\n{} " +

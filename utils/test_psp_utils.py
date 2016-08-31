@@ -1,8 +1,9 @@
 import unittest
 import logging
-import utils.setup_logger as setup_logger
 import os
 import pandas as pd
+
+import utils.setup_logger as setup_logger
 import utils.psp_utils as utils
 
 # Setup logger

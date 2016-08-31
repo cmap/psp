@@ -1,9 +1,10 @@
 import unittest
 import logging
-import utils.setup_logger as setup_logger
 import numpy as np
 import pandas as pd
 import os
+
+import utils.setup_logger as setup_logger
 import qc_gct2pw
 
 # Setup logger

@@ -20,9 +20,9 @@ import argparse
 
 import utils.setup_logger as setup_logger
 import utils.psp_utils as psp_utils
-import GCToo
-import parse_gctoo as pg
-import write_gctoo as wg
+import GCToo.GCToo as GCToo
+import GCToo.parse_gctoo as pg
+import GCToo.write_gctoo as wg
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"

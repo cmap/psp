@@ -12,9 +12,9 @@ import glob
 import os
 import numpy as np
 
-import GCToo
-import parse_gctoo as pg
-import write_gctoo as wg
+import GCToo.GCToo as GCToo
+import GCToo.parse_gctoo as pg
+import GCToo.write_gctoo as wg
 
 
 def build_parser():
