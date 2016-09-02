@@ -22,8 +22,8 @@ class TestSip(unittest.TestCase):
         bg_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_sip_in_bg.gct")
         out_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_sip_main_out.gct")
 
-        args_string = "-t {} -b {} -o {}".format(
-            test_gct_path, bg_gct_path, out_path)
+        args_string = "-t {} -b {} -o {} -tfq {} -tft {}".format(
+            test_gct_path, bg_gct_path, out_path, "pert_iname", "pert_iname")
         args = sip.build_parser().parse_args(args_string.split())
 
         # Run main method
@@ -47,7 +47,6 @@ class TestSip(unittest.TestCase):
         # Remove the created file
         os.remove(out_path)
 
-
     def test_extract_test_vals(self):
         # Symmetric
         sym_test_df_index = pd.MultiIndex.from_arrays(
@@ -67,28 +66,28 @@ class TestSip(unittest.TestCase):
         e_C_A_vals = [1.1, 0.3, -0.6, 1.3]
         e_A_A_vals = [1.0]
 
-        A_B_vals = sip.extract_test_vals("A", "B", "group", sym_test_df)
+        A_B_vals = sip.extract_test_vals("A", "B", "group", "group", sym_test_df)
         self.assertItemsEqual(e_A_B_vals, A_B_vals)
 
-        A_C_vals = sip.extract_test_vals("A", "C", "group", sym_test_df)
+        A_C_vals = sip.extract_test_vals("A", "C", "group", "group", sym_test_df)
         self.assertItemsEqual(e_A_C_vals, A_C_vals)
 
-        C_A_vals = sip.extract_test_vals("C", "A", "group", sym_test_df)
+        C_A_vals = sip.extract_test_vals("C", "A", "group", "group", sym_test_df)
         self.assertItemsEqual(e_C_A_vals, C_A_vals)
 
-        A_A_vals = sip.extract_test_vals("A", "A", "group", sym_test_df)
+        A_A_vals = sip.extract_test_vals("A", "A", "group", "group", sym_test_df)
         self.assertItemsEqual(e_A_A_vals, A_A_vals)
 
         # Verify that assert statement works
         with self.assertRaises(AssertionError) as e:
-            sip.extract_test_vals("A", "D", "group", sym_test_df)
+            sip.extract_test_vals("A", "D", "group", "group",sym_test_df)
         self.assertIn("target D is not in the group level", str(e.exception))
 
         # Assymmetric
         nonsym_test_df_index = pd.MultiIndex.from_arrays(
             [["A", "B", "A", "B"], [1, 2, 3, 4]], names=["group", "id"])
         nonsym_test_df_columns = pd.MultiIndex.from_arrays(
-            [["F", "F", "E", "E"], [1, 2, 3, 4]], names=["group", "id"])
+            [["F", "F", "E", "E"], [1, 2, 3, 4]], names=["alt_group", "id"])
         nonsym_test_df = pd.DataFrame(
             [[1, 2, 3, 5],
              [7, 11, 13, 17],
@@ -100,10 +99,10 @@ class TestSip(unittest.TestCase):
         e_E_A_vals = [3, 5, 29, 31]
         e_F_B_vals = [7, 11, -3, 5]
 
-        E_A_vals = sip.extract_test_vals("E", "A", "group", nonsym_test_df)
+        E_A_vals = sip.extract_test_vals("E", "A", "alt_group", "group", nonsym_test_df)
         self.assertItemsEqual(e_E_A_vals, E_A_vals)
 
-        F_B_vals = sip.extract_test_vals("F", "B", "group", nonsym_test_df)
+        F_B_vals = sip.extract_test_vals("F", "B", "alt_group", "group", nonsym_test_df)
         self.assertItemsEqual(e_F_B_vals, F_B_vals)
 
     def test_extract_bg_vals_from_sym(self):
@@ -176,7 +175,7 @@ class TestSip(unittest.TestCase):
         test_df_index = pd.MultiIndex.from_arrays(
             [["A", "A", "B", "B"], [1, 2, 3, 4]], names=["group", "id"])
         test_df_columns = pd.MultiIndex.from_arrays(
-            [["D", "D", "D", "E", "E", "E"], [1, 2, 3, 4, 5, 6]], names=["group", "id"])
+            [["D", "D", "D", "E", "E", "E"], [1, 2, 3, 4, 5, 6]], names=["alt_group", "id"])
         test_df = pd.DataFrame(
             [[0.1, -0.3, -0.1, -0.4, 0.6, -0.7],
              [0.5, -0.7, -0.2, -1, 0.4, 0.2],
@@ -208,7 +207,7 @@ class TestSip(unittest.TestCase):
             [[-e_D_v_A, -e_E_v_A], [e_D_v_B, e_E_v_B]], index=["A", "B"], columns=["D", "E"])
 
         (conn_df, signed_conn_df) = sip.compute_connectivities(
-            test_df, bg_df, "group", "group", "ks_test")
+            test_df, bg_df, "alt_group", "group", "group", "ks_test")
 
         self.assertTrue(conn_df.equals(e_conn_df), (
             "\nconn_df:\n{}\ne_conn_df:\n{}").format(conn_df, e_conn_df))
@@ -218,7 +217,7 @@ class TestSip(unittest.TestCase):
 
         # Check that assertion works
         with self.assertRaises(Exception) as e:
-            sip.compute_connectivities(test_df, bg_df, "group", "group", "wtcs")
+            sip.compute_connectivities(test_df, bg_df, "alt_group", "group", "group", "wtcs")
         self.assertIn("connectivity metric must be either ks_test or", str(e.exception))
 
     def test_add_aggregated_level_to_multi_index(self):
