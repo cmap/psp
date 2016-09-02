@@ -47,7 +47,7 @@ def build_parser():
     parser.add_argument("--similarity_metric", "-s", default="spearman",
                         choices=["spearman", "pearson"],
                         help="similarity metric to use for comparing columns")
-    parser.add_argument("--psp_config_path", "-p", default="psp_production.cfg",
+    parser.add_argument("--psp_config_path", "-p", default="~/psp_production.cfg",
                         help="filepath to PSP config file")
     parser.add_argument("--verbose", "-v", action="store_true", default=False,
                         help="whether to increase the # of messages reported")
