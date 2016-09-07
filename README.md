@@ -136,7 +136,7 @@ python /Users/lev/code/l1ktools/python/cmap/io/GCToo/concat_gctoo.py --list_of_g
 C. You have 2 GCToo objects in memory that you want to concatenate. hstack is the method in concat_gctoo.py that actually does the concatenation. From within the Python console or script where you have your 2 GCToos (gct1 & gct2), type the following:
 
 ```
-import concat_gctoo as cg
+import cmap.io.GCToo.concat_gctoo as cg
 concated = cg.hstack([gct1, gct2])
 ```
 
