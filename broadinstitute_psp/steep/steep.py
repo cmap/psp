@@ -13,15 +13,13 @@ similarity matrix.
 """
 
 import sys
-import os
 import logging
 import pandas as pd
 import argparse
 
-import utils.setup_logger as setup_logger
-import utils.psp_utils as psp_utils
+import broadinstitute_psp.utils.setup_logger as setup_logger
+import broadinstitute_psp.utils.psp_utils as psp_utils
 import cmap.io.GCToo.GCToo as GCToo
-import cmap.io.GCToo.parse_gctoo as pg
 import cmap.io.GCToo.write_gctoo as wg
 
 __author__ = "Lev Litichevskiy"
@@ -165,6 +163,6 @@ def compute_similarity_within_df(df, similarity_metric):
 
 if __name__ == "__main__":
     args = build_parser().parse_args(sys.argv[1:])
-    setup_logger.setup(verbose = args.verbose)
+    setup_logger.setup(verbose=args.verbose)
 
     main(args)
