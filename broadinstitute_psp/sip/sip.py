@@ -28,8 +28,8 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 
-import utils.setup_logger as setup_logger
-import utils.psp_utils as utils
+import broadinstitute_psp.utils.setup_logger as setup_logger
+import broadinstitute_psp.utils.psp_utils as utils
 import cmap.io.GCToo.GCToo as GCToo
 import cmap.io.GCToo.write_gctoo as wg
 
@@ -155,30 +155,28 @@ def prepare_multi_index_dfs(test_df, bg_df, fields_to_aggregate_in_test_gct_quer
     """
     # Create aggregated level for queries (columns) in test_df if needed
     if len(fields_to_aggregate_in_test_gct_queries) > 1:
-        test_df_columns = add_aggregated_level_to_multi_index(
+        (test_df_columns, _) = add_aggregated_level_to_multi_index(
             test_df.columns, fields_to_aggregate_in_test_gct_queries, aggregated_field_name, sep)
         out_test_query_field = aggregated_field_name
     else:
         test_df_columns = test_df.columns
         out_test_query_field = fields_to_aggregate_in_test_gct_queries[0]
 
-    # Sort test_df_columns
-    sorted_test_df_columns = test_df_columns.sort_values()
-
     # Create aggregated level for targets (rows) in test_df if needed
     if len(fields_to_aggregate_in_test_gct_targets) > 1:
-        test_df_index = add_aggregated_level_to_multi_index(
+        (test_df_index, _) = add_aggregated_level_to_multi_index(
             test_df.index, fields_to_aggregate_in_test_gct_targets, aggregated_field_name, sep)
         out_test_target_field = aggregated_field_name
     else:
         test_df_index = test_df.index
         out_test_target_field = fields_to_aggregate_in_test_gct_targets[0]
 
-    # Sort test_df_index
-    sorted_test_df_index = test_df_index.sort_values()
-
     # Create out_test_df
-    out_test_df = pd.DataFrame(test_df.values, index=sorted_test_df_index, columns=sorted_test_df_columns)
+    out_test_df = pd.DataFrame(test_df.values, index=test_df_index, columns=test_df_columns)
+
+    # Sort out_test_df
+    out_test_df.sortlevel(level=out_test_target_field, axis=0, inplace=True)
+    out_test_df.sortlevel(level=out_test_query_field, axis=1, inplace=True)
 
     # Create aggregated level in bg_df if needed
     if len(fields_to_aggregate_in_bg_gct) > 1:
@@ -192,12 +190,12 @@ def prepare_multi_index_dfs(test_df, bg_df, fields_to_aggregate_in_test_gct_quer
         bg_df_index = bg_df.index
         out_bg_field = fields_to_aggregate_in_bg_gct[0]
 
-    # Sort bg_df_columns and bg_df_index
-    sorted_bg_df_columns = bg_df_columns.sort_values()
-    sorted_bg_df_index = bg_df_index.sort_values()
-
     # Create out_bg_df
-    out_bg_df = pd.DataFrame(bg_df.values, index=sorted_bg_df_index, columns=sorted_bg_df_columns)
+    out_bg_df = pd.DataFrame(bg_df.values, index=bg_df_index, columns=bg_df_columns)
+
+    # Sort out_bg_df
+    out_bg_df.sortlevel(level=out_bg_field, axis=0, inplace=True)
+    out_bg_df.sortlevel(level=out_bg_field, axis=1, inplace=True)
 
     return out_test_df, out_bg_df, out_test_query_field, out_test_target_field, out_bg_field
 
@@ -239,7 +237,11 @@ def compute_connectivities(test_df, bg_df, test_gct_query_field, test_gct_target
         for query in queries:
             logger.debug("query: {}, target: {}".format(query, target))
             test_vals = extract_test_vals(query, target, test_gct_query_field, test_gct_target_field, test_df)
-        
+
+            if target=="belinostat" and query=="belinostat":
+                import pdb
+                pdb.set_trace()
+
             if connectivity_metric == "ks_test":
 
                 # Compute single connectivity
@@ -471,7 +473,7 @@ def add_aggregated_level_to_multi_index(mi, levels_to_aggregate, aggregated_leve
     aggregated_strings = [sep.join(agg_tuple) for agg_tuple in list_of_aggregated_tuples]
 
     # Convert each level of multi-index to its own tuple
-    levels_as_tuples= zip(*mi.ravel())
+    levels_as_tuples = zip(*mi.ravel())
 
     # Add new level as a tuple
     levels_as_tuples.append(tuple(aggregated_strings))

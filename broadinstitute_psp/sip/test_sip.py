@@ -46,6 +46,65 @@ class TestSip(unittest.TestCase):
         # Remove the created file
         os.remove(out_path)
 
+    def test_prepare_multi_index_dfs(self):
+
+        test_df_index = pd.MultiIndex.from_arrays(
+            [["A", "B", "C", "C", "B", "A"],
+             ["A375", "A375", "A375", "A375", "A375", "A375"],
+             [10, 10, 10, 10, 10, 10]], names=["pert_iname", "cell", "dose"])
+        test_df_columns = pd.MultiIndex.from_arrays(
+            [["F", "F", "F", "E", "E", "E"], [1, 2, 3, 4, 5, 6]], names=["pert_uname", "dose"])
+        test_df = pd.DataFrame(
+            [[1, 3, 5, 7, 11.0, 13.0],
+             [17, 19, 23, 29, 31, 37],
+             [-1.0, -1.1, -1.3, -1.5, 1.7, -1.9],
+             [11, 9, 7, 5, 3, -1],
+             [1.0, -0.9, 0.8, -0.7, 0.6, -0.5],
+             [-77, 66.0, 55.1, 44.3, 51.2, 1.0]],
+            index=test_df_index, columns=test_df_columns)
+
+        bg_df_index = pd.MultiIndex.from_arrays(
+            [["E123", "F21", "C666", "D1"], [1, 2, 3, 4]], names=["cell", "thing"])
+        bg_df = pd.DataFrame(
+            [[1, 2, 3, 5],
+             [7, 11, 13, 17],
+             [19, 23, 29, 31],
+             [-3, 5, 7, 11]],
+            index=bg_df_index, columns=bg_df_index)
+
+        e_test_df_index = pd.MultiIndex.from_arrays(
+            [["A", "A", "B", "B", "C", "C"],
+             ["A375", "A375", "A375", "A375", "A375", "A375"],
+             [10, 10, 10, 10, 10, 10],
+             ["A:10", "A:10", "B:10", "B:10", "C:10", "C:10"]], names=["pert_iname", "cell", "dose", "aggregated"])
+        e_test_df_columns = pd.MultiIndex.from_arrays(
+            [["E", "E", "E", "F", "F", "F"], [4, 5, 6, 1, 2, 3]], names=["pert_uname", "dose"])
+        e_test_df = pd.DataFrame(
+            [[7, 11.0, 13.0, 1, 3, 5],
+             [44.3, 51.2, 1.0, -77, 66.0, 55.1],
+             [29, 31, 37, 17, 19, 23],
+             [-0.7, 0.6, -0.5, 1.0, -0.9, 0.8],
+             [-1.5, 1.7, -1.9, -1.0, -1.1, -1.3],
+             [5, 3, -1, 11, 9, 7]],
+            index=e_test_df_index, columns=e_test_df_columns)
+        e_bg_df_index = pd.MultiIndex.from_arrays(
+            [["C666", "D1", "E123", "F21"], [3, 4, 1, 2]], names=["cell", "thing"])
+        e_bg_df = pd.DataFrame(
+            [[29, 31, 19, 23],
+             [7, 11, -3, 5],
+             [3, 5, 1, 2],
+             [13, 17, 7, 11]],
+            index=e_bg_df_index, columns=e_bg_df_index)
+
+        (out_test_df, out_bg_df, out_test_query_field, out_test_target_field, out_bg_field) = sip.prepare_multi_index_dfs(
+            test_df, bg_df, ["pert_uname"], ["pert_iname", "dose"], ["cell"], "aggregated", ":")
+
+        pd.util.testing.assert_frame_equal(out_test_df, e_test_df)
+        pd.util.testing.assert_frame_equal(out_bg_df, e_bg_df)
+        self.assertEqual(out_test_query_field, "pert_uname")
+        self.assertEqual(out_test_target_field, "aggregated")
+        self.assertEqual(out_bg_field, "cell")
+
     def test_extract_test_vals(self):
         # Symmetric
         sym_test_df_index = pd.MultiIndex.from_arrays(

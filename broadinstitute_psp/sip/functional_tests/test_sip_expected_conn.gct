@@ -3,6 +3,6 @@
 id	connectivity_metric	query_or_target	KU-55933	Roscovitine	SMER-3	semagacestat
 connectivity_metric	NaN	NaN	ks_test	ks_test	ks_test	ks_test
 query_or_target	NaN	NaN	query	query	query	query
-DMSO	ks_test	target	-0.410256	-0.324786	-0.846154	-0.589744
-KN-62	ks_test	target	-0.435897	0.538462	-0.461538	-0.769231
-tretinoin	ks_test	target	0.692308	0.692308	0.34188	-0.358974
+DMSO	ks_test	target	-0.410256	-0.846154	-0.589744	-0.324786
+KN-62	ks_test	target	0.461538	-0.564103	-0.743590	0.435897
+tretinoin	ks_test	target	0.461538	-0.461538	-0.666667	0.487179
