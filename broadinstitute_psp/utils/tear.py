@@ -17,8 +17,8 @@ import logging
 import argparse
 import sys
 
-import utils.setup_logger as setup_logger
-import dry.dry as dry
+import broadinstitute_psp.utils.setup_logger as setup_logger
+import broadinstitute_psp.dry.dry as dry
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"

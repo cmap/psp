@@ -14,8 +14,8 @@ import argparse
 import numpy as np
 import pandas as pd
 
-import utils.setup_logger as setup_logger
-import utils.psp_utils as utils
+import broadinstitute_psp.utils.setup_logger as setup_logger
+import broadinstitute_psp.utils.psp_utils as utils
 import cmap.io.GCToo.parse_gctoo as pg
 
 __author__ = "Lev Litichevskiy"
