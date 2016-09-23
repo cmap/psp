@@ -10,11 +10,12 @@ distribution.
 Required inputs are paths to the test and background gct files. Output is a
 connectivity gct.
 
-The dimensions of the connectivity gct will be equal to the dimensions of the
-test gct. It is important that the rows of the background gct include the rows
-(i.e. targets) of the test gct; any target that is not in the background gct
-will not have a background distribution, and therefore connectivity cannot be
-computed for that target.
+Metadata for the connectivity gct comes from the test gct. The dimensions will
+also be the same, except the connectivity gct will not include rows
+that are not also in the the background gct. Therefore, it is important that the
+rows of the background gct include the rows (i.e. targets) of the test gct;
+any target that is not in the background gct will not have a background
+distribution, and therefore connectivity cannot be computed for that target.
 
 N.B. The connectivity gct results will be sorted (case-insensitively, which is
 the Python default).
@@ -41,6 +42,7 @@ logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
 CONNECTIVITY_METRIC_FIELD = "connectivity_metric"
 
+
 def build_parser():
     """ Build argument parser. """
 
@@ -63,20 +65,23 @@ def build_parser():
                         default="~/psp_production.cfg",
                         help="filepath to PSP config file")
     parser.add_argument("--fields_to_aggregate_in_test_gct_queries", "-tfq",
-                        nargs="+", default=["pert_iname"],
+                        nargs="+", default=["pert_id", "cell_id"],
                         help="list of metadata fields in the columns of the test gct to aggregate")
     parser.add_argument("--fields_to_aggregate_in_test_gct_targets", "-tft",
-                        nargs="+", default=["pert_iname"],
+                        nargs="+", default=["pert_id", "cell_id"],
                         help="list of metadata fields in the rows of the test gct to aggregate")
     parser.add_argument("--fields_to_aggregate_in_bg_gct", "-bf",
-                        nargs="+", default=["pert_iname"],
+                        nargs="+", default=["pert_id", "cell_id"],
                         help="list of metadata fields in the bg gct to aggregate")
-    parser.add_argument("--aggregated_field_name", "-a",
-                        type=str, default="aggregated",
-                        help="what to call the aggregated metadata field")
+    parser.add_argument("--query_field_name", "-qn",
+                        type=str, default="query_field",
+                        help="what to name the output query field")
+    parser.add_argument("--target_field_name", "-tn",
+                        type=str, default="query_field",
+                        help="what to name the output target field")
     parser.add_argument("--separator", "-s", type=str, default=":",
-                        help="string separator for the aggregated field")
-    parser.add_argument("-verbose", "-v", action="store_true", default=False,
+                        help="string separator for aggregating fields together")
+    parser.add_argument("--verbose", "-v", action="store_true", default=False,
                         help="whether to increase the # of messages reported")
 
     return parser
@@ -93,45 +98,49 @@ def main(args):
 
     # Create an aggregated metadata field for index and columns of both gcts
     # and sort by that field
-    (test_df, bg_df, test_query_field, test_target_field, bg_field) = prepare_multi_index_dfs(
+    (test_df, bg_df) = prepare_multi_index_dfs(
         test_gct.multi_index_df, bg_gct.multi_index_df,
         args.fields_to_aggregate_in_test_gct_queries,
         args.fields_to_aggregate_in_test_gct_targets,
         args.fields_to_aggregate_in_bg_gct,
-        args.aggregated_field_name,
+        args.query_field_name,
+        args.target_field_name,
         args.separator)
 
+    # Check symmetry
+    (is_test_df_sym, is_bg_df_sym) = check_symmetry(test_gct.multi_index_df, bg_gct.multi_index_df)
+
     # Compute connectivity
-    (conn_df, signed_conn_df) = compute_connectivities(
-        test_df, bg_df, test_query_field, test_target_field, bg_field, args.connectivity_metric)
+    (conn_mi_df, signed_conn_mi_df) = compute_connectivities(
+        test_df, bg_df, args.query_field_name, args.target_field_name, args.target_field_name,
+        args.connectivity_metric, is_test_df_sym)
 
-    # Create connectivity metadata dfs (rows are targets, columns are queries)
-    row_metadata_df = create_connectivity_metadata_df(
-        conn_df.index.values, args.connectivity_metric, CONNECTIVITY_METRIC_FIELD,
-        "target", "query_or_target")
-    col_metadata_df = create_connectivity_metadata_df(
-        conn_df.columns.values, args.connectivity_metric, CONNECTIVITY_METRIC_FIELD,
-        "query", "query_or_target")
+    # Convert multi-index to component dfs in order to write output gct
+    (signed_data_df, signed_row_metadata_df, signed_col_metadata_df) = GCToo.multi_index_df_to_component_dfs(signed_conn_mi_df, rid=args.target_field_name, cid=args.query_field_name)
 
-    # Create output gct
-    conn_gct = GCToo.GCToo(data_df=signed_conn_df, row_metadata_df=row_metadata_df, col_metadata_df=col_metadata_df)
+    # Append to queries a new column saying what connectivity metric was used
+    add_connectivity_metric_to_metadata(signed_col_metadata_df, args.connectivity_metric, CONNECTIVITY_METRIC_FIELD)
+    add_connectivity_metric_to_metadata(signed_row_metadata_df, args.connectivity_metric, CONNECTIVITY_METRIC_FIELD)
 
-    # Write gctoo to file
+    # Create gct and write it to file
+    conn_gct = GCToo.GCToo(data_df=signed_data_df, row_metadata_df=signed_row_metadata_df, col_metadata_df=signed_col_metadata_df)
     wg.write(conn_gct, args.out_name, data_null="NaN", filler_null="NaN", metadata_null="NaN")
 
 
 def prepare_multi_index_dfs(test_df, bg_df, fields_to_aggregate_in_test_gct_queries,
                             fields_to_aggregate_in_test_gct_targets,
-                            fields_to_aggregate_in_bg_gct, aggregated_field_name, sep):
+                            fields_to_aggregate_in_bg_gct, query_field_name,
+                            target_field_name, sep):
     """
     This functions prepare the test and background multi-index dfs before
     connectivity can be computed.
 
-    For each fields_to_aggregate_* argument, if it has more than 1 element,
-    this function adds a level to the corresponding multi_index that is an
-    aggregation of the entries in fields_to_aggregate_*. The name of this level
-    (aggregated_field_name) is returned as out_*_field. If fields_to_aggregate_*
-    has only 1 element, this single element is returned as out_*_field.
+    For each fields_to_aggregate_* argument, this function adds a level to the
+    corresponding multi_index that is an aggregation of the entries in
+    fields_to_aggregate_*. The name of this level (aggregated_field_name) is
+    returned as out_*_field. If fields_to_aggregate_* has only 1 element,
+    a new field is still made but it's just a copy of what's in
+    fields_to_aggregate_*[0].
 
     This fcn also sorts the dfs by out_field (sorting is necessary for efficient
     indexing later).
@@ -142,155 +151,201 @@ def prepare_multi_index_dfs(test_df, bg_df, fields_to_aggregate_in_test_gct_quer
         fields_to_aggregate_in_test_gct_queries (list of strings)
         fields_to_aggregate_in_test_gct_targets (list of strings)
         fields_to_aggregate_in_bg_gct (list of strings)
-        aggregated_field_name (string)
+        query_field_name (string)
+        target_field_name (string)
         sep (string)
 
     Returns:
         out_test_df (multi-index pandas df)
         out_bg_df (multi-index pandas df)
-        out_test_query_field (string)
-        out_test_target_field (string)
-        out_bg_field (string)
 
     """
-    # Create aggregated level for queries (columns) in test_df if needed
-    if len(fields_to_aggregate_in_test_gct_queries) > 1:
-        (test_df_columns, _) = add_aggregated_level_to_multi_index(
-            test_df.columns, fields_to_aggregate_in_test_gct_queries, aggregated_field_name, sep)
-        out_test_query_field = aggregated_field_name
-    else:
-        test_df_columns = test_df.columns
-        out_test_query_field = fields_to_aggregate_in_test_gct_queries[0]
+    # Create aggregated level for queries (columns)
+    (_, test_df_columns) = add_aggregated_level_to_multi_index(
+        test_df.columns, fields_to_aggregate_in_test_gct_queries, query_field_name, sep)
 
-    # Create aggregated level for targets (rows) in test_df if needed
-    if len(fields_to_aggregate_in_test_gct_targets) > 1:
-        (test_df_index, _) = add_aggregated_level_to_multi_index(
-            test_df.index, fields_to_aggregate_in_test_gct_targets, aggregated_field_name, sep)
-        out_test_target_field = aggregated_field_name
-    else:
-        test_df_index = test_df.index
-        out_test_target_field = fields_to_aggregate_in_test_gct_targets[0]
+    # Create aggregated level for targets (rows)
+    (_, test_df_index) = add_aggregated_level_to_multi_index(
+        test_df.index, fields_to_aggregate_in_test_gct_targets, target_field_name, sep)
 
     # Create out_test_df
     out_test_df = pd.DataFrame(test_df.values, index=test_df_index, columns=test_df_columns)
 
     # Sort out_test_df
-    out_test_df.sortlevel(level=out_test_target_field, axis=0, inplace=True)
-    out_test_df.sortlevel(level=out_test_query_field, axis=1, inplace=True)
+    out_test_df.sortlevel(level=target_field_name, axis=0, inplace=True)
+    out_test_df.sortlevel(level=query_field_name, axis=1, inplace=True)
 
-    # Create aggregated level in bg_df if needed
-    if len(fields_to_aggregate_in_bg_gct) > 1:
-        bg_df_columns = add_aggregated_level_to_multi_index(
-            bg_df.columns, fields_to_aggregate_in_bg_gct, aggregated_field_name, sep)
-        bg_df_index = add_aggregated_level_to_multi_index(
-            bg_df.index, fields_to_aggregate_in_bg_gct, aggregated_field_name, sep)
-        out_bg_field = aggregated_field_name
-    else:
-        bg_df_columns = bg_df.columns
-        bg_df_index = bg_df.index
-        out_bg_field = fields_to_aggregate_in_bg_gct[0]
+    # Create aggregated level in bg_df
+    (_, bg_df_columns) = add_aggregated_level_to_multi_index(
+        bg_df.columns, fields_to_aggregate_in_bg_gct, target_field_name, sep)
+    (_, bg_df_index) = add_aggregated_level_to_multi_index(
+        bg_df.index, fields_to_aggregate_in_bg_gct, target_field_name, sep)
+    out_bg_field = target_field_name
 
     # Create out_bg_df
     out_bg_df = pd.DataFrame(bg_df.values, index=bg_df_index, columns=bg_df_columns)
 
     # Sort out_bg_df
-    out_bg_df.sortlevel(level=out_bg_field, axis=0, inplace=True)
-    out_bg_df.sortlevel(level=out_bg_field, axis=1, inplace=True)
+    out_bg_df.sortlevel(level=target_field_name, axis=0, inplace=True)
+    out_bg_df.sortlevel(level=target_field_name, axis=1, inplace=True)
 
-    return out_test_df, out_bg_df, out_test_query_field, out_test_target_field, out_bg_field
+    return out_test_df, out_bg_df
 
 
-def compute_connectivities(test_df, bg_df, test_gct_query_field, test_gct_target_field, bg_gct_field, connectivity_metric):
+def check_symmetry(test_mi_df, bg_mi_df):
+    """ Checks if test multi-index df and bg multi-index dfs are symmetric.
+    If so, extraction of values later has to be different to avoid double-counting.
+
+    Args:
+        test_mi_df (pandas multi-index df)
+        bg_mi_df (pandas multi-index df)
+
+    Returns:
+        is_test_df_sym (bool)
+        is_bg_df_sym (bool)
+
+    """
+    # Check if test_mi_df is symmetric
+    if test_mi_df.index.equals(test_mi_df.columns):
+        is_test_df_sym = True
+        logger.info("test_mi_df has the same index and columns, so it will be considered symmetric.")
+    else:
+        is_test_df_sym = False
+
+    # Check if bg_mi_df is symmetric
+    if bg_mi_df.index.equals(bg_mi_df.columns):
+        is_bg_df_sym = True
+        logger.info("bg_mi_df has the same index and columns, so it will be considered symmetric.")
+    else:
+        is_bg_df_sym = False
+
+    # TODO(lev): should be able to support a non-symmetric background matrix
+    # TODO(lev): when we do this, we should also separate bg_gct_field into bg_gct_query_field and bg_gct_target_field
+    assert is_bg_df_sym, "bg_mi_df must be symmetric!"
+
+    return is_test_df_sym, is_bg_df_sym
+
+
+
+def compute_connectivities(test_df, bg_df, test_gct_query_field, test_gct_target_field, bg_gct_field, connectivity_metric, is_test_df_sym):
     """ Compute all connectivities for a single test_df and a single bg_df.
 
     Args:
-        test_df (multi-index pandas df): m x n, where n is the # of queries, m is the # of targets
-        bg_df (multi-index pandas df): M x M, where M includes m entries
+        test_df (multi-index or regular pandas df): m x n, where n is the # of queries, m is the # of targets
+        bg_df (multi-index or regular pandas df): M x M, where M includes m
         test_gct_query_field (string)
         test_gct_target_field (string)
         bg_gct_field (string)
         connectivity_metric (string)
+        is_test_df_sym (bool)
 
     Returns:
-        conn_df (pandas df): m x n, where n is the # of queries, m is the # of targets
+        conn_df (multi-index or regular pandas df): m x n, where n is the # of queries, m is the # of targets
+        signed_conn_df (multi-index or regular  pandas df): m x n, where n is the # of queries, m is the # of targets
 
     """
     logger.info("Computing connectivities...")
 
-    # TODO(lev): should be able to support a non-symmetric background matrix
-    # TODO(lev): when we do this, we should also separate bg_gct_field into bg_gct_query_field and bg_gct_target_field
-    is_sym = bg_df.index.equals(bg_df.columns)
-    assert is_sym, "bg_df must be symmetric"
-
     # Extract queries from test_df columns and targets from test_df index
     queries = test_df.columns.get_level_values(test_gct_query_field).unique()
-    targets = test_df.index.get_level_values(test_gct_target_field).unique()
+
+    # Extract targets from both test_df and bg_df
+    bg_targets = bg_df.index.get_level_values(bg_gct_field).unique()
+    test_targets = test_df.index.get_level_values(test_gct_target_field).unique()
+
+    # Get intersection of targets
+    targets = np.intersect1d(test_targets, bg_targets)
+    assert targets.size > 0, ("There are no targets in common between the test and bg dfs.\n" +
+        "test_targets: {}, bg_targets: {}".format(test_targets, bg_targets))
+
     logger.info("{} queries, {} targets".format(len(queries), len(targets)))
 
-    # Initialize conn_df :: len(targets) x len(queries)
-    conn_df = pd.DataFrame(np.zeros([len(targets), len(queries)]) * np.nan,
-                           index=targets, columns=queries)
+    # Column multi-index of output df is the unique version of test_df.columns
+    conn_df_columns = pd.MultiIndex.from_tuples(np.unique(test_df.columns.values))
+    conn_df_columns.names = test_df.columns.names
+
+    # Row multi-index of output df is the unique version of test_df.index, but
+    # only for targets also in bg_df
+    conn_df_index = pd.MultiIndex.from_tuples(np.unique(test_df.index[test_df.index.get_level_values(test_gct_target_field).isin(targets)].values))
+    conn_df_index.names = test_df.index.names
+
+    # Initialize conn_df and signed_conn_df :: len(targets) x len(queries)
+    # Use regular rather than multi-index to make insertion of connectivity
+    # values easier
+    conn_df = pd.DataFrame(np.zeros([len(targets), len(queries)]) * np.nan, index=targets, columns=queries)
     signed_conn_df = conn_df.copy()
 
     for target in targets:
+
+        # Extract background values
         bg_vals = extract_bg_vals_from_sym(target, bg_gct_field, bg_df)
-        for query in queries:
-            logger.debug("query: {}, target: {}".format(query, target))
-            test_vals = extract_test_vals(query, target, test_gct_query_field, test_gct_target_field, test_df)
 
-            if target=="belinostat" and query=="belinostat":
-                import pdb
-                pdb.set_trace()
+        # Make sure bg_vals has at least 1 element before continuing
+        if len(bg_vals) > 0:
 
-            if connectivity_metric == "ks_test":
+            for query in queries:
+                logger.debug("query: {}, target: {}".format(query, target))
 
-                # Compute single connectivity
-                (ks_stat, pval) = ks_test_single(test_vals, bg_vals)
-                conn_df.loc[target, query] = ks_stat
+                # Extract test values
+                test_vals = extract_test_vals(query, target, test_gct_query_field,
+                                              test_gct_target_field, test_df, is_test_df_sym)
 
-                # TODO(lev): figure out what to do with pvals
+                # Make sure test_vals has at least 1 element before continuing
+                if len(test_vals) > 0:
 
-                # Compute signed connectivity as well
-                signed_ks_stat = add_sign_to_conn(ks_stat, test_vals, bg_vals)
-                signed_conn_df.loc[target, query] = signed_ks_stat
+                    if connectivity_metric == "ks_test":
 
-            elif connectivity_metric == "percentile_score":
+                        # Compute single connectivity
+                        (ks_stat, pval) = ks_test_single(test_vals, bg_vals)
+                        conn_df.loc[target, query] = ks_stat
 
-                # Compute single connectivity
-                conn = percentile_score_single(test_vals, bg_vals)
-                conn_df.loc[target, query] = conn
+                        # TODO(lev): figure out what to do with pvals
 
-            else:
-                err_msg = ("connectivity metric must be either ks_test or " +
-                           "percentile_score. connectivity_metric: {}").format(connectivity_metric)
-                logger.error(err_msg)
-                raise(Exception(err_msg))
+                        # Compute signed connectivity as well
+                        signed_ks_stat = add_sign_to_conn(ks_stat, test_vals, bg_vals)
+                        signed_conn_df.loc[target, query] = signed_ks_stat
+
+                    elif connectivity_metric == "percentile_score":
+
+                        # Compute single connectivity
+                        conn = percentile_score_single(test_vals, bg_vals)
+                        conn_df.loc[target, query] = conn
+
+                    else:
+                        err_msg = ("connectivity metric must be either ks_test or " +
+                                   "percentile_score. connectivity_metric: {}").format(connectivity_metric)
+                        logger.error(err_msg)
+                        raise(Exception(err_msg))
+
+    # Replace the regular indices with multi-indices
+    conn_df.index = conn_df_index
+    conn_df.columns = conn_df_columns
+    signed_conn_df.index = conn_df_index
+    signed_conn_df.columns = conn_df_columns
 
     return conn_df, signed_conn_df
 
 
-def ks_test_single(test_vals, bg_vals, min_number_of_elements=2):
+def ks_test_single(test_vals, bg_vals):
+    """ Compute KS-test statistic for one pair of test values and background
+    values.
+
+    Args:
+        test_vals (numpy array)
+        bg_vals (numpy array)
+
+    Returns:
+        ks_stat (float)
+        pval (float)
+
     """
-    Compute KS-test statistic for one pair of test values and background values.
+    # Do KS-test
+    try:
+        (ks_stat, pval) = stats.ks_2samp(test_vals, bg_vals)
 
-    min_number_of_elements can be used to make sure that each distribution has
-    enough elements for the result of the KS-test to be meaningful.
-    """
-
-    # Check that each distribution has some minimum number of elements
-    if len(test_vals) >= min_number_of_elements and len(bg_vals) >= min_number_of_elements:
-
-        # Do KS-test
-        try:
-            (ks_stat, pval) = stats.ks_2samp(test_vals, bg_vals)
-
-        # Return NaN if test fails for some reason
-        except ValueError as e:
-            logger.warning("KS-test failed.")
-            ks_stat = np.nan
-            pval = np.nan
-
-    else:
+    # Return NaN if test fails
+    except ValueError:
+        logger.warning("KS-test failed.")
         ks_stat = np.nan
         pval = np.nan
 
@@ -333,7 +388,7 @@ def add_sign_to_conn(conn, test_vals, bg_vals):
     return signed_conn
 
 
-def extract_test_vals(query, target, query_field, target_field, test_df):
+def extract_test_vals(query, target, query_field, target_field, test_df, is_test_df_sym):
     """ Extract values that has query in the columns and target in the rows.
 
     Args:
@@ -342,6 +397,8 @@ def extract_test_vals(query, target, query_field, target_field, test_df):
         query_field (string): name of multiindex level in which to find query
         target_field (string): name of multiindex level in which to find target
         test_df (pandas multi-index df)
+        is_test_df_sym (bool): only matters if query == target; set to True to
+            avoid double-counting in the case of a symmetric matrix
 
     Returns:
         vals (numpy array)
@@ -360,9 +417,9 @@ def extract_test_vals(query, target, query_field, target_field, test_df):
             test_df.index.get_level_values(target_field) == target,
             test_df.columns.get_level_values(query_field) == query]
 
-    # If query == target, need to take only triu of the extracted values in
-    # order to avoid double-counting
-    if query == target:
+    # If query == target AND the matrix is symmetric, need to take only triu
+    # of the extracted values in order to avoid double-counting
+    if query == target and is_test_df_sym:
         mask = np.triu(np.ones(target_in_rows_query_in_cols_df.shape), k=1).astype(np.bool)
         vals_with_nans = target_in_rows_query_in_cols_df.where(mask).values.flatten()
         vals = vals_with_nans[~np.isnan(vals_with_nans)]
@@ -440,7 +497,7 @@ def extract_bg_vals_from_non_sym(target, multi_index_level_name, bg_df):
 
 
 def add_aggregated_level_to_multi_index(mi, levels_to_aggregate, aggregated_level_name, sep):
-    """Create a new level by aggregating values in other multi-index levels.
+    """ Create a new level by aggregating values in other multi-index levels.
 
     In addition to returning the original multi-index with the aggregated level
     added, this function also returns subset_mi, which is the subset of the
@@ -463,7 +520,7 @@ def add_aggregated_level_to_multi_index(mi, levels_to_aggregate, aggregated_leve
                 "{} is not present in the names of the multi-index.".format(level))
 
     # Extract each level in levels_to_aggregate
-    # N.B. Convert each level to a string in order to get a string at the end
+    # N.B. Convert each level to a string in order to produce a string ultimately
     list_of_levels = [mi.get_level_values(level).values.astype(str) for level in levels_to_aggregate]
 
     # Zip each of the levels together into a tuple
@@ -492,27 +549,22 @@ def add_aggregated_level_to_multi_index(mi, levels_to_aggregate, aggregated_leve
     return updated_mi, subset_mi
 
 
-def create_connectivity_metadata_df(perts, connectivity_metric, connectivity_metric_field, query_or_target, query_or_target_field):
-    """ Create a df where the first column is which connectivity metric was
-    used (same value for all rows) and the second columns indicates if this
-    row was a query or target (same value for all rows).
+def add_connectivity_metric_to_metadata(metadata_df, connectivity_metric, connectivity_metric_field):
+    """ Append a connectivity_metric_field to metadata_df that is the
+    connectivity metric repeated.
 
     Args:
-        perts (numpy array of strings)
+        metadata_df (pandas df)
         connectivity_metric (string)
         connectivity_metric_field (string): name of the connectivity_metric column
-        query_or_target (string)
-        query_or_target_field (string): name of the query_or_target column
 
     Returns:
-        conn_metadata_df (pandas df)
+        metadata_df (pandas df): modified in-place
 
     """
-    conn_metadata_df = pd.DataFrame(
-        np.tile([connectivity_metric, query_or_target], (len(perts), 1)),
-        index=perts, columns=[connectivity_metric_field, query_or_target_field])
+    metadata_df.loc[:, connectivity_metric_field] = connectivity_metric
 
-    return conn_metadata_df
+    return None
 
 
 if __name__ == "__main__":

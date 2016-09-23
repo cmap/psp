@@ -14,6 +14,7 @@ logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
 FUNCTIONAL_TESTS_DIR = "sip/functional_tests"
 
+
 class TestSip(unittest.TestCase):
 
     def test_main(self):
@@ -21,8 +22,8 @@ class TestSip(unittest.TestCase):
         bg_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_sip_in_bg.gct")
         out_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_sip_main_out.gct")
 
-        args_string = "-t {} -b {} -o {} -tfq {} -tft {}".format(
-            test_gct_path, bg_gct_path, out_path, "pert_iname", "pert_iname")
+        args_string = "-t {} -b {} -o {} -tfq {} -tft {} -bf {}".format(
+            test_gct_path, bg_gct_path, out_path, "pert_iname", "pert_iname", "pert_iname")
         args = sip.build_parser().parse_args(args_string.split())
 
         # Run main method
@@ -74,11 +75,10 @@ class TestSip(unittest.TestCase):
 
         e_test_df_index = pd.MultiIndex.from_arrays(
             [["A", "A", "B", "B", "C", "C"],
-             ["A375", "A375", "A375", "A375", "A375", "A375"],
              [10, 10, 10, 10, 10, 10],
-             ["A:10", "A:10", "B:10", "B:10", "C:10", "C:10"]], names=["pert_iname", "cell", "dose", "aggregated"])
+             ["A:10", "A:10", "B:10", "B:10", "C:10", "C:10"]], names=["pert_iname", "dose", "target_field"])
         e_test_df_columns = pd.MultiIndex.from_arrays(
-            [["E", "E", "E", "F", "F", "F"], [4, 5, 6, 1, 2, 3]], names=["pert_uname", "dose"])
+            [["E", "E", "E", "F", "F", "F"], ["E", "E", "E", "F", "F", "F"]], names=["pert_uname", "query_field"])
         e_test_df = pd.DataFrame(
             [[7, 11.0, 13.0, 1, 3, 5],
              [44.3, 51.2, 1.0, -77, 66.0, 55.1],
@@ -88,7 +88,7 @@ class TestSip(unittest.TestCase):
              [5, 3, -1, 11, 9, 7]],
             index=e_test_df_index, columns=e_test_df_columns)
         e_bg_df_index = pd.MultiIndex.from_arrays(
-            [["C666", "D1", "E123", "F21"], [3, 4, 1, 2]], names=["cell", "thing"])
+            [["C666", "D1", "E123", "F21"], ["C666", "D1", "E123", "F21"]], names=["cell", "target_field"])
         e_bg_df = pd.DataFrame(
             [[29, 31, 19, 23],
              [7, 11, -3, 5],
@@ -96,14 +96,54 @@ class TestSip(unittest.TestCase):
              [13, 17, 7, 11]],
             index=e_bg_df_index, columns=e_bg_df_index)
 
-        (out_test_df, out_bg_df, out_test_query_field, out_test_target_field, out_bg_field) = sip.prepare_multi_index_dfs(
-            test_df, bg_df, ["pert_uname"], ["pert_iname", "dose"], ["cell"], "aggregated", ":")
+        (out_test_df, out_bg_df) = sip.prepare_multi_index_dfs(
+            test_df, bg_df, ["pert_uname"], ["pert_iname", "dose"], ["cell"], "query_field", "target_field", ":")
 
         pd.util.testing.assert_frame_equal(out_test_df, e_test_df)
         pd.util.testing.assert_frame_equal(out_bg_df, e_bg_df)
-        self.assertEqual(out_test_query_field, "pert_uname")
-        self.assertEqual(out_test_target_field, "aggregated")
-        self.assertEqual(out_bg_field, "cell")
+
+    def test_check_symmetry(self):
+        df_mat = np.array(
+            [[29, 31, 19, 23],
+             [7, 11, -3, 5],
+             [3, 5, 1, 2],
+             [13, 17, 7, 11]])
+
+        # Asymmetric test_df
+        test_df_index = pd.MultiIndex.from_arrays(
+            [["A", "B", "C", "D"]], names=["sample_id", "plate_id"])
+        asym_test_df_columns = pd.MultiIndex.from_arrays(
+            [["A", "B", "C", "D"], ["X1", "X2", "X3", "X4"]],
+            names=["sample_id", "plate_id"])
+        asym_test_df = pd.DataFrame(df_mat, index=test_df_index, columns=asym_test_df_columns)
+
+        # Symmetric test_df
+        sym_test_df = pd.DataFrame(df_mat, index=test_df_index, columns=test_df_index)
+
+        # Asymmetric bg_df
+        sym_bg_df_index = pd.MultiIndex.from_arrays(
+            [["A", "B", "C", "D"]], names=["cell"])
+        asym_bg_df_columns = pd.MultiIndex.from_arrays(
+            [["D", "E", "F", "G"]], names=["cell"])
+        asym_bg_df = pd.DataFrame(df_mat, index=sym_bg_df_index, columns=asym_bg_df_columns)
+
+        # Symmetric bg_df
+        sym_bg_df = pd.DataFrame(df_mat, index=sym_bg_df_index, columns=sym_bg_df_index)
+
+        # Symmetric test_df, symmetric bg_df
+        (is_test_df_sym1, is_bg_df_sym1) = sip.check_symmetry(sym_test_df, sym_bg_df)
+        self.assertTrue(is_test_df_sym1)
+        self.assertTrue(is_bg_df_sym1)
+
+        # Assymmetric test_df, symmetric bg_df
+        (is_test_df_sym2, is_bg_df_sym2) = sip.check_symmetry(asym_test_df, sym_bg_df)
+        self.assertFalse(is_test_df_sym2)
+        self.assertTrue(is_bg_df_sym2)
+
+        # Assymetric bg should raise error
+        with self.assertRaises(AssertionError) as e:
+            sip.check_symmetry(sym_test_df, asym_bg_df)
+        self.assertIn("bg_mi_df must be symmetric!", str(e.exception))
 
     def test_extract_test_vals(self):
         # Symmetric
@@ -124,21 +164,21 @@ class TestSip(unittest.TestCase):
         e_C_A_vals = [1.1, 0.3, -0.6, 1.3]
         e_A_A_vals = [1.0]
 
-        A_B_vals = sip.extract_test_vals("A", "B", "group", "group", sym_test_df)
+        A_B_vals = sip.extract_test_vals("A", "B", "group", "group", sym_test_df, True)
         self.assertItemsEqual(e_A_B_vals, A_B_vals)
 
-        A_C_vals = sip.extract_test_vals("A", "C", "group", "group", sym_test_df)
+        A_C_vals = sip.extract_test_vals("A", "C", "group", "group", sym_test_df, True)
         self.assertItemsEqual(e_A_C_vals, A_C_vals)
 
-        C_A_vals = sip.extract_test_vals("C", "A", "group", "group", sym_test_df)
+        C_A_vals = sip.extract_test_vals("C", "A", "group", "group", sym_test_df, True)
         self.assertItemsEqual(e_C_A_vals, C_A_vals)
 
-        A_A_vals = sip.extract_test_vals("A", "A", "group", "group", sym_test_df)
+        A_A_vals = sip.extract_test_vals("A", "A", "group", "group", sym_test_df, True)
         self.assertItemsEqual(e_A_A_vals, A_A_vals)
 
         # Verify that assert statement works
         with self.assertRaises(AssertionError) as e:
-            sip.extract_test_vals("A", "D", "group", "group",sym_test_df)
+            sip.extract_test_vals("A", "D", "group", "group", sym_test_df, True)
         self.assertIn("target D is not in the group level", str(e.exception))
 
         # Assymmetric
@@ -157,10 +197,10 @@ class TestSip(unittest.TestCase):
         e_E_A_vals = [3, 5, 29, 31]
         e_F_B_vals = [7, 11, -3, 5]
 
-        E_A_vals = sip.extract_test_vals("E", "A", "alt_group", "group", nonsym_test_df)
+        E_A_vals = sip.extract_test_vals("E", "A", "alt_group", "group", nonsym_test_df, False)
         self.assertItemsEqual(e_E_A_vals, E_A_vals)
 
-        F_B_vals = sip.extract_test_vals("F", "B", "alt_group", "group", nonsym_test_df)
+        F_B_vals = sip.extract_test_vals("F", "B", "alt_group", "group", nonsym_test_df, False)
         self.assertItemsEqual(e_F_B_vals, F_B_vals)
 
     def test_extract_bg_vals_from_sym(self):
@@ -231,9 +271,12 @@ class TestSip(unittest.TestCase):
     def test_compute_connectivities(self):
         # External query against build
         test_df_index = pd.MultiIndex.from_arrays(
-            [["A", "A", "B", "B"], [1, 2, 3, 4]], names=["group", "id"])
+            [["A", "A", "B", "B"], ["A375", "A375", "A375", "A375"],
+             ["A:A375", "A:A375", "B:A375", "B:A375"]], names=["pert", "cell", "aggregated"])
         test_df_columns = pd.MultiIndex.from_arrays(
-            [["D", "D", "D", "E", "E", "E"], [1, 2, 3, 4, 5, 6]], names=["alt_group", "id"])
+            [["D", "D", "D", "E", "E", "E"], ["A375", "A375", "A375", "A375", "A375", "A375"],
+             ["D:A375", "D:A375", "D:A375", "E:A375", "E:A375", "E:A375"]],
+            names=["pert_iname", "cell", "aggregated2"])
         test_df = pd.DataFrame(
             [[0.1, -0.3, -0.1, -0.4, 0.6, -0.7],
              [0.5, -0.7, -0.2, -1, 0.4, 0.2],
@@ -242,7 +285,9 @@ class TestSip(unittest.TestCase):
             index=test_df_index, columns=test_df_columns)
 
         bg_df_index = pd.MultiIndex.from_arrays(
-            [["A", "B", "A", "B", "C", "C"], [1, 2, 3, 4, 5, 6]], names=["group", "id"])
+            [["A", "B", "A", "B", "C", "C"], ["A375", "A375", "A375", "A375", "A375", "A375"],
+             ["A:A375", "B:A375", "A:A375", "B:A375", "C:A375", "C:A375"]],
+            names=["pert", "cell", "bg_aggregated"])
         bg_df = pd.DataFrame(
             [[1.0, 0.5, 1.0, -0.4, 1.1, -0.6],
              [0.5, 1.0, 1.2, -0.8, -0.9, 0.4],
@@ -259,36 +304,42 @@ class TestSip(unittest.TestCase):
         (e_E_v_A, _) = stats.ks_2samp([-0.4, 0.6, -0.7, -1, 0.4, 0.2], A_bg) # med = -0.1, so -
         (e_E_v_B, _) = stats.ks_2samp([0.1, 0.4, -0.9, 0.6, 0.4, -0.1], B_bg) # med = 0.25, so +
 
+        e_conn_df_index = pd.MultiIndex.from_arrays(
+            [["A", "B"], ["A375", "A375"], ["A:A375", "B:A375"]],
+            names=["pert", "cell", "aggregated"])
+        e_conn_df_columns = pd.MultiIndex.from_arrays(
+            [["D", "E"], ["A375", "A375"], ["D:A375", "E:A375"]],
+            names=["pert_iname", "cell", "aggregated2"])
         e_conn_df = pd.DataFrame(
-            [[e_D_v_A, e_E_v_A], [e_D_v_B, e_E_v_B]], index=["A", "B"], columns=["D", "E"])
+            [[e_D_v_A, e_E_v_A], [e_D_v_B, e_E_v_B]], index=e_conn_df_index, columns=e_conn_df_columns)
         e_signed_conn_df = pd.DataFrame(
-            [[-e_D_v_A, -e_E_v_A], [e_D_v_B, e_E_v_B]], index=["A", "B"], columns=["D", "E"])
+            [[-e_D_v_A, -e_E_v_A], [e_D_v_B, e_E_v_B]], index=e_conn_df_index, columns=e_conn_df_columns)
 
         (conn_df, signed_conn_df) = sip.compute_connectivities(
-            test_df, bg_df, "alt_group", "group", "group", "ks_test")
+            test_df, bg_df, "aggregated2", "aggregated", "bg_aggregated", "ks_test", False)
 
-        self.assertTrue(conn_df.equals(e_conn_df), (
+        pd.util.testing.assert_frame_equal(conn_df, e_conn_df, (
             "\nconn_df:\n{}\ne_conn_df:\n{}").format(conn_df, e_conn_df))
-        self.assertTrue(signed_conn_df.equals(e_signed_conn_df), (
+        pd.util.testing.assert_frame_equal(signed_conn_df, e_signed_conn_df, (
             "\nsigned_conn_df:\n{}\ne_signed_conn_df:\n{}").format(
             signed_conn_df, e_signed_conn_df))
 
         # Check that assertion works
         with self.assertRaises(Exception) as e:
-            sip.compute_connectivities(test_df, bg_df, "alt_group", "group", "group", "wtcs")
+            sip.compute_connectivities(test_df, bg_df, "aggregated2", "aggregated", "bg_aggregated", "wtcs", False)
         self.assertIn("connectivity metric must be either ks_test or", str(e.exception))
 
     def test_add_aggregated_level_to_multi_index(self):
         # Create group_id column
         mi = pd.MultiIndex.from_arrays(
             [["a", "b", "c"], ["10", "10", "1"], ["24", "24", "24"]],
-             names = ["cell", "dose", "time"])
+             names=["cell", "dose", "time"])
         e_out_mi = pd.MultiIndex.from_arrays(
             [["a", "b", "c"], ["10", "10", "1"], ["24", "24", "24"], ["a:10", "b:10", "c:1"]],
-             names = ["cell", "dose", "time", "aggregated"])
+             names=["cell", "dose", "time", "aggregated"])
         e_out_subset_mi = pd.MultiIndex.from_arrays(
             [["a", "b", "c"], ["10", "10", "1"], ["a:10", "b:10", "c:1"]],
-             names = ["cell", "dose", "aggregated"])
+             names=["cell", "dose", "aggregated"])
 
         (out_mi, out_subset_mi) = sip.add_aggregated_level_to_multi_index(
             mi, ["cell", "dose"], "aggregated", sep=":")
@@ -297,6 +348,19 @@ class TestSip(unittest.TestCase):
             "\nout_mi:\n{}\ne_out_mi:\n{}".format(out_mi, e_out_mi)))
         self.assertTrue(out_subset_mi.equals(e_out_subset_mi), (
             "\nout_subset_mi:\n{}\ne_out_subset_mi:\n{}".format(out_subset_mi, e_out_subset_mi)))
+
+        e_out_mi2 = pd.MultiIndex.from_arrays(
+            [["a", "b", "c"], ["10", "10", "1"], ["24", "24", "24"], ["a", "b", "c"]],
+             names=["cell", "dose", "time", "aggregated"])
+        e_out_subset_mi2 = pd.MultiIndex.from_arrays(
+            [["a", "b", "c"], ["a", "b", "c"]],
+             names=["cell", "aggregated"])
+
+        (out_mi2, out_subset_mi2) = sip.add_aggregated_level_to_multi_index(
+            mi, ["cell"], "aggregated", sep=":")
+
+        pd.util.testing.assert_index_equal(out_mi2, e_out_mi2)
+        pd.util.testing.assert_index_equal(out_subset_mi2, e_out_subset_mi2)
 
 
 if __name__ == "__main__":
