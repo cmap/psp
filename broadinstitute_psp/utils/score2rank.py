@@ -33,6 +33,8 @@ def build_parser():
                               "(make sure to surround in quotes when calling from command line!)"))
 
     # Optional args
+    parser.add_argument("--do_percentile_rank", "-ps", action="store_true",
+                        default=False, help="if true, compute percentile rank")
     parser.add_argument("--prefix_separator", "-p", default="_SIM_",
                         help=("split input filename along this separator " +
                               "and use as prefix for output filename"))
@@ -75,8 +77,11 @@ def main(args):
         # Set diagonal to NaN
         np.fill_diagonal(score_df.values, np.nan)
 
-        # Rank the matrix
-        rank_df = score_df.rank(ascending=False)
+        # Rank the matrix (percentile score or not)
+        if args.do_percentile_rank:
+            rank_df = score_df.rank(ascending=False, pct=True) * 100
+        else:
+            rank_df = score_df.rank(ascending=False)
 
         # Make a GCToo
         rank_gctoo = GCToo.GCToo(
