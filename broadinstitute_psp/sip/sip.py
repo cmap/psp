@@ -65,19 +65,19 @@ def build_parser():
                         default="~/psp_production.cfg",
                         help="filepath to PSP config file")
     parser.add_argument("--fields_to_aggregate_in_test_gct_queries", "-tfq",
-                        nargs="+", default=["pert_id", "cell_id"],
+                        nargs="+", default=["pert_id", "cell_id", "pert_time"],
                         help="list of metadata fields in the columns of the test gct to aggregate")
     parser.add_argument("--fields_to_aggregate_in_test_gct_targets", "-tft",
-                        nargs="+", default=["pert_id", "cell_id"],
+                        nargs="+", default=["pert_id", "cell_id", "pert_time"],
                         help="list of metadata fields in the rows of the test gct to aggregate")
     parser.add_argument("--fields_to_aggregate_in_bg_gct", "-bf",
-                        nargs="+", default=["pert_id", "cell_id"],
+                        nargs="+", default=["pert_id", "cell_id", "pert_time"],
                         help="list of metadata fields in the bg gct to aggregate")
     parser.add_argument("--query_field_name", "-qn",
                         type=str, default="query_field",
                         help="what to name the output query field")
     parser.add_argument("--target_field_name", "-tn",
-                        type=str, default="query_field",
+                        type=str, default="target_field",
                         help="what to name the output target field")
     parser.add_argument("--separator", "-s", type=str, default=":",
                         help="string separator for aggregating fields together")
