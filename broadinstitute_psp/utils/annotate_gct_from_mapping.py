@@ -74,7 +74,7 @@ def main(args):
         elif args.row_and_or_col == "row":
             annotate_meta_df(gct.row_metadata_df, mapping.loc[:, col], args.gct_from_field, args.missing_entry)
         elif args.row_and_or_col == "col":
-            annotate_meta_df(gct.row_metadata_df, mapping.loc[:, col], args.gct_from_field, args.missing_entry)
+            annotate_meta_df(gct.col_metadata_df, mapping.loc[:, col], args.gct_from_field, args.missing_entry)
 
     wg.write(gct, args.out_name, filler_null="NA", data_null="NaN", metadata_null="NA")
 
