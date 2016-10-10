@@ -101,13 +101,6 @@ def extract_plate_and_well_names(col_meta, plate_field=PLATE_FIELD, well_field=W
     # Extract plate metadata
     plate_names = col_meta[plate_field].values
 
-    # Verify that all samples have the same plate name
-    plate_names_same = True
-    for plate in plate_names:
-        plate_names_same = (plate_names_same and plate == plate_names[0])
-        assert plate_names_same, (
-            "All samples must have the same plate name. plate_names: {}").format(plate_names)
-
     # Extract well metadata
     well_names = col_meta[well_field].values
 
