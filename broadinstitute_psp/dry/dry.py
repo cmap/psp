@@ -687,7 +687,7 @@ def calculate_distances_and_optimize(data_df, offset_bounds):
     orig_probe_medians = data_df.median(axis=1).values
 
     # Compute offsets for all samples
-    optimized_offsets = new_algorithm_for_calculating_offsets(data_df)
+    optimized_offsets = calculate_offsets_analytically(data_df)
 
     # Apply the optimized offsets
     df_with_offsets = data_df.add(optimized_offsets, axis=1)
@@ -710,10 +710,8 @@ def calculate_distances_and_optimize(data_df, offset_bounds):
     return df_with_offsets, optimized_offsets, optimized_dists
 
 
-
-def new_algorithm_for_calculating_offsets(data_df):
-    """ New algorithm for calculating offsets that does not require any
-    optimization.
+def calculate_offsets_analytically(data_df):
+    """ Calculate offsets analytically.
 
     Equation for calculating offsets:
     o = (P - s) / N
@@ -723,6 +721,9 @@ def new_algorithm_for_calculating_offsets(data_df):
     s is the vector of sums of each sample's values
     N is the scalar of the number of probes
 
+    One subtlety is that if there is missing data for a sample, the
+    corresponding probe median must also be omitted.
+
     Args:
         data_df (pandas df)
 
@@ -730,15 +731,31 @@ def new_algorithm_for_calculating_offsets(data_df):
         optimized_offsets (pandas series)
 
     """
-    # Calculate the sum of probe medians
+    # Calculate probe medians
     probe_medians = data_df.median(axis=1)
-    sum_of_probe_medians = probe_medians.sum()
 
-    # Calculate the sum of each sample in data_df
-    sum_of_sample_values = data_df.sum()
+    # Initialize output
+    optimized_offsets = pd.Series(np.full((data_df.shape[1]), np.nan), index=data_df.columns)
 
-    num_probes = float(data_df.shape[0])
-    optimized_offsets = (sum_of_probe_medians - sum_of_sample_values) / num_probes
+    for col in data_df:
+
+        # Determine which probes have missing data
+        bool_array_of_not_nan = pd.notnull(data_df.loc[:, col])
+
+        # Take the sum of only those probe medians
+        this_sum_of_probe_medians = probe_medians.loc[bool_array_of_not_nan].sum()
+
+        # Calculate the sum of values for this sample (NaN excluded by default)
+        this_sum_of_sample_values = data_df.loc[:, col].sum()
+
+        # Count number of non-NaN probes
+        num_probes = bool_array_of_not_nan.sum()
+
+        # Calculate offset
+        this_offset = (this_sum_of_probe_medians - this_sum_of_sample_values) / num_probes
+
+        # Append offset
+        optimized_offsets[col] = this_offset
 
     return optimized_offsets
 

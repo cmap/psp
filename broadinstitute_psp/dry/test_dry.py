@@ -754,25 +754,21 @@ class TestDry(unittest.TestCase):
         self.assertTrue(np.array_equal(out_gct.col_metadata_df, e_col_meta),
                         "col_metadata_df is wrong: \n{}".format(out_gct.col_metadata_df))
 
-    def test_new_algorithm_for_calculating_offsets(self):
+    def test_calculate_offsets_analytically(self):
         # Case 1
         df = pd.DataFrame([[10, -3, 1.2],
-                           [0.45, 0.2, -0.1],
-                           [4.5, -4, 0.3]], dtype=float)
-        (_, old_offsets, _) = dry.calculate_distances_and_optimize(df, (-7, 7))
-        new_offsets = dry.new_algorithm_for_calculating_offsets(df)
-        self.assertTrue(np.allclose(old_offsets, new_offsets, atol=1e-2),
-                        ("\nold_offsets:\n{} " +
-                         "\nnew_offsets:\n{}").format(old_offsets, new_offsets))
+                           [0.45, 0.2, np.nan],
+                           [4.5, -4, 0.3]], dtype=float, columns=["b", "c", "a"])
+        e_offsets = pd.Series([-4.375, 2.875, 0.0], index=["b", "c", "a"])
+        offsets = dry.calculate_offsets_analytically(df)
+        pd.util.testing.assert_series_equal(e_offsets, offsets)
 
         # Case 2
         df2 = pd.DataFrame([[1, 3, 7],
-                           [2, 5, 11]], dtype=float)
-        (_, old_offsets2, _) = dry.calculate_distances_and_optimize(df2, (-7, 7))
-        new_offsets2 = dry.new_algorithm_for_calculating_offsets(df2)
-        self.assertTrue(np.allclose(old_offsets2, new_offsets2, atol=1e-2),
-                        ("\nold_offsets2:\n{} " +
-                         "\nnew_offsets2:\n{}").format(old_offsets2, new_offsets2))
+                           [2, 5, 11]], dtype=float, columns=["b", "c", "a"])
+        e_offsets2 = pd.Series([2.5, 0, -5], index=["b", "c", "a"])
+        offsets2 = dry.calculate_offsets_analytically(df2)
+        pd.util.testing.assert_series_equal(e_offsets2, offsets2)
 
 
 if __name__ == "__main__":
