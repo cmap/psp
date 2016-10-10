@@ -26,21 +26,37 @@ FUNCTIONAL_TESTS_DIR = "dry/functional_tests"
 # Set to false if you want to see what output is created
 CLEANUP = True
 
-# N.B. e_out is expected_output.
+
 class TestDry(unittest.TestCase):
 
+    def test_main(self):
+        psp_config_path = "psp_production.cfg"
+        input_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_dry_main_p100.gct")
+        out_gct_name = "dry_test_main_output.gct"
+        out_pw_name = "dry_test_main_output.pw"
+
+        # Happy path
+        args_string = "-i {} -o {} -og {} -op {} -p {}".format(
+            input_gct_path, FUNCTIONAL_TESTS_DIR, out_gct_name, out_pw_name, psp_config_path)
+        args = dry.build_parser().parse_args(args_string.split())
+        dry.main(args)
+
+        if CLEANUP:
+            os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, out_gct_name))
+            os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, out_pw_name))
+
     def test_read_dry_gct_and_config_file(self):
-        PSP_CONFIG_PATH = "psp_production.cfg"
-        INPUT_GCT_PATH = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate29_3H.gct")
-        e_data_df_shape = (96, 96)
+        psp_config_path = "psp_production.cfg"
+        input_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_dry_main_p100.gct")
+        e_data_df_shape = (96, 95)
         e_assay_type = "p100"
-        e_prov_code = ["PRM", "L2X"]
+        e_prov_code = ["DIA1", "L2X"]
         e_gcp_norm_peptide = "BI10052"
 
         # Happy path
         (out_gct, out_assay_type, out_prov_code, config_io, config_metadata,
          config_parameters) = dry.read_dry_gct_and_config_file(
-            INPUT_GCT_PATH, PSP_CONFIG_PATH, None)
+            input_gct_path, psp_config_path, None)
 
         self.assertEqual(out_gct.data_df.shape, e_data_df_shape,
                          ("The expected shape of the data matrix is {}, " +
@@ -59,7 +75,7 @@ class TestDry(unittest.TestCase):
         # Check that force-assay works
         e_forced_assay_type = "gcp"
         (_, out_forced_assay_type, _, _, _, _) = dry.read_dry_gct_and_config_file(
-            INPUT_GCT_PATH, PSP_CONFIG_PATH, "GR1")
+            input_gct_path, psp_config_path, "GR1")
         self.assertEqual(out_forced_assay_type, e_forced_assay_type,
                          ("The expected assay type is {}, " +
                           "not {}").format(e_forced_assay_type, out_forced_assay_type))

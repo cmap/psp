@@ -62,17 +62,23 @@ def build_parser():
     parser.add_argument("--no_optim", "-no", action="store_true", default=False,
                         help="whether to perform P100 load balancing optimization")
     parser.add_argument("--ignore_subset_norm", "-ig", action="store_true", default=False,
-                        help="whether to perform subset-specific normalization")
+                        help="whether to ignore subset-specific normalization")
 
     # Parameters
     parser.add_argument("--sample_frac_cutoff", "-sfc", type=float, default=None,
-                        help=("if None, assay-specific default value from " +
-                              "config file will be used"))
+                        help=("fraction of probes that must be measured in " +
+                              "a sample to avoid the sample being filtered " +
+                              "out; if None, assay-specific default value " +
+                              "from config file will be used"))
     parser.add_argument("--probe_frac_cutoff", "-pfc", type=float, default=None,
-                        help=("if None, assay-specific default value from " +
+                        help=("fraction of samples in which a probe must be " +
+                              "measured to avoid the probe being filtered " +
+                              "out; if None, assay-specific default value from " +
                               "config file will be used"))
     parser.add_argument("--probe_sd_cutoff", "-psc", type=float, default=None,
-                        help=("if None, assay-specific default value from " +
+                        help=("the SD of a probe must be less than this cutoff " +
+                              "to avoid being filtered out; if None, " +
+                              "assay-specific default value from " +
                               "config file will be used"))
     parser.add_argument("--dist_sd_cutoff", "-dsc", type=float, default=5,
                         help=("maximum SD for a sample's distance metric " +
@@ -94,7 +100,7 @@ def main(args):
     """
     ### READ GCT AND CONFIG FILE
     (in_gct, assay_type, prov_code, config_io, config_metadata, config_parameters) = (
-        read_gct_and_config_file(
+        read_dry_gct_and_config_file(
             args.in_gct_path, args.psp_config_path, args.force_assay))
 
     ### LOG TRANSFORM
@@ -111,7 +117,9 @@ def main(args):
         hist_norm_gct, assay_type, args.sample_frac_cutoff, args.probe_frac_cutoff,
         args.probe_sd_cutoff, config_parameters,
         config_metadata["manual_rejection_field"],
-        prov_code, config_metadata["sample_filter_prov_code_entry"])
+        prov_code, config_metadata["sample_filter_prov_code_entry"],
+        config_metadata["manual_probe_reject_prov_code_entry"],
+        config_metadata["probe_filter_prov_code_entry"])
 
     ### APPLY OFFSETS IF NEEDED (if P100)
     (offset_gct, dists, offsets, prov_code) = p100_calculate_dists_and_apply_offsets_if_needed(
