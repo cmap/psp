@@ -14,10 +14,10 @@ import broadinstitute_psp.utils.setup_logger as setup_logger
 
 # Location of gcts processed using R code
 gct_loc_r_code = "/cmap/data/proteomics/produced_by_jjaffe_code/dry/wget_processed/"
-gct_r_code_suffix = "*.gct"
+gct_r_code_suffix = "*GCP*.gct"
 
 # Location of gcts processed using dry
-gct_loc_dry = "/cmap/data/proteomics/dry/"
+gct_loc_dry = "/cmap/data/proteomics/dry/2016-10-10/"
 
 # Suffix for files created with dry
 dry_suffix = ".gct.dry.processed.gct"
@@ -76,6 +76,7 @@ for dry_file, r_file in zip(dry_files, r_files):
             pd.util.testing.assert_frame_equal(dry_gct.col_metadata_df, r_gct.col_metadata_df, obj="col_metadata_df")
     except:
         failed_col_metadata.append(dry_file)
+        logger.info("failed_col_metadata: {}".format(dry_file))
 
 
     # Check row metadata
@@ -89,30 +90,24 @@ for dry_file, r_file in zip(dry_files, r_files):
     atol = 0.1
     abs_diffs = abs(dry_gct.data_df.subtract(r_gct.data_df, axis=1).values.flatten())
     logger.info("number of differences > {}: {}".format(atol, (abs_diffs > atol).sum()))
-    mean_diff = np.nanmean(abs_diffs)
+    mean_diff = np.nanmedian(abs_diffs)
     logger.info("mean_abs_diff: {}".format(mean_diff))
     mean_diffs = np.append(mean_diffs, mean_diff)
 
-    # Check data in 2 stages
     try:
         # Check that 5 digits are correct
         pd.util.testing.assert_frame_equal(dry_gct.data_df, r_gct.data_df, obj="data_df_strict")
 
     except:
+        failed_data.append(dry_file)
+        logger.info("failed_data: {}".format(dry_file))
 
-        try:
-            # Check that first digit is correct
-            pd.util.testing.assert_frame_equal(dry_gct.data_df, r_gct.data_df,
-                                               check_less_precise=0, obj="data_df_lenient")
 
-        except:
-            failed_data.append(dry_file)
-
-logger.info("total number of comparisons: {}".format(len(dry_files)))
+logger.info("\ntotal number of comparisons: {}".format(len(dry_files)))
 logger.info("number of failed data comparisons: {}".format(len(failed_data)))
 logger.info("number of failed col_metadata comparisons: {}".format(len(failed_col_metadata)))
 logger.info("number of failed row_metadata comparisons: {}".format(len(failed_row_metadata)))
-logger.info("average of average differences: {}".format(np.mean(mean_diffs)))
+logger.info("median of average differences: {}".format(np.median(mean_diffs)))
 
 ### Results:
 # - All GCP plates pass
@@ -120,3 +115,10 @@ logger.info("average of average differences: {}".format(np.mean(mean_diffs)))
 #       of samples with pretty big deviations; however, the average difference
 #       of differences for P100 plates is 0.0259
 # - P100, PRM, plate 26 removes 1 sample by distance filtration, even though R code doesn't
+
+
+# (2016-10-05) I think I meant to write P100, PRM, Plate 29, 06H; Plate 26
+# doesn't exist for either P100 or GCP.
+
+# (2016-10-10)
+# All GCP and P100 plates pass, except for P100, PRM, plate 26
