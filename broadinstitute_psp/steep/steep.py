@@ -5,7 +5,7 @@ Computes similarity (Pearson or Spearman correlation).
 
 If given 1 gct, steep will compute all pairwise similarities between its columns.
 If given 2 gcts, steep will compute pairwise similarities between the columns of
-gct1 and the columns of gct2.
+gct1 and the columns of gct2 (samples from gct1 will be in the rows).
 
 Required input is a path to a gct file. Output is a gct file containing a
 similarity matrix.
