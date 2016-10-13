@@ -12,7 +12,7 @@ import argparse
 import pandas as pd
 
 import utils.setup_logger as setup_logger
-import cmap.io.GCToo.ds_slice as ds_slice
+import cmap.io.GCToo.slice_gct as slice_gct
 import cmap.io.GCToo.parse_gctoo as pg
 import cmap.io.GCToo.write_gctoo as wg
 
@@ -86,7 +86,7 @@ def separate(in_gct, separate_field, row_or_col):
         for val in unique_values_in_field:
             bool_array = in_gct.row_metadata_df.loc[:, separate_field].values == val
 
-            new_gct = ds_slice.ds_slice(in_gct, row_bool=bool_array)
+            new_gct = slice_gct.slice_gctoo(in_gct, row_bool=bool_array)
             gcts.append(new_gct)
 
     elif row_or_col == "col":
@@ -100,7 +100,7 @@ def separate(in_gct, separate_field, row_or_col):
         gcts = []
         for val in unique_values_in_field:
             bool_array = in_gct.col_metadata_df.loc[:, separate_field].values == val
-            new_gct = ds_slice.ds_slice(in_gct, col_bool=bool_array)
+            new_gct = slice_gct.slice_gctoo(in_gct, col_bool=bool_array)
             gcts.append(new_gct)
 
     else:
