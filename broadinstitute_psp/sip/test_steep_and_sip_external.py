@@ -39,6 +39,9 @@ class TestSteepAndSipExternal(unittest.TestCase):
         pd.util.testing.assert_frame_equal(expected_conn_gct.row_metadata_df, actual_conn_gct.row_metadata_df)
         pd.util.testing.assert_frame_equal(expected_conn_gct.col_metadata_df, actual_conn_gct.col_metadata_df)
 
+        os.remove(out_steep_path)
+        os.remove(out_sip_path)
+
 
 if __name__ == '__main__':
     unittest.main()
