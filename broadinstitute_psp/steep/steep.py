@@ -149,9 +149,9 @@ def compute_similarity_within_df(df, similarity_metric):
 
     """
     # Compute similarity
-    if similarity_metric is "pearson":
+    if similarity_metric == "pearson":
         out_df = df.corr(method="pearson")
-    elif similarity_metric is "spearman":
+    elif similarity_metric == "spearman":
         out_df = df.corr(method="spearman")
     else:
         err_msg = ("similarity metric must be 'pearson' or 'spearman'. " +
