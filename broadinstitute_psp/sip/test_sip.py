@@ -364,5 +364,5 @@ class TestSip(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    setup_logger.setup(verbose=False)
+    setup_logger.setup(verbose=True)
     unittest.main()

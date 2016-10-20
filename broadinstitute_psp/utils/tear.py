@@ -3,7 +3,6 @@
 Converts level 3 to level 4 data. Required input is a filepath to a gct file and
 a filepath to an output file. Output is writing a processed gct file.
 
-
 N.B. This script requires a configuration file. You can specify the location
 of this config file with the optional argument -psp_config_path. Otherwise,
 it will look for the example configuration file (example_psp.cfg) in the
@@ -13,11 +12,12 @@ TODO(lev) --> Example usage:
 
 """
 
-import logging
 import argparse
+import logging
 import sys
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
+import broadinstitute_psp.utils.psp_utils as psp_utils
 import broadinstitute_psp.dry.dry as dry
 
 __author__ = "Lev Litichevskiy"
@@ -27,6 +27,7 @@ __email__ = "lev@broadinstitute.org"
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
 ZSCORE_PROV_CODE_ENTRY = "ZSC"
+PROV_CODE_FIELD = "provenance"
 
 # TODO(lev): fix me up
 
@@ -55,9 +56,13 @@ def build_parser():
 
 def main(args):
     # Read gct and config file
-    (in_gct, _, prov_code, config_io, config_metadata, _) = (
-        dry.read_dry_gct_and_config_file(
-            args.gct_path, args.psp_config_path, None))
+    (in_gct, config_io, config_metadata, _) = (
+        psp_utils.read_gct_and_config_file(args.gct_path, args.psp_config_path))
+
+    # Extract provenance code
+    prov_code = psp_utils.extract_prov_code(
+        in_gct.col_metadata_df, config_metadata["prov_code_field"],
+        config_metadata["prov_code_delimiter"])
 
     # Robust z-score
     zscored_df = robust_zscore(in_gct.data_df)

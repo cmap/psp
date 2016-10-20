@@ -138,6 +138,6 @@ def main(args):
 
 if __name__ == "__main__":
     args = build_parser().parse_args(sys.argv[1:])
-    setup_logger.setup(verbose = args.verbose)
+    setup_logger.setup(verbose=args.verbose)
 
     main(args)
