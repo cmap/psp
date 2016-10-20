@@ -98,10 +98,9 @@ class TestDry(unittest.TestCase):
         assay_out = dry.check_assay_type(assay_type, p100, gcp)
         self.assertEqual(assay_out, "p100")
 
-
     def test_log_transform_if_needed(self):
         prov_code = ["GR1", "L2X"]
-        in_df = pd.DataFrame([[10, -3, 1.2],
+        in_df = pd.DataFrame([[10, 3, 1.2],
                               [0.45, 0.2, 0],
                               [4.5, np.nan, 0.3]], dtype=float)
 
@@ -117,15 +116,19 @@ class TestDry(unittest.TestCase):
         (_, out_prov_code2) = dry.log_transform_if_needed(in_gct, prov_code2, "L2X")
         self.assertEqual(out_prov_code2, prov_code)
 
+        in_gct.data_df.iloc[0, 1] = -3
+        with self.assertRaises(AssertionError) as e:
+            (_, _) = dry.log_transform_if_needed(in_gct, prov_code2, "L2X")
+        self.assertIn("data_df should not contain negative", str(e.exception))
 
     def test_log_transform(self):
-        in_df = pd.DataFrame([[10, -3, 1.2],
+        in_df = pd.DataFrame([[10, 3, 1.2],
                               [0.45, 0.2, 0],
                               [4.5, np.nan, 0.3]], dtype=float)
-        e_df = pd.DataFrame([[3.322, np.nan, 0.263],
+        e_df = pd.DataFrame([[3.322, 1.585, 0.263],
                              [-1.152, -2.322, np.nan],
                              [2.170, np.nan, -1.737]], dtype=float)
-        out_df = dry.log_transform(in_df, log_base=2)
+        out_df = dry.log_transform(in_df, 2)
         self.assertTrue(np.allclose(out_df, e_df, atol=1e-3, equal_nan=True),
                         ("\nExpected output:\n{} " +
                          "\nActual output:\n{}").format(e_df, out_df))
