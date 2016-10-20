@@ -31,8 +31,8 @@ from scipy import stats
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import broadinstitute_psp.utils.psp_utils as utils
-import cmap.io.GCToo.GCToo as GCToo
-import cmap.io.GCToo.write_gctoo as wg
+import broadinstitute_cmap.io.GCToo.GCToo as GCToo
+import broadinstitute_cmap.io.GCToo.write_gctoo as wg
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"

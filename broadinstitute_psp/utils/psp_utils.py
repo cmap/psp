@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 
-import cmap.io.GCToo.parse_gctoo as pg
+import broadinstitute_cmap.io.GCToo.parse_gctoo as pg
 
 
 def read_gct_and_config_file(gct_path, config_path):

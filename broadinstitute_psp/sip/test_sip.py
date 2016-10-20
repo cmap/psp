@@ -6,7 +6,7 @@ import pandas as pd
 import scipy.stats as stats
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import cmap.io.GCToo.parse_gctoo as pg
+import broadinstitute_cmap.io.GCToo.parse_gctoo as pg
 import sip
 
 # Setup logger

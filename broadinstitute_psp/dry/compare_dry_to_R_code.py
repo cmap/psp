@@ -9,7 +9,7 @@ import numpy as np
 import logging
 import pandas as pd
 
-import cmap.io.GCToo.parse_gctoo as pg
+import broadinstitute_cmap.io.GCToo.parse_gctoo as pg
 import broadinstitute_psp.utils.setup_logger as setup_logger
 
 # Location of gcts processed using R code

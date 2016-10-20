@@ -2,7 +2,7 @@ import unittest
 import os
 import pandas as pd
 
-import cmap.io.GCToo.parse_gctoo as pg
+import broadinstitute_cmap.io.GCToo.parse_gctoo as pg
 import steep_and_sip_external as sse
 
 FUNCTIONAL_TESTS_DIR = "sip/functional_tests"

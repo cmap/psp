@@ -2,7 +2,7 @@ import unittest
 import os
 import pandas as pd
 
-import cmap.io.GCToo.parse_gctoo as pg
+import broadinstitute_cmap.io.GCToo.parse_gctoo as pg
 import annotate_gct_from_mapping as agfm
 
 functional_tests_dir = "utils/functional_tests/"

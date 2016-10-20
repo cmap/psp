@@ -1,11 +1,11 @@
-import unittest
 import logging
 import os
 import pandas as pd
+import unittest
 
-import broadinstitute_psp.utils.setup_logger as setup_logger
-import cmap.io.GCToo.parse_gctoo as pg
+import broadinstitute_cmap.io.GCToo.parse_gctoo as pg
 import broadinstitute_psp.utils.separate_gct as sg
+import broadinstitute_psp.utils.setup_logger as setup_logger
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 

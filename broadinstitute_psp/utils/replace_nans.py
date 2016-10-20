@@ -12,9 +12,9 @@ import os
 import sys
 
 import utils.setup_logger as setup_logger
-import cmap.io.GCToo.GCToo as GCToo
-import cmap.io.GCToo.parse_gctoo as pg
-import cmap.io.GCToo.write_gctoo as wg
+import broadinstitute_cmap.io.GCToo.GCToo as GCToo
+import broadinstitute_cmap.io.GCToo.parse_gctoo as pg
+import broadinstitute_cmap.io.GCToo.write_gctoo as wg
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 

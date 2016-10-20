@@ -12,9 +12,9 @@ import glob
 import os
 import numpy as np
 
-import cmap.io.GCToo.GCToo as GCToo
-import cmap.io.GCToo.parse_gctoo as pg
-import cmap.io.GCToo.write_gctoo as wg
+import broadinstitute_cmap.io.GCToo.GCToo as GCToo
+import broadinstitute_cmap.io.GCToo.parse_gctoo as pg
+import broadinstitute_cmap.io.GCToo.write_gctoo as wg
 
 
 def build_parser():

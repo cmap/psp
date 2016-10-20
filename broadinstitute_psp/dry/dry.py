@@ -21,8 +21,8 @@ import copy
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import broadinstitute_psp.utils.psp_utils as psp_utils
-import cmap.io.GCToo.GCToo as GCToo
-import cmap.io.GCToo.write_gctoo as wg
+import broadinstitute_cmap.io.GCToo.GCToo as GCToo
+import broadinstitute_cmap.io.GCToo.write_gctoo as wg
 import broadinstitute_psp.utils.qc_gct2pw as gct2pw
 
 __author__ = "Lev Litichevskiy"

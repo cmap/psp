@@ -20,8 +20,8 @@ import argparse
 import pandas as pd
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import cmap.io.GCToo.parse_gctoo as pg
-import cmap.io.GCToo.write_gctoo as wg
+import broadinstitute_cmap.io.GCToo.parse_gctoo as pg
+import broadinstitute_cmap.io.GCToo.write_gctoo as wg
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"

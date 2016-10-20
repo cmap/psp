@@ -16,7 +16,7 @@ import pandas as pd
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import broadinstitute_psp.utils.psp_utils as utils
-import cmap.io.GCToo.parse_gctoo as pg
+import broadinstitute_cmap.io.GCToo.parse_gctoo as pg
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
