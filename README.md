@@ -8,7 +8,7 @@ A dependency of PSP is the [l1ktools repository](https://github.com/cmap/l1ktool
 
 Lev Litichevskiy  
 lev@broadinstitute.org  
-August 2016
+October 2016
 
 ## Setting up your environment
 
@@ -25,7 +25,7 @@ August 2016
   5. We will now create an environment with conda that will allow us to use PSP. Type the following in your Terminal:
 
       ```
-      conda create --name psp_env python=2 numpy scipy pandas pytables
+      conda create --name psp_env python=2 numpy scipy pandas matplotlib 
       ```
       
       'psp_env' will be the name of your conda environment, and the things after it are the packages that you want that environment to contain. Note that we are using python2, rather than python3. Click 'yes' through the various installation steps.
@@ -36,7 +36,7 @@ August 2016
       (psp_env) /Users/lev/code/proteomics-signature-pipeline $
       ```
 
-  7. We will now run a script to make our environment aware of the contents of the PSP repository that we cloned. Make sure you are in the directory where you cloned your repository (e.g. `/Users/lev/code/proteomics-signature-pipeline`), and then type:
+  7. We will now run a script to make our environment aware of the contents of the PSP repository that we cloned. Move to the top directory of your cloned repository (e.g. `/Users/lev/code/proteomics-signature-pipeline`), and then type:
 
       ```
       python setup_psp.py develop
@@ -44,24 +44,24 @@ August 2016
 
   8. This repository is dependent on another repository ([l1ktools](https://github.com/cmap/l1ktools "l1ktools")) for the code that parses and writes gct and gctx files. So you must also clone l1ktools onto your computer (like step 1). For example, I cloned l1ktools into `/Users/lev/code/l1ktools`.   
   
-  9. We will now a run a script to make our environment aware of files that we need. (You may need to checkout a different branch first: try `git checkout add_GCToo`.) Navigate to the `io` folder and run another setup script by typing the following:
+  9. We will now a run a script to make our environment aware of files that we need. (You may need to checkout a different branch first; try `git checkout develop`.) Move to the `python` directory and run another setup script by typing the following:
     
       ```
-      cd python/cmap/io
-      python setup_GCToo.py develop
+      cd /Users/lev/code/l1ktools/python/
+      python setup.py develop
       ```
   
-  10. That's it! To make sure that everything has been set up correctly, navigate back to top directory of PSP and try executing one of the Python test scripts:
+  10. That's it! To make sure that everything has been set up correctly, navigate to the `broadinstitute_psp` directory of PSP and try executing one of the Python test scripts:
 
       ```
-      cd /Users/lev/code/proteomics-signature-pipeline
+      cd /Users/lev/code/proteomics-signature-pipeline/broadinstitute_psp/
       python dry/test_dry.py
       ```
       
-      Note that PSP can be run from anywhere. So you could run Python scripts by supplying their full paths. For example:
+      Test files should be executed from the `broadinstitute_psp` directory, but other scripts can be run from anywhere. For example, you could run dry from anywhere by supplying the full path to the script. For example:
       
       ```
-      python /Users/lev/code/proteomics-signature-pipeline/dry/test_dry.py
+      python /Users/lev/code/proteomics-signature-pipeline/broadinstitute_psp/dry/dry.py --help
       ```
       
       However, before doing this, make sure to check out the section below about the configuration file.
@@ -69,15 +69,10 @@ August 2016
 ### To set up your environment after the first time:
 
   1. Activate your conda environment by typing `source activate psp_env`, or if you are on a Windows computer, `activate psp_env`.
-  2. It's easiest to run your code from the top directory of the PSP repo, so navigate to that directory (the one that contains the dry, steep, etc. directories). For example,
-  
-    ```
-    cd /Users/lev/code/proteomics-signature-pipeline
-    ```
+  2. It's easiest to run your code from the `broadinstitute_psp` directory (the one that contains the dry, steep, etc. directories), so move there and try executing one of the test_scripts again:
     
-  3. To make sure again that everything is set up correctly, try executing one of the test scripts again:
-
       ```
+      cd /Users/lev/code/proteomics-signature-pipeline/broadinstitute_psp
       python dry/test_dry.py
       ```
 
@@ -89,7 +84,7 @@ Several of the files in PSP -- such as dry, steep, and sip -- require a configur
 
 ### Use Case 1: dry
 
-You have downloaded an unprocessed gct from Panorama and want to be able to process it (in other words, go from level 2 to level 3 data). You need to use dry.py for this. Navigate to the top directory of the PSP repository, and type the following in your command line:
+You have downloaded an unprocessed gct from Panorama and want to be able to process it (in other words, go from level 2 to level 3 data). You need to use dry.py for this. Navigate to the `broadinstitute_psp` directory of the PSP repository, and type the following in your command line:
 
 ```
 python dry/dry.py --in_gct_path /Users/lev/Downloads/unprocessed.gct
@@ -99,7 +94,7 @@ Two output files will be saved to your current directory: the GCT file containin
 
 ### Use Case 2: steep
 
-You have a gct file of new data that you received from a collaborator. You are interested in seeing how it compares to a plate of data that you've made in the past. One way you can do this is by computing the Spearman correlation between each sample of new data with each sample of old data. You need to use steep.py for this. Navigate to the top directory of the PSP repository, and type the following in your command line:
+You have a gct file of new data that you received from a collaborator. You are interested in seeing how it compares to a plate of data that you've made in the past. One way you can do this is by computing the Spearman correlation between each sample of new data with each sample of old data. You need to use steep.py for this. Navigate to the `broadinstitute_psp` directory of the PSP repository, and type the following in your command line:
 
 ```
 python steep/steep.py --in_gct_path /Users/lev/Downloads/new_data.gct --in_gct2_path /Users/lev/old_data.gct
@@ -109,7 +104,7 @@ One output file will be saved to your current directory: the GCT file containing
 
 ### Use Case 3: sip
 
-You have the similarity matrix from Use Case 2. Now, you want to know how these similarities compare to all the other stuff that old_data.gct has been compared to before; in other words, you want to compare your similarity to the similarity matrix of the "build" or the "corpus." You need to use sip.py for this. Navigate to the top directory of the PSP repository, and type the following in your command line:
+You have the similarity matrix from Use Case 2. Now, you want to know how these similarities compare to all the other stuff that old_data.gct has been compared to before; in other words, you want to compare your similarity to the similarity matrix of the "build" or the "corpus." You need to use sip.py for this. Navigate to the `broadinstitute_psp` directory of the PSP repository, and type the following in your command line:
 
 ```
 python sip/sip.py --test_gct_path ./steep_output.gct --bg_gct_path /Users/lev/build_similarity_matrix.gct
@@ -122,21 +117,21 @@ One output file will be saved to your current directory: the GCT file containing
 A. You have a bunch of files that start with 'LINCS_GCP' in your Downloads folder that you want to concatenate. Type the following in your command line:
 
 ```
-python /Users/lev/code/l1ktools/python/cmap/io/GCToo/concat_gctoo.py --file_wildcard '/Users/lev/Downloads/LINCS_GCP*'
+python /Users/lev/code/l1ktools/python/broadinstitute_cmap/io/GCToo/concat_gctoo.py --file_wildcard '/Users/lev/Downloads/LINCS_GCP*'
 ```
 
-This will save a file called `concated.gct` in your current directory.  
+This will save a file called `concated.gct` in your current directory.  Make sure that the wildcard is in quotes!
 
 B. You have 2 files that you want to concatenate: /Users/lev/file_to_concatenate1.gct and /Users/lev/file_to_concatenate2.gct. Type the following in your command line:
 
 ```
-python /Users/lev/code/l1ktools/python/cmap/io/GCToo/concat_gctoo.py --list_of_gct_paths /Users/lev/file_to_concatenate1.gct /Users/lev/file_to_concatenate2.gct
+python /Users/lev/code/l1ktools/python/broadinstitute_cmap/io/GCToo/concat_gctoo.py --list_of_gct_paths /Users/lev/file_to_concatenate1.gct /Users/lev/file_to_concatenate2.gct
 ```
 
 C. You have 2 GCToo objects in memory that you want to concatenate. hstack is the method in concat_gctoo.py that actually does the concatenation. From within the Python console or script where you have your 2 GCToos (gct1 & gct2), type the following:
 
 ```
-import cmap.io.GCToo.concat_gctoo as cg
+import broadinstitute_cmap.io.GCToo.concat_gctoo as cg
 concated = cg.hstack([gct1, gct2])
 ```
 
