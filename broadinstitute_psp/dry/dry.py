@@ -9,21 +9,18 @@ with QC information.
 
 """
 
-import logging
-import ConfigParser
 import argparse
-import sys
-import os
+import logging
 import numpy as np
+import os
 import pandas as pd
-from scipy.optimize import minimize_scalar
-import copy
+import sys
 
-import broadinstitute_psp.utils.setup_logger as setup_logger
-import broadinstitute_psp.utils.psp_utils as psp_utils
 import broadinstitute_cmap.io.GCToo.GCToo as GCToo
 import broadinstitute_cmap.io.GCToo.write_gctoo as wg
 import broadinstitute_psp.utils.qc_gct2pw as gct2pw
+import broadinstitute_psp.utils.psp_utils as psp_utils
+import broadinstitute_psp.utils.setup_logger as setup_logger
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
@@ -327,6 +324,10 @@ def log_transform_if_needed(gct, prov_code, prov_code_entry):
         logger.info("{} has already occurred.".format(prov_code_entry))
         updated_prov_code = prov_code
     else:
+        assert not (gct.data_df < 0).sum().sum(), (
+            "data_df should not contain negative values. gct.data_df:\n{}".format(
+                gct.data_df))
+
         out_gct.data_df = log_transform(gct.data_df, log_base=2)
         updated_prov_code = prov_code + [prov_code_entry]
 
