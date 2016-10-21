@@ -371,7 +371,7 @@ def gcp_histone_normalize_if_needed(gct, assay_type, gcp_normalization_peptide_i
             one row removed from each if normalization occurred
         updated_prov_code (list of strings)
     """
-    if assay_type is "gcp" and (gcp_normalization_peptide_id is not None):
+    if assay_type == "gcp" and (gcp_normalization_peptide_id is not None):
         # Perform normalization
         out_df = gcp_histone_normalize(gct.data_df, gcp_normalization_peptide_id)
 
@@ -505,25 +505,25 @@ def check_assay_specific_thresh(assay_type, sample_frac_cutoff, probe_frac_cutof
 
     """
     if sample_frac_cutoff is None:
-        if assay_type is "p100":
+        if assay_type == "p100":
             sample_frac_cutoff_out = float(config_parameters["p100_sample_frac_cutoff"])
-        elif assay_type is "gcp":
+        elif assay_type == "gcp":
             sample_frac_cutoff_out = float(config_parameters["gcp_sample_frac_cutoff"])
     else:
         sample_frac_cutoff_out = sample_frac_cutoff
 
     if probe_frac_cutoff is None:
-        if assay_type is "p100":
+        if assay_type == "p100":
             probe_frac_cutoff_out = float(config_parameters["p100_probe_frac_cutoff"])
-        elif assay_type is "gcp":
+        elif assay_type == "gcp":
             probe_frac_cutoff_out = float(config_parameters["gcp_probe_frac_cutoff"])
     else:
         probe_frac_cutoff_out = probe_frac_cutoff
 
     if probe_sd_cutoff is None:
-        if assay_type is "p100":
+        if assay_type == "p100":
             probe_sd_cutoff_out = float(config_parameters["p100_probe_sd_cutoff"])
-        elif assay_type is "gcp":
+        elif assay_type == "gcp":
             probe_sd_cutoff_out = float(config_parameters["gcp_probe_sd_cutoff"])
     else:
         probe_sd_cutoff_out = probe_sd_cutoff
@@ -645,7 +645,7 @@ def p100_calculate_dists_and_apply_offsets_if_needed(gct, assay_type, no_optim_b
 
     """
     # P100
-    if assay_type is "p100":
+    if assay_type == "p100":
         if not no_optim_bool:
             # Perform optimization and return offsets and distances
             (out_df, offsets, dists) = (
@@ -839,7 +839,7 @@ def p100_filter_samples_by_dist(gct, assay_type, offsets, dists,
 
     """
     # P100
-    if assay_type is "p100":
+    if assay_type == "p100":
 
         (out_df, out_offsets) = remove_sample_outliers(gct.data_df, offsets, dists, dist_sd_cutoff)
         prov_code_entry_formatted = "{}{:.0f}".format(prov_code_entry, dist_sd_cutoff)
