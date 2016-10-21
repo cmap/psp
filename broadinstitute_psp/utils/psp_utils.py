@@ -11,10 +11,7 @@ def read_gct_and_config_file(gct_path, config_path):
     """Read gct and config file.
 
     The config file has three sections: io, metadata, and parameters.
-    These are returned as dictionaries. The field "nan_values" in "io" indicates
-    what values to consider NaN when reading in the gct file. The fields
-    "gcp_assays" and "p100_assays" are used to figure out if the given
-    assay type is P100 or GCP.
+    These are returned as dictionaries.
 
     Args:
         gct_path (string): filepath to gct file
@@ -37,12 +34,8 @@ def read_gct_and_config_file(gct_path, config_path):
     config_metadata = dict(config_parser.items("metadata"))
     config_parameters = dict(config_parser.items("parameters"))
 
-    # Extract what values to consider NaN
-    # N.B. eval used to convert string to list
-    psp_nan_values = eval(config_io["nan_values"])
-
     # Parse the gct file and return GCToo object
-    gct = pg.parse(gct_path, nan_values=psp_nan_values)
+    gct = pg.parse(gct_path, convert_neg_666=False)
 
     return gct, config_io, config_metadata, config_parameters
 
