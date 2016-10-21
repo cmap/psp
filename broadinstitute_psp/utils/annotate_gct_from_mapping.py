@@ -10,7 +10,7 @@ pert2       moa2        target2
 This script will add "to_field1" and "to_field2" as metadata fields and populate
 those fields using the given mapping. "from_field" in the tsv will be mapped to
 the argument "gct_from_field", which must already be in the gct file. Note that
-"from_field" in the mapping tsv file is not used.
+the "from_field" header in the mapping tsv file is not used.
 
 """
 
@@ -37,7 +37,7 @@ def build_parser():
 
     # Required args
     parser.add_argument("--path_to_gct", "-i", required=True,
-                        help="path to dictionary tsv")
+                        help="path to gct being annotated")
     parser.add_argument("--path_to_mapping_tsv", "-m", required=True,
                         help="path to mapping tsv")
 
@@ -48,7 +48,7 @@ def build_parser():
                         default="both",
                         help=("whether to apply the mapping to only the row metadata, " +
                               "only the col metadata, or both"))
-    parser.add_argument("--gct_from_field", "-f", default="pert_iname",
+    parser.add_argument("--gct_from_field", "-f", default="pert_id",
                         help="field already in the gct file")
     parser.add_argument("--missing_entry", "-me", default="NA",
                         help="what to put for an entry if it doesn't have a mapping")
