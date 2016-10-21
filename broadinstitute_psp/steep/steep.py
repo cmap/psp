@@ -122,9 +122,9 @@ def compute_similarity_bw_two_dfs(df1, df2, similarity_metric):
     df2_cols = range(df1.shape[1], df1.shape[1] + df2.shape[1])
 
     # Compute similarity
-    if similarity_metric is "pearson":
+    if similarity_metric == "pearson":
         full_df = df_concat.corr(method="pearson")
-    elif similarity_metric is "spearman":
+    elif similarity_metric == "spearman":
         full_df = df_concat.corr(method="spearman")
     else:
         err_msg = ("similarity metric must be 'pearson' or 'spearman'. " +
