@@ -15,8 +15,8 @@ class TestAnnotate(unittest.TestCase):
         expected_gct_path = os.path.join(functional_tests_dir, "test_annotate_gct_from_mapping_expected.gct")
         out_path = os.path.join(functional_tests_dir, "test_annotate_gct_from_mapping_out.gct")
 
-        args_string = "-i {} -m {} -o {}".format(
-            gct_path, mapping_path, out_path)
+        args_string = "-i {} -m {} -o {} -f {}".format(
+            gct_path, mapping_path, out_path, "pert_iname")
         args = agfm.build_parser().parse_args(args_string.split())
 
         agfm.main(args)
@@ -28,6 +28,9 @@ class TestAnnotate(unittest.TestCase):
         pd.util.testing.assert_frame_equal(e_gct.data_df, out_gct.data_df)
         pd.util.testing.assert_frame_equal(e_gct.row_metadata_df, out_gct.row_metadata_df)
         pd.util.testing.assert_frame_equal(e_gct.col_metadata_df, out_gct.col_metadata_df)
+
+        # Clean up
+        os.remove(out_path)
 
     def test_annotate_meta_df(self):
         meta_df = pd.DataFrame(
@@ -47,8 +50,6 @@ class TestAnnotate(unittest.TestCase):
         with self.assertRaises(AssertionError) as e:
             agfm.annotate_meta_df(meta_df, to_entries, "thing3", "NA")
         self.assertIn("gct_from_field must be a metadata header", str(e.exception))
-
-
 
 
 if __name__ == '__main__':
