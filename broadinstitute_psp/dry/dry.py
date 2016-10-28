@@ -31,6 +31,8 @@ logger = logging.getLogger(setup_logger.LOGGER_NAME)
 # Default output suffixes
 DEFAULT_GCT_SUFFIX = ".dry.processed.gct"
 DEFAULT_PW_SUFFIX = ".dry.processed.pw"
+CONSTANT_FOR_MAD = 0.6745
+MINIMUM_MAD = 1e-6
 
 
 def build_parser():
@@ -58,6 +60,9 @@ def build_parser():
                               "(overrides first entry of provenance code)"))
     parser.add_argument("--no_optim", "-no", action="store_true", default=False,
                         help="whether to perform P100 load balancing optimization")
+    parser.add_argument("--divide_by_mad", "-dm", action="store_true", default=False,
+                        help=("whether to divide by median absolute deviation " +
+                              "in addition to subtracting the probe median"))
     parser.add_argument("--ignore_subset_norm", "-ig", action="store_true", default=False,
                         help="whether to ignore subset-specific normalization")
 
@@ -132,7 +137,8 @@ def main(args):
 
     ### MEDIAN NORMALIZE
     (med_norm_gct, prov_code) = median_normalize(
-        filt_dist_gct, args.ignore_subset_norm, config_metadata["row_subset_field"],
+        filt_dist_gct, args.divide_by_mad, args.ignore_subset_norm,
+        config_metadata["row_subset_field"],
         config_metadata["col_subset_field"], prov_code,
         config_metadata["subset_normalize_prov_code_entry"],
         config_metadata["row_normalize_prov_code_entry"])
@@ -913,27 +919,27 @@ def median_normalize(gct, divide_by_mad, ignore_subset_norm, row_subset_field, c
         row_median_prov_code_entry (string)
 
     Returns:
-        gct (GCToo object): updated
+        out_gct (GCToo object)
         updated_prov_code (list of strings)
 
     """
-    # TODO(lev): fix this so that original gct does not get modified
-    out_gct = gct
-
     # Check if subsets_exist
     subsets_exist = check_for_subsets(gct.row_metadata_df, gct.col_metadata_df,
                                       row_subset_field, col_subset_field)
 
-    if (subsets_exist) and not ignore_subset_norm:
+    if subsets_exist and not ignore_subset_norm:
         logger.debug("Performing subset normalization.")
-        out_gct = subset_normalize(out_gct, divide_by_mad, row_subset_field, col_subset_field)
+        out_df = subset_normalize(gct, divide_by_mad, row_subset_field, col_subset_field)
         prov_code_entry = subset_prov_code_entry
         updated_prov_code = prov_code + [prov_code_entry]
     else:
         # Subtract median of whole row from each entry in the row
-        out_gct.data_df = row_median_normalize(out_gct.data_df, divide_by_mad)
+        out_df = row_median_normalize(gct.data_df, divide_by_mad)
         prov_code_entry = row_median_prov_code_entry
         updated_prov_code = prov_code + [prov_code_entry]
+
+    out_gct = GCToo.GCToo(data_df=out_df, row_metadata_df=gct.row_metadata_df,
+                          col_metadata_df=gct.col_metadata_df)
 
     return out_gct, updated_prov_code
 
@@ -988,16 +994,15 @@ def subset_normalize(gct, divide_by_mad, row_subset_field, col_subset_field):
         col_subset_field (string): col metadata field indicating the col subset group
 
     Returns:
-        gct (GCToo object): with normalized data
+        out_df (pandas df): with normalized data
     """
     # Create normalization ndarray
     norm_ndarray = make_norm_ndarray(gct.row_metadata_df, gct.col_metadata_df, row_subset_field, col_subset_field)
 
     # Iterate over norm ndarray and actually perform normalization
-    gct.data_df = iterate_over_norm_ndarray_and_normalize(gct.data_df, norm_ndarray, divide_by_mad)
+    out_df = iterate_over_norm_ndarray_and_normalize(gct.data_df, norm_ndarray, divide_by_mad)
 
-    # TODO(lev): redo so that only df is returned
-    return gct
+    return out_df
 
 # tested #
 def make_norm_ndarray(row_metadata_df, col_metadata_df, row_subset_field, col_subset_field):
@@ -1098,10 +1103,10 @@ def iterate_over_norm_ndarray_and_normalize(data_df, norm_ndarray, divide_by_mad
             if divide_by_mad:
                 mad = np.nanmedian(np.absolute(data_to_normalize - np.nanmedian(data_to_normalize)))
 
-                import pdb
-                pdb.set_trace()
+                # Set some minimum value for the MAD so as not to divide by 0
+                mad = max(mad, MINIMUM_MAD)
 
-                data_to_insert = (data_to_normalize - np.nanmedian(data_to_normalize)) / mad
+                data_to_insert = (data_to_normalize - np.nanmedian(data_to_normalize)) / (CONSTANT_FOR_MAD * mad)
 
             # Simply subtract median
             else:
@@ -1126,18 +1131,14 @@ def row_median_normalize(data_df, divide_by_mad):
     """
     if divide_by_mad:
 
-        import pdb
-        pdb.set_trace()
-
         # Calculate MAD
         mad = np.absolute(data_df.subtract(data_df.median(axis=1), axis=0)).median(axis=1)
 
         # Set some minimum value for the MAD so as not to divide by 0
-        minimum_mad = 1e-8
-        mad = min(mad, minimum_mad)
+        mad = mad.apply(max, args=(MINIMUM_MAD,))
 
         # Subtract median and divide by MAD
-        out_df = data_df.divide(data_df.subtract(data_df.median(axis=1), axis=0), mad)
+        out_df = (data_df.subtract(data_df.median(axis=1), axis=0)).divide(CONSTANT_FOR_MAD * mad, axis=0)
 
     # Simply subtract median
     else:

@@ -502,7 +502,7 @@ class TestDry(unittest.TestCase):
 
         # Subset normalize
         ignore_subset_norm = False
-        e_data = pd.DataFrame([[0, -0.5, 0.5], [0, -0.5, 0.5], [0, -0.5, 0.5],[0, -0.5, 0.5]],
+        e_data = pd.DataFrame([[0, -0.5, 0.5], [0, -0.5, 0.5], [0, -0.5, 0.5], [0, -0.5, 0.5]],
                             index=["a", "b", "c", "d"],
                             columns=["e", "f", "g"])
         e_prov_code = ["A", "B", "GMN"]
@@ -512,8 +512,6 @@ class TestDry(unittest.TestCase):
             "GMN", "RMN")
 
         self.assertTrue(np.allclose(out_gct.data_df, e_data, atol=1e-2))
-        self.assertTrue(np.array_equal(out_gct.row_metadata_df, row_meta))
-        self.assertTrue(np.array_equal(out_gct.col_metadata_df, col_meta))
         self.assertEqual(out_prov_code, e_prov_code)
 
         # Ordinary normalization
@@ -536,8 +534,6 @@ class TestDry(unittest.TestCase):
             "GMN", "RMN")
 
         self.assertTrue(np.allclose(out_gct2.data_df, e_data2, atol=1e-2))
-        self.assertTrue(np.array_equal(out_gct2.row_metadata_df, row_meta2))
-        self.assertTrue(np.array_equal(out_gct2.col_metadata_df, col_meta2))
         self.assertEqual(out_prov_code2, e_prov_code2)
 
 
@@ -563,10 +559,20 @@ class TestDry(unittest.TestCase):
         e_df = pd.DataFrame(np.array([[9.1, -3.9, 0.3, -0.3],
                                     [0.25, 0, -0.2, 0],
                                     [4.1, np.nan, -0.1, 0]], dtype=float))
-        out_df = dry.row_median_normalize(df)
+        out_df = dry.row_median_normalize(df, False)
         self.assertTrue(np.allclose(out_df, e_df, atol=1e-2, equal_nan=True),
                         ("\nExpected out_df:\n{} " +
                          "\nActual out_df:\n{}").format(e_df, out_df))
+
+        # Divide by MAD this time
+        out_df_mad = dry.row_median_normalize(df, True)
+        e_df_mad = pd.DataFrame(np.array([
+            [6.42, -2.75, 0.21, -0.21],
+            [3.71, 0.00, -2.97, 0.00],
+            [60.79, np.nan, -1.48, 0.00]], dtype=float))
+        self.assertTrue(np.allclose(out_df_mad, e_df_mad, atol=1e-2, equal_nan=True),
+                        ("\nExpected out_df:\n{} " +
+                         "\nActual out_df:\n{}").format(e_df_mad, out_df_mad))
 
     def test_subset_normalize(self):
         ROW_SUBSET_FIELD = "pr_probe_normalization_group"
@@ -591,10 +597,10 @@ class TestDry(unittest.TestCase):
                                       [2, 0, -3, 3.5, -3.5],
                                       [1, -1, 0, 1, -5],
                                       [-2, 2, 0, 0, 2]], dtype=float))
-        out_gct = dry.subset_normalize(in_gct, ROW_SUBSET_FIELD, COL_SUBSET_FIELD)
-        self.assertTrue(np.array_equal(out_gct.data_df, e_df),
+        out_df = dry.subset_normalize(in_gct, False, ROW_SUBSET_FIELD, COL_SUBSET_FIELD)
+        self.assertTrue(np.array_equal(out_df, e_df),
                         ("\nExpected out:\n{} " +
-                         "\nActual out:\n{}").format(e_df, out_gct.data_df))
+                         "\nActual out:\n{}").format(e_df, out_df))
 
     def test_make_norm_ndarray(self):
         ROW_SUBSET_FIELD = "pr_probe_normalization_group"
@@ -631,10 +637,20 @@ class TestDry(unittest.TestCase):
                                       [2, 0, -3, 3.5, -3.5],
                                       [1, -1, 0, 1, -5],
                                       [-2, 2, 0, 0, 2]], dtype="float"))
-        out_df = dry.iterate_over_norm_ndarray_and_normalize(data_df, norm_ndarray)
+        out_df = dry.iterate_over_norm_ndarray_and_normalize(data_df, norm_ndarray, False)
         self.assertTrue(np.array_equal(out_df, e_df),
                         ("\nExpected out:\n{} " +
                          "\nActual out:\n{}").format(e_df, out_df))
+
+        # Divide by MAD this time
+        out_df_mad = dry.iterate_over_norm_ndarray_and_normalize(data_df, norm_ndarray, True)
+        e_df_mad = pd.DataFrame(np.array([[0, 1.48, -5.93, -1.48, 1.48],
+                                          [1.48, 0, -2.22, 1.48, -1.48],
+                                          [1.48, -1.48, 0, 1.48, -7.41],
+                                          [-1.48, 1.48, 0, 0, 2965159.37]], dtype="float"))
+        self.assertTrue(np.allclose(out_df_mad, e_df_mad, atol=1e-2),
+                        ("\nExpected out:\n{} " +
+                         "\nActual out:\n{}").format(e_df_mad, out_df_mad))
 
         # Slightly different norm_ndarray
         norm_ndarray = np.array([[1, 1, 1, 2, 2],
@@ -645,7 +661,7 @@ class TestDry(unittest.TestCase):
                                       [2, 0, -3, 3.5, -3.5],
                                       [1, -1, -0.5, 0.5, 0],
                                       [-2, 2, 0, 0, 0]], dtype="float"))
-        out_df = dry.iterate_over_norm_ndarray_and_normalize(data_df, norm_ndarray)
+        out_df = dry.iterate_over_norm_ndarray_and_normalize(data_df, norm_ndarray, False)
         self.assertTrue(np.array_equal(out_df, e_df),
                         ("\nExpected out:\n{} " +
                          "\nActual out:\n{}").format(e_df, out_df))
@@ -659,7 +675,7 @@ class TestDry(unittest.TestCase):
                                       [1, -1, 0, 5, -2],
                                       [1, -1, 0, 1, -5],
                                       [-2, 2, 0, 0, 2]], dtype="float"))
-        out_df = dry.iterate_over_norm_ndarray_and_normalize(data_df, norm_ndarray)
+        out_df = dry.iterate_over_norm_ndarray_and_normalize(data_df, norm_ndarray, False)
         self.assertTrue(np.array_equal(out_df, e_df),
                         ("\nExpected out:\n{} " +
                          "\nActual out:\n{}").format(e_df, out_df))
