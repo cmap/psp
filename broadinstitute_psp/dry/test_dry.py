@@ -508,7 +508,7 @@ class TestDry(unittest.TestCase):
         e_prov_code = ["A", "B", "GMN"]
 
         (out_gct, out_prov_code) = dry.median_normalize(
-            in_gct, ignore_subset_norm, row_subset_field, col_subset_field, prov_code,
+            in_gct, False, ignore_subset_norm, row_subset_field, col_subset_field, prov_code,
             "GMN", "RMN")
 
         self.assertTrue(np.allclose(out_gct.data_df, e_data, atol=1e-2))
@@ -532,7 +532,7 @@ class TestDry(unittest.TestCase):
         e_prov_code2 = ["A", "B", "RMN"]
 
         (out_gct2, out_prov_code2) = dry.median_normalize(
-            in_gct2, ignore_subset_norm2, row_subset_field, col_subset_field, prov_code,
+            in_gct2, False, ignore_subset_norm2, row_subset_field, col_subset_field, prov_code,
             "GMN", "RMN")
 
         self.assertTrue(np.allclose(out_gct2.data_df, e_data2, atol=1e-2))
