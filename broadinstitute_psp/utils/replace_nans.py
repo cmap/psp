@@ -11,8 +11,8 @@ import argparse
 import os
 import sys
 
-import utils.setup_logger as setup_logger
-import broadinstitute_cmap.io.GCToo.GCToo as GCToo
+import broadinstitute_psp.utils.setup_logger as setup_logger
+import broadinstitute_cmap.io.GCToo.slice_gct as sg
 import broadinstitute_cmap.io.GCToo.parse_gctoo as pg
 import broadinstitute_cmap.io.GCToo.write_gctoo as wg
 
@@ -44,7 +44,7 @@ def main(args):
     # First, check if any rows are all NaN; if so, remove them
     dropped_df = in_gct.data_df.dropna(how="all")
     bools_of_remaining = in_gct.data_df.index.isin(dropped_df.index.values)
-    in_gct = GCToo.slice(in_gct, row_bool=bools_of_remaining)
+    in_gct = sg.slice_gctoo(in_gct, row_bool=bools_of_remaining)
 
     if args.replace_with == "zero":
         in_gct.data_df.fillna(0, inplace=True)
