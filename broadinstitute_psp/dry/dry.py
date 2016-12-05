@@ -175,7 +175,7 @@ def read_dry_gct_and_config_file(in_gct_path, config_path, forced_assay_type):
     (gct, config_io, config_metadata, config_parameters) = psp_utils.read_gct_and_config_file(in_gct_path, config_path)
 
     # Extract the plate's provenance code
-    prov_code = extract_prov_code(gct.col_metadata_df,
+    prov_code = psp_utils.extract_prov_code(gct.col_metadata_df,
                                   config_metadata["prov_code_field"],
                                   config_metadata["prov_code_delimiter"])
 
@@ -192,44 +192,6 @@ def read_dry_gct_and_config_file(in_gct_path, config_path, forced_assay_type):
     assay_type_out = check_assay_type(assay_type, p100_assay_types, gcp_assay_types)
 
     return gct, assay_type_out, prov_code, config_io, config_metadata, config_parameters
-
-
-# tested #
-def extract_prov_code(col_metadata_df, prov_code_field, prov_code_delimiter):
-    """Extract the provenance code from the column metadata.
-    It must be non-empty and the same for all samples.
-
-    Args:
-        col_metadata_df (pandas df): contains provenance code metadata
-        prov_code_field (string): name of the col metadata field for the provenance code
-        prov_code_delimiter (string): string delimiter in provenance code
-
-    Returns:
-        prov_code (list of strings)
-
-    """
-    # Create pandas series of all provenance codes
-    prov_code_series = col_metadata_df.loc[:, prov_code_field]
-
-    # Split each provenance code string along the delimiter
-    prov_code_list_series = prov_code_series.apply(lambda x: x.split(prov_code_delimiter))
-
-    # Verify that all provenance codes are the same
-    # (i.e. verify that the number of elements equal to the first element is
-    # equal to the number of all elements)
-    all_same = True
-    for prov_code_list in prov_code_list_series:
-        all_same = (all_same and prov_code_list == prov_code_list_series[0])
-
-    if all_same:
-        prov_code = prov_code_list_series.iloc[0]
-        assert prov_code != [""], "Provenance code is empty!"
-        return prov_code
-    else:
-        err_msg = ("All columns should have the same provenance code, " +
-                   "but actually np.unique(prov_code_list_series.values) = {}")
-        logger.error(err_msg.format(np.unique(prov_code_list_series.values)))
-        raise(Exception(err_msg.format(np.unique(prov_code_list_series.values))))
 
 
 # tested #

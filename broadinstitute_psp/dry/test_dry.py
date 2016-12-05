@@ -80,17 +80,6 @@ class TestDry(unittest.TestCase):
                          ("The expected assay type is {}, " +
                           "not {}").format(e_forced_assay_type, out_forced_assay_type))
 
-    def test_extract_prov_code(self):
-        col_meta_df = pd.DataFrame.from_dict({"foo": ["a", "b", "c"],
-                                              "prov_field": ["PRM+L2X",
-                                                             "PRM+L2X",
-                                                             "PRM+L2X"]})
-        e_prov_code = ["PRM", "L2X"]
-        prov_code = dry.extract_prov_code(col_meta_df, "prov_field", "+")
-        self.assertEqual(e_prov_code, prov_code,
-                        ("The expected provenance code is {}, " +
-                         "not {}").format(e_prov_code, prov_code))
-
     def test_check_assay_type(self):
         assay_type = "aBc"
         p100 = ["ABC", "aBc", "d"]
