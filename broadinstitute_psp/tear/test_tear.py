@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 
 import broadinstitute_cmap.io.GCToo as GCToo
+import broadinstitute_cmap.io.GCToo.parse_gctoo as pg
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import tear
 
@@ -16,35 +17,26 @@ FUNCTIONAL_TESTS_DIR = "tear/functional_tests"
 
 
 class TestTear(unittest.TestCase):
-    def test_robust_zscore(self):
-        my_df = pd.DataFrame([[0.3, 0.2, 0.8, 0.7],
-                             [0.1, -0.2, 0.1, 0.9],
-                             [1.1, -0.3, np.nan, 0.4]])
-        e_df = pd.DataFrame([[-0.54, -0.81, 0.81, 0.54],
-                             [0.0, -1.35, 0.0, 3.60],
-                             [0.67, -0.67, np.nan, 0.0]])
+    def test_main(self):
+        in_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_tear_main.gct")
+        out_name = os.path.join(FUNCTIONAL_TESTS_DIR, "test_tear_out.gct")
 
-        out_df = tear.robust_zscore(my_df)
-        self.assertTrue(np.allclose(out_df, e_df, atol=1e-2, equal_nan=True))
+        args_string = ("-i {} -o {} -dm -p {}").format(
+            in_gct_path, out_name, "psp_production.cfg")
+        args = tear.build_parser().parse_args(args_string.split())
+        tear.main(args)
 
-    # TODO(lev): fix up
-    # def test_main(self):
-    #     INPUT_GCT_PATH = os.path.join(FUNCTIONAL_TESTS_DIR, "p100_prm_plate29_3H.gct")
-    #     OUT_NAME = "test_tear_p100_output.gct"
-    #
-    #     args_string = ("{} {} -out_name {}").format(
-    #         INPUT_GCT_PATH, FUNCTIONAL_TESTS_DIR, OUT_NAME)
-    #     args = tear.build_parser().parse_args(args_string.split())
-    #     out_gct = tear.main(args)
-    #
-    #     # print
-    #
-    #     self.assertAlmostEqual(out_gct.data_df.iloc[0,0], -1.20, places=2)
-    #     self.assertEqual(out_gct.col_metadata_df["provenance_code"].iloc[0],
-    #                      "PRM+L2X+ZSC")
-    #
-    #     # Clean up
-    #     os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, OUT_NAME))
+        # Read in result
+        out_gct = pg.parse(out_name)
+
+        e_values = np.array(
+            [[0., 4.07, -1.48, -10.71, 0.],
+            [4.43, -3.26, -0.23, 0., 1.48],
+            [0., 2.49, 2.50, -1.48, -0.86]])
+        self.assertTrue(np.allclose(e_values, out_gct.data_df, atol=1e-2))
+
+        # Clean up
+        os.remove(out_name)
 
     def test_median_normalize(self):
         data = pd.DataFrame([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]],
@@ -58,9 +50,11 @@ class TestTear(unittest.TestCase):
                                 index=["e", "f", "g"],
                                 columns=["col_field1", "col_subset"])
         in_gct = GCToo.GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
-        row_subset_field = "row_subset"
-        col_subset_field = "col_subset"
-        prov_code = ["A", "B"]
+        config_metadata = {
+            "row_subset_field": "row_subset",
+            "col_subset_field": "col_subset",
+            "subset_normalize_prov_code_entry": "GMN",
+            "row_normalize_prov_code_entry": "RMN"}
 
         # Subset normalize
         ignore_subset_norm = False
@@ -70,8 +64,7 @@ class TestTear(unittest.TestCase):
         e_prov_code = ["A", "B", "GMN"]
 
         (out_gct, out_prov_code) = tear.median_normalize(
-            in_gct, False, ignore_subset_norm, row_subset_field, col_subset_field, prov_code,
-            "GMN", "RMN")
+            in_gct, False, ignore_subset_norm, config_metadata, ["A", "B"])
 
         self.assertTrue(np.allclose(out_gct.data_df, e_data, atol=1e-2))
         self.assertEqual(out_prov_code, e_prov_code)
@@ -92,12 +85,10 @@ class TestTear(unittest.TestCase):
         e_prov_code2 = ["A", "B", "RMN"]
 
         (out_gct2, out_prov_code2) = tear.median_normalize(
-            in_gct2, False, ignore_subset_norm2, row_subset_field, col_subset_field, prov_code,
-            "GMN", "RMN")
+            in_gct2, False, ignore_subset_norm2, config_metadata, ["A", "B"])
 
         self.assertTrue(np.allclose(out_gct2.data_df, e_data2, atol=1e-2))
         self.assertEqual(out_prov_code2, e_prov_code2)
-
 
     def test_check_for_subsets(self):
         row_meta = pd.DataFrame([["rm1", "rm2"],["rm3", "rm4"],
@@ -112,7 +103,6 @@ class TestTear(unittest.TestCase):
         subsets_exist = tear.check_for_subsets(row_meta, col_meta, row_field, col_field)
 
         self.assertTrue(subsets_exist)
-
 
     def test_row_median_normalize(self):
         df = pd.DataFrame(np.array([[10, -3, 1.2, 0.6],

@@ -14,11 +14,15 @@ TODO(lev) --> Example usage:
 
 import argparse
 import logging
+import numpy as np
+import os
 import sys
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import broadinstitute_psp.utils.psp_utils as psp_utils
 import broadinstitute_psp.dry.dry as dry
+import broadinstitute_cmap.io.GCToo.GCToo as GCToo
+import broadinstitute_cmap.io.GCToo.write_gctoo as wg
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
@@ -26,6 +30,7 @@ __email__ = "lev@broadinstitute.org"
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
+DEFAULT_TEAR_SUFFIX = ".tear.processed.gct"
 ZSCORE_PROV_CODE_ENTRY = "ZSC"
 PROV_CODE_FIELD = "provenance"
 CONSTANT_FOR_MAD = 0.6745
@@ -61,44 +66,35 @@ def build_parser():
 
 def main(args):
     # Read gct and config file
-    (gct, config_io, config_metadata, _) = (
-        psp_utils.read_gct_and_config_file(args.gct_path, args.psp_config_path))
-
-    ### MEDIAN NORMALIZE
-    (med_norm_gct, prov_code) = median_normalize(
-        gct, args.divide_by_mad, args.ignore_subset_norm,
-        config_metadata["row_subset_field"],
-        config_metadata["col_subset_field"], prov_code,
-        config_metadata["subset_normalize_prov_code_entry"],
-        config_metadata["row_normalize_prov_code_entry"])
+    (in_gct, config_io, config_metadata, _) = (
+        psp_utils.read_gct_and_config_file(args.in_gct_path, args.psp_config_path))
 
     # Extract provenance code
     prov_code = psp_utils.extract_prov_code(
         in_gct.col_metadata_df, config_metadata["prov_code_field"],
         config_metadata["prov_code_delimiter"])
 
-    # Robust z-score
-    zscored_df = robust_zscore(in_gct.data_df)
-    (zscored_gct, updated_prov_code) = dry.update_metadata_and_prov_code(
-        zscored_df, in_gct.row_metadata_df, in_gct.col_metadata_df,
-        ZSCORE_PROV_CODE_ENTRY, prov_code)
+    ### MEDIAN NORMALIZE
+    (out_gct, prov_code) = median_normalize(
+        in_gct, args.divide_by_mad, args.ignore_subset_norm,
+        config_metadata, prov_code)
 
     # Configure output name
-    (out_gct_name, _) = dry.configure_out_names(args.gct_path, args.out_name, None)
+    out_gct_name = configure_out_name(args.in_gct_path, args.out_name)
 
     # Reinsert provenance code
-    out_gct = dry.insert_offsets_and_prov_code(
-        zscored_gct, None, None, updated_prov_code,
-        config_metadata["prov_code_field"], config_metadata["prov_code_delimiter"])
+    out_gct.col_metadata_df = insert_prov_code(
+        out_gct.col_metadata_df, prov_code,
+        config_metadata["prov_code_delimiter"],
+        config_metadata["prov_code_field"])
 
     # Write output gct
-    dry.write_output_gct(out_gct, args.out_path, out_gct_name,
-                         config_io["data_null"], config_io["filler_null"])
+    write_output_gct(out_gct, out_gct_name, config_io["data_null"], config_io["filler_null"])
     return out_gct
 
 
 # tested #
-def median_normalize(gct, divide_by_mad, ignore_subset_norm, row_subset_field, col_subset_field, prov_code, subset_prov_code_entry, row_median_prov_code_entry):
+def median_normalize(gct, divide_by_mad, ignore_subset_norm, config_metadata, prov_code):
     """Subset normalize if the metadata shows that subsets exist for either
     rows or columns AND ignore_subset_norm is False. Otherwise, use the
     whole row for median normalization.
@@ -108,11 +104,14 @@ def median_normalize(gct, divide_by_mad, ignore_subset_norm, row_subset_field, c
         divide_by_mad (bool): whether to divide by the median absolute deviation
             in addition to subtracting the median
         ignore_subset_norm (bool): false indicates that subset normalization should be performed
-        row_subset_field (string): row metadata field indicating the row subset group
-        col_subset_field (string): col metadata field indicating the col subset group
+        config_metadata (dict): dictionary from config file with these fields:
+            - row_subset_field
+            - col_subset_field
+            - subset_normalize_prov_code_entry
+            - subset_zscore_prov_code_entry
+            - row_normalize_prov_code_entry
+            - zscore_prov_code_entry
         prov_code (list of strings)
-        subset_prov_code_entry (string)
-        row_median_prov_code_entry (string)
 
     Returns:
         out_gct (GCToo object)
@@ -121,17 +120,31 @@ def median_normalize(gct, divide_by_mad, ignore_subset_norm, row_subset_field, c
     """
     # Check if subsets_exist
     subsets_exist = check_for_subsets(gct.row_metadata_df, gct.col_metadata_df,
-                                      row_subset_field, col_subset_field)
+                                      config_metadata["row_subset_field"],
+                                      config_metadata["col_subset_field"])
 
     if subsets_exist and not ignore_subset_norm:
         logger.debug("Performing subset normalization.")
-        out_df = subset_normalize(gct, divide_by_mad, row_subset_field, col_subset_field)
-        prov_code_entry = subset_prov_code_entry
+        out_df = subset_normalize(gct, divide_by_mad,
+                                  config_metadata["row_subset_field"],
+                                  config_metadata["col_subset_field"])
+
+        # Provenance code entry depends on whether z-scoring is happening
+        if divide_by_mad:
+            prov_code_entry = config_metadata["subset_zscore_prov_code_entry"]
+        else:
+            prov_code_entry = config_metadata["subset_normalize_prov_code_entry"]
         updated_prov_code = prov_code + [prov_code_entry]
+
     else:
         # Subtract median of whole row from each entry in the row
         out_df = row_median_normalize(gct.data_df, divide_by_mad)
-        prov_code_entry = row_median_prov_code_entry
+
+        # Provenance code entry depends on whether z-scoring is happening
+        if divide_by_mad:
+            prov_code_entry = config_metadata["zscore_prov_code_entry"]
+        else:
+            prov_code_entry = config_metadata["row_normalize_prov_code_entry"]
         updated_prov_code = prov_code + [prov_code_entry]
 
     out_gct = GCToo.GCToo(data_df=out_df, row_metadata_df=gct.row_metadata_df,
@@ -341,21 +354,57 @@ def row_median_normalize(data_df, divide_by_mad):
 
     return out_df
 
-def robust_zscore(data_df):
-    """Normalize data using robust z-score.
 
-    Formula: x' = (x - row_median) / (row_mad * 1.4826)
+def insert_prov_code(col_metadata_df, prov_code, prov_code_delimiter, prov_code_field):
+    """ Update provenance code in col_metadata_df.
 
     Args:
-        data_df (pandas df)
+        col_metadata_df (pandas df)
+        prov_code (list of strings)
+        prov_code_field (string): name of col metadata field containing the provenance code
+        prov_code_delimiter (string): what string to use as delimiter in prov_code
+
     Returns:
-        out_df (pandas df): normalized
+        gct (GCToo object): updated metadata
+
     """
-    row_medians = data_df.median(axis=1)
-    row_mads = (data_df.sub(row_medians, axis=0)).abs().median(axis=1)
-    out_df = data_df.sub(row_medians, axis=0).divide(
-        1.4826 * row_mads, axis='index')
-    return out_df
+    # Convert provenance code to delimiter separated string
+    prov_code_str = prov_code_delimiter.join(prov_code)
+
+    # Update the provenance code in col_metadata_df
+    col_metadata_df.loc[:, prov_code_field] = prov_code_str
+
+    return col_metadata_df
+
+
+def configure_out_name(in_gct_path, out_name_from_args):
+    """If out_name_from_args is None, append DEFAULT_TEAR_SUFFIX to the input
+    gct name.
+
+    Args:
+        in_gct_path (file path)
+        out_name_from_args (string)
+
+    Returns:
+        out_gct_name (file path)
+
+    """
+    input_basename = os.path.basename(in_gct_path)
+
+    if out_name_from_args is None:
+        out_gct_name = input_basename + DEFAULT_TEAR_SUFFIX
+    else:
+        out_gct_name = out_name_from_args
+        assert os.path.splitext(out_gct_name)[1] == ".gct", (
+            "The output gct name must end with .gct; out_gct_name: {}".format(
+                out_gct_name))
+
+    return out_gct_name
+
+
+def write_output_gct(out_gct, out_gct_name, data_null, filler_null):
+
+    wg.write(out_gct, out_gct_name, data_null=data_null, filler_null=filler_null, data_float_format=None)
 
 
 if __name__ == "__main__":
