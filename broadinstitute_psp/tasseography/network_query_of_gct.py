@@ -28,6 +28,9 @@ pd.options.mode.chained_assignment = None
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
+# TODO(lev): make sure annotations are being pulled from row metadata if query
+# and from col metadata if target; right now, just pulled only from col metadata
+
 
 def build_parser():
     """Build argument parser."""
@@ -40,6 +43,8 @@ def build_parser():
 
     # Optional args
     parser.add_argument("--my_query", "-q", nargs="*", help="pert_iname(s) of query")
+    parser.add_argument("--annot_fields", "-a", nargs="*", default=["pert_iname", "moa"],
+                        help="fields from metadata to use for annotating nodes")
     parser.add_argument("--out_node_name", "-on", default="nodes.tsv", help="name of output node file")
     parser.add_argument("--out_edge_name", "-oe", default="edges.tsv", help="name of output edge file")
     parser.add_argument("--threshold", "-t", default=0.8, type=float, help="connectivity threshold")
@@ -54,12 +59,9 @@ def main(args):
     # Read gct
     gct = pg.parse(args.in_path)
 
-    import pdb
-    pdb.set_trace()
-
-    assert all(x in gct.col_metadata_df.columns for x in ["pert_iname", "moa"]), (
-        "'pert_iname' and 'moa' must be in gct.col_metadata_df.columns: {}".format(
-            gct.col_metadata_df.columns.values))
+    assert all(x in gct.col_metadata_df.columns for x in args.annot_fields), (
+        "args.annot_fields {} must be in gct.col_metadata_df.columns: {}".format(
+            args.annot_fields, gct.col_metadata_df.columns.values))
 
     # Melt gct
     melted_df_w_self_conns = melt_gct(gct)
@@ -68,11 +70,14 @@ def main(args):
     melted_df = remove_self_cxns(melted_df_w_self_conns)
 
     # Create edge and node dataframes -- main method
-    node_df, edge_df = network_query_of_df(melted_df, gct.col_metadata_df, args.my_query, args.threshold)
+    node_df, edge_df = network_query_of_df(melted_df, gct.col_metadata_df,
+                                           args.my_query, args.threshold, args.annot_fields)
 
     # Write to tsv files
     edge_df.to_csv(args.out_edge_name, sep="\t", index=None)
     node_df.to_csv(args.out_node_name, sep="\t")
+
+    # TODO(lev): add the size of the df to the output name
 
 
 def melt_gct(gct):
@@ -114,11 +119,11 @@ def remove_self_cxns(melted_df_w_self_conns):
     return melted_df_wo_self_conns
 
 
-def network_query_of_df(melted_df, col_metadata_df, my_query, threshold):
+def network_query_of_df(melted_df, col_metadata_df, my_query, threshold, annot_fields):
     """ Main method. Works on a melted dataframe, returns node and edge dfs
     that can written to files and used by Cytoscape and other network
     visualizations. Column metadata from the GCT is used for annotating
-    the nodes with pert_iname and MOA.
+    the nodes with annot_fields.
 
     For each query, all first-order connections above the threshold are found.
     Then, all connections between those elements are found; these are called
@@ -133,17 +138,18 @@ def network_query_of_df(melted_df, col_metadata_df, my_query, threshold):
     col_metadata_df (pandas df)
     my_query (list of strings): pert_ids
     threshold (float)
+    annot_fields (list of strings): metadata headers
 
     Returns
     -------
-    node_df (pandas df): size = n x 3 ["pert_id", "pert_iname", "moa"]
+    node_df (pandas df): size = n x a+1, where a is the length of annot_fields
     edge_df (pandas df): size = N x 5 ["query", "target", "value", "abs_value", "sign"]
 
     """
 
     # If no query provided, get all connections above threshold
     if my_query is None:
-        edge_df, node_df = get_all_cxns_above_thresh(melted_df, col_metadata_df, threshold)
+        edge_df, node_df = get_all_cxns_above_thresh(melted_df, col_metadata_df, threshold, annot_fields)
 
     elif type(my_query) is list:
 
@@ -176,7 +182,7 @@ def network_query_of_df(melted_df, col_metadata_df, my_query, threshold):
         # Create node_df
         all_nodes_not_unique = list_of_queries + all_first_order_targets
         all_nodes = list(set(all_nodes_not_unique))
-        node_df = create_node_df(col_metadata_df, all_nodes)
+        node_df = create_node_df(col_metadata_df, all_nodes, annot_fields)
 
     else:
         msg = "my_query must be a list. my_query: {}".format(my_query)
@@ -186,17 +192,21 @@ def network_query_of_df(melted_df, col_metadata_df, my_query, threshold):
     return node_df, edge_df
 
 
-def get_all_cxns_above_thresh(melted_df, col_meta_df, threshold):
+def get_all_cxns_above_thresh(melted_df, col_meta_df, threshold, annot_fields):
 
     # Create edge_df
     edge_df = melted_df.loc[abs(melted_df.loc[:, "value"]) >= threshold, :]
+
+    # Add two columns: abs_value and sign
+    edge_df.loc[:, "abs_value"] = abs(edge_df.loc[:, "value"]).values
+    edge_df.loc[:, "sign"] = np.sign(edge_df.loc[:, "value"].values)
 
     # Extract nodes
     nodes_not_unique = edge_df.loc[:, "query"].tolist() + edge_df.loc[:, "target"].tolist()
     nodes = list(set(nodes_not_unique))
 
     # Create node_df
-    node_df = create_node_df(col_meta_df, nodes)
+    node_df = create_node_df(col_meta_df, nodes, annot_fields)
 
     return edge_df, node_df
 
@@ -245,9 +255,9 @@ def get_cxns_to_query_above_thresh(melted_df, my_query, threshold):
     return first_order_cxns_df, first_order_targets
 
 
-def create_node_df(col_meta_df, nodes):
+def create_node_df(col_meta_df, nodes, annot_fields):
 
-    node_df = col_meta_df.loc[nodes, ["pert_iname", "moa"]]
+    node_df = col_meta_df.loc[nodes, annot_fields]
     node_df.index.name = "pert_id"
 
     return node_df

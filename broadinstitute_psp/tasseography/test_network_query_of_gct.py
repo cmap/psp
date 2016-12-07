@@ -19,17 +19,18 @@ class TestNetworkQuery(unittest.TestCase):
             [["a_moa", "a_name"],
              ["b_moa", "b_name"],
              ["c_moa", "c_name"]],
-            index=["a", "b", "c"], columns=["moa", "pert_iname"])
+            index=["a", "b", "c"], columns=["MoA", "pert_iname"])
 
     def test_get_all_cxns_above_thresh(self):
         e_edge_df = pd.DataFrame(
-            [["a", "b", 0.8], ["c", "b", 0.9]],
-            index=[0, 5], columns=["query", "target", "value"])
+            [["a", "b", 0.8, 0.8, 1.], ["c", "b", 0.9, 0.9, 1.]],
+            index=[0, 5], columns=["query", "target", "value", "abs_value", "sign"])
         e_node_df = self.col_meta.copy()
         e_node_df.index.name = "pert_id"
-        e_node_df = e_node_df.loc[["a", "c", "b"], ["pert_iname", "moa"]]
+        e_node_df = e_node_df.loc[["a", "c", "b"], ["pert_iname", "MoA"]]
 
-        edge_df, node_df = nq.get_all_cxns_above_thresh(self.melted_df, self.col_meta, 0.8)
+        edge_df, node_df = nq.get_all_cxns_above_thresh(
+            self.melted_df, self.col_meta, 0.8, ["pert_iname", "MoA"])
 
         pd.util.testing.assert_frame_equal(edge_df, e_edge_df)
         pd.util.testing.assert_frame_equal(node_df, e_node_df)
@@ -102,7 +103,7 @@ class TestNetworkQuery(unittest.TestCase):
         e_node_df.index.name = "pert_id"
 
         node_df, edge_df = nq.network_query_of_df(
-            more_complex_melted_df, more_complex_col_meta, ["d_name"], 0.6)
+            more_complex_melted_df, more_complex_col_meta, ["d_name"], 0.6, ["pert_iname", "moa"])
 
         pd.util.testing.assert_frame_equal(edge_df, e_edge_df)
         pd.util.testing.assert_frame_equal(node_df, e_node_df)
