@@ -11,7 +11,7 @@ import pandas as pd
 import os
 import sys
 import argparse
-import parse_gctoo as pg
+import parse_gct as pg
 import matplotlib.pyplot as plt
 
 # TODO(lev): use setup_logger

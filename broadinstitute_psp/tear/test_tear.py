@@ -4,8 +4,8 @@ import os
 import numpy as np
 import pandas as pd
 
-import broadinstitute_cmap.io.GCToo as GCToo
-import broadinstitute_cmap.io.GCToo.parse_gctoo as pg
+import broadinstitute_cmap.io.pandasGEXpress as GCToo
+import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import tear
 

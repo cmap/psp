@@ -17,9 +17,9 @@ import pandas as pd
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import broadinstitute_psp.steep.steep as steep
 import broadinstitute_psp.sip.sip as sip
-import broadinstitute_cmap.io.GCToo.GCToo as GCToo
-import broadinstitute_cmap.io.GCToo.parse_gctoo as pg
-import broadinstitute_cmap.io.GCToo.write_gctoo as wg
+import broadinstitute_cmap.io.pandasGEXpress.GCToo as GCToo
+import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
+import broadinstitute_cmap.io.pandasGEXpress.write_gct as wg
 import broadinstitute_psp.utils.psp_utils as utils
 
 __author__ = "Lev Litichevskiy"
@@ -100,7 +100,7 @@ def main(args):
     col_metadata_for_sim_df[SIMILARITY_METRIC_FIELD] = args.similarity_metric
 
     # Assemble similarity gct
-    sim_gct = GCToo.GCToo(sim_df, row_metadata_for_sim_df, col_metadata_for_sim_df)
+    sim_gct = GCToo.GCToo(sim_df, row_metadata_for_sim_df, col_metadata_for_sim_df, make_multiindex=True)
 
     # Write output similarity gct
     wg.write(sim_gct, args.out_steep_name, data_null="NaN", metadata_null="NA", filler_null="NA")

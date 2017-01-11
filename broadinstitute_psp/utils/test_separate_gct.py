@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import unittest
 
-import broadinstitute_cmap.io.GCToo.parse_gctoo as pg
+import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
 import broadinstitute_psp.utils.separate_gct as sg
 import broadinstitute_psp.utils.setup_logger as setup_logger
 

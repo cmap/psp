@@ -18,7 +18,7 @@ import numpy as np
 import itertools
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import broadinstitute_cmap.io.GCToo.parse_gctoo as pg
+import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"

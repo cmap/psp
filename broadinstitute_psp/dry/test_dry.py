@@ -13,7 +13,7 @@ import os
 import numpy as np
 import pandas as pd
 
-import broadinstitute_cmap.io.GCToo as GCToo
+import broadinstitute_cmap.io.pandasGEXpress.GCToo as GCToo
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import dry
 
@@ -89,11 +89,17 @@ class TestDry(unittest.TestCase):
 
     def test_log_transform_if_needed(self):
         prov_code = ["GR1", "L2X"]
+        rids = ["a", "b", "c"]
+        cids = ["A", "B", "C"]
         in_df = pd.DataFrame([[10, 3, 1.2],
                               [0.45, 0.2, 0],
-                              [4.5, np.nan, 0.3]], dtype=float)
+                              [4.5, np.nan, 0.3]],
+                             index=rids,
+                             columns=cids, dtype=float)
 
-        in_gct = GCToo.GCToo.GCToo(data_df=in_df, row_metadata_df=None, col_metadata_df=None)
+        in_gct = GCToo.GCToo(data_df=in_df,
+                             row_metadata_df=pd.DataFrame(index=rids),
+                             col_metadata_df=pd.DataFrame(index=cids))
 
         # Nothing should happen
         (out_gct, out_prov_code) = dry.log_transform_if_needed(in_gct, prov_code, "L2X")
@@ -138,7 +144,7 @@ class TestDry(unittest.TestCase):
         col_meta = pd.DataFrame([["cm1", "cm2"],["cm3", "cm4"]],
                                 index=["d", "e"],
                                 columns=["col_field1", "col_field2"])
-        in_gct = GCToo.GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
+        in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
         assay_type = "gcp"
         norm_peptide = "b"
         prov_code = ["GR1", "L2X"]
@@ -203,7 +209,7 @@ class TestDry(unittest.TestCase):
         col_meta = pd.DataFrame([["cm1", "cm2"],["cm3", "cm4"],["cm5", "cm6"]],
                                 index=["e", "f", "g"],
                                 columns=["col_field1", "col_field2"])
-        in_gct = GCToo.GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
+        in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
         original_gct = in_gct
 
         (out_gct, out_prov_code, out_remaining) = dry.initial_filtering(
@@ -230,7 +236,7 @@ class TestDry(unittest.TestCase):
                               columns=["e", "f", "g"])
         e_prov_code2 = ["A", "B", "SF3", "PF5"]
 
-        in_gct2 = GCToo.GCToo.GCToo(data_df=data, row_metadata_df=row_meta2, col_metadata_df=col_meta)
+        in_gct2 = GCToo.GCToo(data_df=data, row_metadata_df=row_meta2, col_metadata_df=col_meta)
         (out_gct2, out_prov_code2, out_remaining2) = dry.initial_filtering(
             in_gct2, assay_type, sample_frac_cutoff, probe_frac_cutoff,
             probe_sd_cutoff, {},
@@ -325,7 +331,7 @@ class TestDry(unittest.TestCase):
         col_meta = pd.DataFrame([["cm1", "cm2"],["cm3", "cm4"],["cm5", "cm6"]],
                                 index=["e", "f", "g"],
                                 columns=["col_field1", "col_field2"])
-        in_gct = GCToo.GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
+        in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
 
         # P100 & optim
         (out_gct, out_dists, out_offsets, out_prov_code) = (
@@ -420,7 +426,7 @@ class TestDry(unittest.TestCase):
         col_meta = pd.DataFrame([["cm1", "cm2"],["cm3", "cm4"],["cm5", "cm6"]],
                                 index=["e", "f", "g"],
                                 columns=["col_field1", "col_field2"])
-        in_gct = GCToo.GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
+        in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
 
         # P100
         e_data = pd.DataFrame([[1, 3], [4, 6], [7, 9], [10, 12]],
@@ -484,7 +490,7 @@ class TestDry(unittest.TestCase):
         col_meta = pd.DataFrame([["cm1", "cm2"],["cm3", "cm4"],["cm5", "cm6"]],
                                 index=["e", "f", "g"],
                                 columns=["col_field1", "col_field2"])
-        in_gct = GCToo.GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
+        in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
         offsets = np.array([3.0, 5.0, 8.0])
         offsets_field = "offsets"
         prov_code = ["A", "B", "C", "D"]
@@ -531,7 +537,7 @@ class TestDry(unittest.TestCase):
                                  ["plate1", "A4"], ["plate1", "A5"]],
                                 index=["c", "d", "e", "f", "g"],
                                 columns=["det_plate", "det_well"])
-        in_gct = GCToo.GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
+        in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
 
         post_sample_nan_remaining = ["c", "e", "f", "g"]
         post_sample_dist_remaining = ["c", "f", "g"]

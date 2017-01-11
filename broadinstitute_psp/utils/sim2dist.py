@@ -15,9 +15,9 @@ import argparse
 import sys
 
 import utils.setup_logger as setup_logger
-import broadinstitute_cmap.io.GCToo.GCToo as GCToo
-import broadinstitute_cmap.io.GCToo.parse_gctoo as pg
-import broadinstitute_cmap.io.GCToo.write_gctoo as wg
+import broadinstitute_cmap.io.pandasGEXpress.GCToo as GCToo
+import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
+import broadinstitute_cmap.io.pandasGEXpress.write_gct as wg
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
