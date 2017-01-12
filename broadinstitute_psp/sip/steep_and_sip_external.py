@@ -59,9 +59,6 @@ def build_parser():
     parser.add_argument("--connectivity_metric", "-c", default="ks_test",
                         choices=["ks_test", "percentile_score"],
                         help="metric to use for computing connectivity")
-    parser.add_argument("--psp_config_path", "-p",
-                        default="~/psp_production.cfg",
-                        help="filepath to PSP config file")
     parser.add_argument("--fields_to_aggregate_in_test_gct_queries", "-tfq",
                         nargs="+", default=["pert_id", "cell_id", "pert_time"],
                         help="list of metadata fields in the columns of the test gct to aggregate")
@@ -79,31 +76,44 @@ def build_parser():
 
 def main(args):
 
-    #----------STEEP----------#
-
     # Parse input gcts
-    external_gct = utils.read_gct_and_config_file(args.external_gct_path, args.psp_config_path)[0]
-    internal_gct = utils.read_gct_and_config_file(args.internal_gct_path, args.psp_config_path)[0]
-    bg_gct = utils.read_gct_and_config_file(args.bg_gct_path, args.psp_config_path)[0]
+    external_gct = pg.parse(args.external_gct_path, convert_neg_666=False, make_multiindex=True)
+    internal_gct = pg.parse(args.internal_gct_path, convert_neg_666=False, make_multiindex=True)
+    bg_gct = pg.parse(args.bg_gct_path, convert_neg_666=False, make_multiindex=True)
+
+    # Meat of the script
+    do_steep_and_sip(external_gct, internal_gct, bg_gct, args.similarity_metric,
+                     args.connectivity_metric, args.out_steep_name, args.out_sip_name,
+                     args.fields_to_aggregate_in_test_gct_queries,
+                     args.fields_to_aggregate_in_test_gct_targets,
+                     args.fields_to_aggregate_in_bg_gct)
+
+def do_steep_and_sip(external_gct, internal_gct, bg_gct, similarity_metric,
+                     connectivity_metric, out_steep_name, out_sip_name,
+                     fields_to_aggregate_in_test_gct_queries,
+                     fields_to_aggregate_in_test_gct_targets,
+                     fields_to_aggregate_in_bg_gct):
+
+    #----------STEEP----------#
 
     # Compute similarity between external and internal profiles
     sim_df = steep.compute_similarity_bw_two_dfs(internal_gct.data_df,
                                                  external_gct.data_df,
-                                                 args.similarity_metric)
+                                                 similarity_metric)
 
     # Row metadata is from gct1, column metadata is from gct2
     row_metadata_for_sim_df = internal_gct.col_metadata_df
     col_metadata_for_sim_df = external_gct.col_metadata_df
 
     # Append column to both metadata_dfs indicating which similarity_metric was used
-    row_metadata_for_sim_df[SIMILARITY_METRIC_FIELD] = args.similarity_metric
-    col_metadata_for_sim_df[SIMILARITY_METRIC_FIELD] = args.similarity_metric
+    row_metadata_for_sim_df[SIMILARITY_METRIC_FIELD] = similarity_metric
+    col_metadata_for_sim_df[SIMILARITY_METRIC_FIELD] = similarity_metric
 
     # Assemble similarity gct
     sim_gct = GCToo.GCToo(sim_df, row_metadata_for_sim_df, col_metadata_for_sim_df, make_multiindex=True)
 
     # Write output similarity gct
-    wg.write(sim_gct, args.out_steep_name, data_null="NaN", metadata_null="NA", filler_null="NA")
+    wg.write(sim_gct, out_steep_name, data_null="NaN", metadata_null="NA", filler_null="NA")
 
     #----------SIP----------#
 
@@ -111,9 +121,9 @@ def main(args):
     # and sort by that field
     (test_df, bg_df) = sip.prepare_multi_index_dfs(
         sim_gct.multi_index_df, bg_gct.multi_index_df,
-        args.fields_to_aggregate_in_test_gct_queries,
-        args.fields_to_aggregate_in_test_gct_targets,
-        args.fields_to_aggregate_in_bg_gct,
+        fields_to_aggregate_in_test_gct_queries,
+        fields_to_aggregate_in_test_gct_targets,
+        fields_to_aggregate_in_bg_gct,
         QUERY_FIELD_NAME, TARGET_FIELD_NAME, SEPARATOR)
 
     # Check symmetry
@@ -122,18 +132,18 @@ def main(args):
     # Compute connectivity
     (conn_mi_df, signed_conn_mi_df) = sip.compute_connectivities(
         test_df, bg_df, QUERY_FIELD_NAME, TARGET_FIELD_NAME, TARGET_FIELD_NAME,
-        args.connectivity_metric, is_test_df_sym)
+        connectivity_metric, is_test_df_sym)
 
     # Convert multi-index to component dfs in order to write output gct
     (signed_data_df, signed_row_metadata_df, signed_col_metadata_df) = GCToo.multi_index_df_to_component_dfs(signed_conn_mi_df, rid=TARGET_FIELD_NAME, cid=QUERY_FIELD_NAME)
 
     # Append to queries a new column saying what connectivity metric was used
-    sip.add_connectivity_metric_to_metadata(signed_col_metadata_df, args.connectivity_metric, CONNECTIVITY_METRIC_FIELD)
-    sip.add_connectivity_metric_to_metadata(signed_row_metadata_df, args.connectivity_metric, CONNECTIVITY_METRIC_FIELD)
+    sip.add_connectivity_metric_to_metadata(signed_col_metadata_df, connectivity_metric, CONNECTIVITY_METRIC_FIELD)
+    sip.add_connectivity_metric_to_metadata(signed_row_metadata_df, connectivity_metric, CONNECTIVITY_METRIC_FIELD)
 
     # Create connectivity gct and write it to file
     conn_gct = GCToo.GCToo(data_df=signed_data_df, row_metadata_df=signed_row_metadata_df, col_metadata_df=signed_col_metadata_df)
-    wg.write(conn_gct, args.out_sip_name, data_null="NaN", filler_null="NaN", metadata_null="NaN")
+    wg.write(conn_gct, out_sip_name, data_null="NaN", filler_null="NaN", metadata_null="NaN")
 
 
 if __name__ == "__main__":

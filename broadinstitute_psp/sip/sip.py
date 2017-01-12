@@ -30,8 +30,8 @@ import numpy as np
 from scipy import stats
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import broadinstitute_psp.utils.psp_utils as utils
 import broadinstitute_cmap.io.pandasGEXpress.GCToo as GCToo
+import broadinstitute_cmap.io.pandasGEXpress.parse as pg
 import broadinstitute_cmap.io.pandasGEXpress.write_gct as wg
 
 __author__ = "Lev Litichevskiy"
@@ -61,9 +61,6 @@ def build_parser():
     parser.add_argument("--connectivity_metric", "-c", default="ks_test",
                         choices=["ks_test", "percentile_score"],
                         help="metric to use for computing connectivity")
-    parser.add_argument("--psp_config_path", "-p",
-                        default="~/psp_production.cfg",
-                        help="filepath to PSP config file")
     parser.add_argument("--fields_to_aggregate_in_test_gct_queries", "-tfq",
                         nargs="+", default=["pert_id", "cell_id", "pert_time"],
                         help="list of metadata fields in the columns of the test gct to aggregate")
@@ -90,11 +87,11 @@ def build_parser():
 def main(args):
     """ The main method. """
 
-    # Read test gct and config file
-    test_gct = utils.read_gct_and_config_file(args.test_gct_path, args.psp_config_path)[0]
+    # Read test gct
+    test_gct = pg.parse(args.test_gct_path, convert_neg_666=False, make_multiindex=True)
 
     # Read bg_gct
-    bg_gct = utils.read_gct_and_config_file(args.bg_gct_path, args.psp_config_path)[0]
+    bg_gct = pg.parse(args.bg_gct_path, convert_neg_666=False, make_multiindex=True)
 
     # Create an aggregated metadata field for index and columns of both gcts
     # and sort by that field

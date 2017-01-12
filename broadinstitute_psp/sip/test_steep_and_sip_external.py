@@ -19,10 +19,9 @@ class TestSteepAndSipExternal(unittest.TestCase):
         out_steep_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_steep_and_sip_external_steep_output.gct")
         out_sip_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_steep_and_sip_external_sip_output.gct")
 
-        args_string = "-e {} -i {} -b {} -ost {} -osi {} -p {}".format(
+        args_string = "-e {} -i {} -b {} -ost {} -osi {}".format(
             external_gct_path, internal_gct_path, bg_gct_path,
-            out_steep_path, out_sip_path, "psp_production.cfg"
-        )
+            out_steep_path, out_sip_path)
         args = sse.build_parser().parse_args(args_string.split())
         sse.main(args)
 

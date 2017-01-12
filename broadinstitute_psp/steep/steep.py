@@ -20,6 +20,7 @@ import argparse
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import broadinstitute_psp.utils.psp_utils as psp_utils
 import broadinstitute_cmap.io.pandasGEXpress.GCToo as GCToo
+import broadinstitute_cmap.io.pandasGEXpress.parse as pg
 import broadinstitute_cmap.io.pandasGEXpress.write_gct as wg
 
 __author__ = "Lev Litichevskiy"
@@ -45,8 +46,6 @@ def build_parser():
     parser.add_argument("--similarity_metric", "-s", default="spearman",
                         choices=["spearman", "pearson"],
                         help="similarity metric to use for comparing columns")
-    parser.add_argument("--psp_config_path", "-p", default="~/psp_production.cfg",
-                        help="filepath to PSP config file")
     parser.add_argument("--verbose", "-v", action="store_true", default=False,
                         help="whether to increase the # of messages reported")
 
@@ -55,7 +54,7 @@ def build_parser():
 def main(args):
 
     # Read in the first gct
-    (gct1, _, _, _) = psp_utils.read_gct_and_config_file(args.in_gct_path, args.psp_config_path)
+    gct1 = pg.parse(args.in_gct_path, convert_neg_666=False, make_multiindex=True)
 
     # If second gct provided, compute similarity between 2 gcts
     if args.in_gct2_path is not None:
@@ -63,7 +62,7 @@ def main(args):
                     "between the columns of in_gct and in_gct2.")
 
         # Read in the second gct
-        (gct2, _, _, _) = psp_utils.read_gct_and_config_file(args.in_gct2_path, args.psp_config_path)
+        gct2 = pg.parse(args.in_gct2_path, convert_neg_666=False, make_multiindex=True)
 
         # Compute similarities between gct1 and gct2
         out_df = compute_similarity_bw_two_dfs(gct1.data_df, gct2.data_df, args.similarity_metric)

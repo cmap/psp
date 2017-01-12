@@ -8,20 +8,14 @@ of gct1 and the columns of gct2, but not the similarities within a single gct.
 Required arguments are 1 gct, the output directory, and the name for the
 output similarity gct.
 
-N.B. This script requires a configuration file. You can specify the location
-of this config file with the optional argument -psp_config_path.
-Otherwise, it will look for psp_production.cfg in your current directory.
-
-N.B. This directory is being refactored, so please ignore old_steep.py for now.
-
 Example usage:
 ```
-python steep/steep.py new.gct /path/to/output/dir/ new_v_old.gct -in_gct2 old.gct
+python steep/steep.py -i /path/to/first.gct -i2 /path/to/second.gct
 ```
 
 Maintainer
 ----------
 Lev Litichevskiy	
 lev@broadinstitute.org  
-August 2016
+January 2017
 
