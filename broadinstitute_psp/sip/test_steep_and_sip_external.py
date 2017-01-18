@@ -26,7 +26,6 @@ class TestSteepAndSipExternal(unittest.TestCase):
         (sim_gct, conn_gct) = sse.do_steep_and_sip(
             self.external_gct, self.internal_gct, self.bg_gct, "spearman",
             "ks_test", ["pert_id", "cell_id", "pert_time"],
-            ["pert_id", "cell_id", "pert_time"],
             ["pert_id", "cell_id", "pert_time"])
 
         # Expected
@@ -59,7 +58,6 @@ class TestSteepAndSipExternal(unittest.TestCase):
         (sim_gct, conn_gct) = sse.do_steep_and_sip(
             self.external_gct, self.internal_gct, self.bg_gct, "spearman",
             "ks_test", ["det_well"],
-            ["pert_id", "cell_id", "pert_time"],
             ["pert_id", "cell_id", "pert_time"])
 
         # Expected

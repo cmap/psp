@@ -48,6 +48,8 @@ def build_parser():
     parser.add_argument("--bg_gct_path", "-b", required=True,
                         help="path to background similarity gct file")
 
+    # TODO(LL): allow this to be optional
+
     # Optional args
     parser.add_argument("--out_steep_name", "-ost", default="steep_output.gct",
                         help="what to name the output similarity file")
@@ -59,15 +61,12 @@ def build_parser():
     parser.add_argument("--connectivity_metric", "-c", default="ks_test",
                         choices=["ks_test", "percentile_score"],
                         help="metric to use for computing connectivity")
-    parser.add_argument("--fields_to_aggregate_in_test_gct_queries", "-tfq",
+    parser.add_argument("--fields_to_aggregate_for_external_profiles", "-fae",
                         nargs="+", default=["pert_id", "cell_id", "pert_time"],
-                        help="list of metadata fields in the columns of the test gct to aggregate")
-    parser.add_argument("--fields_to_aggregate_in_test_gct_targets", "-tft",
+                        help="list of metadata fields to use in aggregating replicates in external profiles")
+    parser.add_argument("--fields_to_aggregate_for_internal_profiles", "-fai",
                         nargs="+", default=["pert_id", "cell_id", "pert_time"],
-                        help="list of metadata fields in the rows of the test gct to aggregate")
-    parser.add_argument("--fields_to_aggregate_in_bg_gct", "-bf",
-                        nargs="+", default=["pert_id", "cell_id", "pert_time"],
-                        help="list of metadata fields in the bg gct to aggregate")
+                        help="list of metadata fields to use in aggregating replicates in internal profiles")
     parser.add_argument("--verbose", "-v", action="store_true", default=False,
                         help="whether to increase the # of messages reported")
 
@@ -85,9 +84,8 @@ def main(args):
     (sim_gct, conn_gct) = do_steep_and_sip(
         external_gct, internal_gct, bg_gct, args.similarity_metric,
         args.connectivity_metric,
-        args.fields_to_aggregate_in_test_gct_queries,
-        args.fields_to_aggregate_in_test_gct_targets,
-        args.fields_to_aggregate_in_bg_gct)
+        args.fields_to_aggregate_for_external_profiles,
+        args.fields_to_aggregate_for_internal_profiles)
 
     # Write output gcts
     wg.write(sim_gct, args.out_steep_name, data_null="NaN", metadata_null="NA", filler_null="NA")
@@ -96,9 +94,8 @@ def main(args):
 
 def do_steep_and_sip(external_gct, internal_gct, bg_gct, similarity_metric,
                      connectivity_metric,
-                     fields_to_aggregate_in_test_gct_queries,
-                     fields_to_aggregate_in_test_gct_targets,
-                     fields_to_aggregate_in_bg_gct):
+                     fields_to_aggregate_for_external_profiles,
+                     fields_to_aggregate_for_internal_profiles):
 
     #----------STEEP----------#
 
@@ -124,9 +121,9 @@ def do_steep_and_sip(external_gct, internal_gct, bg_gct, similarity_metric,
     # and sort by that field
     (test_df, bg_df) = sip.prepare_multi_index_dfs(
         sim_gct.multi_index_df, bg_gct.multi_index_df,
-        fields_to_aggregate_in_test_gct_queries,
-        fields_to_aggregate_in_test_gct_targets,
-        fields_to_aggregate_in_bg_gct,
+        fields_to_aggregate_for_external_profiles,
+        fields_to_aggregate_for_internal_profiles,
+        fields_to_aggregate_for_internal_profiles,
         QUERY_FIELD_NAME, TARGET_FIELD_NAME, SEPARATOR)
 
     # Check symmetry

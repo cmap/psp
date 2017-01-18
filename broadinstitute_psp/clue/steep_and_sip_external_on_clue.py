@@ -91,7 +91,6 @@ def main(args):
                 (sim_gct, conn_gct) = steep_and_sip_external.do_steep_and_sip(
                     external_gct, internal_gct, bg_gct, "spearman",
                     "ks_test", fields_to_aggregate_for_external_profiles,
-                    fields_to_aggregate_for_internal_profiles,
                     fields_to_aggregate_for_internal_profiles)
 
                 # Write output gcts
