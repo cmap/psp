@@ -25,7 +25,7 @@ PSP_ON_CLUE_CONFIG_PATH=$4
 source activate psp
 
 # Call Python script
-python steep_and_sip_external/steep_and_sip_external_on_clue.py -a ASSAY -e EXTERNAL_GCT_PATH -o OUT_DIR -p PSP_ON_CLUE_CONFIG_PATH
+python steep_and_sip_external/steep_and_sip_external_many.py -a $ASSAY -e $EXTERNAL_GCT_PATH -o $OUT_DIR -p $PSP_ON_CLUE_CONFIG_PATH
 
 # TODO: store stdout?
 # TODO: use timestamp and user name to create subdir in out_dir?
