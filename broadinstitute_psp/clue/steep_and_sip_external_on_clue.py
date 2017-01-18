@@ -69,7 +69,7 @@ def main(args):
         # Read and unpack config file
         (cells, internal_gct_dir, bg_gct_dir, fields_to_aggregate_for_external_profiles,
          fields_to_aggregate_for_internal_profiles, similarity_metric,
-         connectivity_metric) = read_config_file(args.config_path)
+         connectivity_metric) = read_config_file(args.psp_on_clue_config_path)
 
         # Read in the external profiles only once
         external_gct = pg.parse(args.external_gct_path, convert_neg_666=False, make_multiindex=True)
@@ -101,7 +101,7 @@ def main(args):
                 wg.write(conn_gct, out_sip_name, data_null="NaN", filler_null="NaN", metadata_null="NaN")
 
             except Exception as e:
-                msg = "Could not complete for cell {}. stacktrace: {}".format(cell, str(e.exception))
+                msg = "Could not complete for cell {}. stacktrace: {}".format(cell, str(e))
 
                 # Write failure.txt
                 write_text_file(os.path.join(args.out_dir, "failure.txt"), msg)
@@ -115,7 +115,7 @@ def main(args):
         write_text_file(os.path.join(args.out_dir, "success.txt"), timestamp)
 
     except Exception as e:
-        msg = "Something failed outside of looping over cell lines. stacktrace: {}".format(str(e.exception))
+        msg = "Something failed outside of looping over cell lines. stacktrace: "
 
         # Write failure.txt
         write_text_file(os.path.join(args.out_dir, "failure.txt"), msg)
@@ -134,15 +134,24 @@ def read_config_file(config_path):
     config_parser = ConfigParser.RawConfigParser()
     config_parser.read(config_path)
 
-    # TODO: keep working here
-
     # Return config fields as dictionarires
-    config_io = dict(config_parser.items("io"))
     config_corpus = dict(config_parser.items("corpus"))
+    config_metadata = dict(config_parser.items("metadata"))
+    config_algorithms = dict(config_parser.items("algorithms"))
 
     # Unpack the config file
+    cells = eval(config_corpus["cells"])
+    internal_gct_dir = config_corpus["qcnorm_dir"]
+    bg_gct_dir = config_corpus["sim_dir"]
+    fields_to_aggregate_for_external_profiles = eval(config_metadata["fields_to_aggregate_for_external_profiles"])
+    fields_to_aggregate_for_internal_profiles = eval(config_metadata["fields_to_aggregate_for_internal_profiles"])
+    similarity_metric = config_algorithms["similarity_metric"]
+    connectivity_metric = config_algorithms["connectivity_metric"]
 
-    return config_io, config_corpus
+    return cells, internal_gct_dir, bg_gct_dir, \
+           fields_to_aggregate_for_external_profiles, \
+           fields_to_aggregate_for_internal_profiles, \
+           similarity_metric, connectivity_metric
 
 
 def write_text_file(file_name, file_contents):

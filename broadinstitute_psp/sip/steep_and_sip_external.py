@@ -82,14 +82,20 @@ def main(args):
     bg_gct = pg.parse(args.bg_gct_path, convert_neg_666=False, make_multiindex=True)
 
     # Meat of the script
-    do_steep_and_sip(external_gct, internal_gct, bg_gct, args.similarity_metric,
-                     args.connectivity_metric, args.out_steep_name, args.out_sip_name,
-                     args.fields_to_aggregate_in_test_gct_queries,
-                     args.fields_to_aggregate_in_test_gct_targets,
-                     args.fields_to_aggregate_in_bg_gct)
+    (sim_gct, conn_gct) = do_steep_and_sip(
+        external_gct, internal_gct, bg_gct, args.similarity_metric,
+        args.connectivity_metric,
+        args.fields_to_aggregate_in_test_gct_queries,
+        args.fields_to_aggregate_in_test_gct_targets,
+        args.fields_to_aggregate_in_bg_gct)
+
+    # Write output gcts
+    wg.write(sim_gct, args.out_steep_name, data_null="NaN", metadata_null="NA", filler_null="NA")
+    wg.write(conn_gct, args.out_sip_name, data_null="NaN", filler_null="NaN", metadata_null="NaN")
+
 
 def do_steep_and_sip(external_gct, internal_gct, bg_gct, similarity_metric,
-                     connectivity_metric, out_steep_name, out_sip_name,
+                     connectivity_metric,
                      fields_to_aggregate_in_test_gct_queries,
                      fields_to_aggregate_in_test_gct_targets,
                      fields_to_aggregate_in_bg_gct):
@@ -111,9 +117,6 @@ def do_steep_and_sip(external_gct, internal_gct, bg_gct, similarity_metric,
 
     # Assemble similarity gct
     sim_gct = GCToo.GCToo(sim_df, row_metadata_for_sim_df, col_metadata_for_sim_df, make_multiindex=True)
-
-    # Write output similarity gct
-    wg.write(sim_gct, out_steep_name, data_null="NaN", metadata_null="NA", filler_null="NA")
 
     #----------SIP----------#
 
@@ -141,9 +144,10 @@ def do_steep_and_sip(external_gct, internal_gct, bg_gct, similarity_metric,
     sip.add_connectivity_metric_to_metadata(signed_col_metadata_df, connectivity_metric, CONNECTIVITY_METRIC_FIELD)
     sip.add_connectivity_metric_to_metadata(signed_row_metadata_df, connectivity_metric, CONNECTIVITY_METRIC_FIELD)
 
-    # Create connectivity gct and write it to file
+    # Assemble connectivity gct
     conn_gct = GCToo.GCToo(data_df=signed_data_df, row_metadata_df=signed_row_metadata_df, col_metadata_df=signed_col_metadata_df)
-    wg.write(conn_gct, out_sip_name, data_null="NaN", filler_null="NaN", metadata_null="NaN")
+
+    return sim_gct, conn_gct
 
 
 if __name__ == "__main__":
