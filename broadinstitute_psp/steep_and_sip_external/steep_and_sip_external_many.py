@@ -1,21 +1,14 @@
 """
-steep_and_sip_external_on_clue.py
+steep_and_sip_external_many.py
 
-Most of the arguments come from the config file.
-
-Runs steep_and_sip_external for each cell line in the corpus.
-
-Requirements:
-Run steep_and_sip_external.py on all cell lines.
-Parse external_gct_path only once.
-Create appropriate error message.
-Write text file indicating success or failure.
-
+Runs steep_and_sip_external.py for each cell line in the corpus. Most of the
+arguments come from the config file. The default config file points to the
+latest QCNORM and SIM directories.
 
 """
 
-import argparse
 import ConfigParser
+import argparse
 import datetime
 import logging
 import os
@@ -24,8 +17,9 @@ import time
 
 import broadinstitute_cmap.io.pandasGEXpress.parse as pg
 import broadinstitute_cmap.io.pandasGEXpress.write_gct as wg
+
+import broadinstitute_psp.steep_and_sip_external as steep_and_sip_external
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import broadinstitute_psp.sip.steep_and_sip_external as steep_and_sip_external
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
@@ -37,6 +31,9 @@ BG_GCT_FORMAT = "{assay}_{cell}_SIM.gct"
 OUT_STEEP_FORMAT = "{cell}_SIM.gct"
 OUT_SIP_FORMAT = "{cell}_CONN.gct"
 
+# TODO(LL): rename this, make this easy for AO's use case (e.g. annotation)?
+# TODO(LL): add a proper test
+# TODO(LL): need to figure out how we will pass -fae through
 
 def build_parser():
     """Build argument parser."""
@@ -52,7 +49,7 @@ def build_parser():
     parser.add_argument("--out_dir", "-o", required=True,
                         help="output directory")
     parser.add_argument("--psp_on_clue_config_path", "-p",
-                        required=True,
+                        default="clue/psp_on_clue.cfg",
                         help="filepath to psp_on_clue.cfg")
 
     # Optional args
@@ -100,6 +97,9 @@ def main(args):
                 wg.write(conn_gct, out_sip_name, data_null="NaN", filler_null="NaN", metadata_null="NaN")
 
             except Exception as e:
+
+                # TODO(LL): figure out how to get the stacktrace properly
+
                 msg = "Could not complete for cell {}. stacktrace: {}".format(cell, str(e))
 
                 # Write failure.txt

@@ -7,6 +7,10 @@ external gct file. The required inputs are a path to a gct of external profiles
 of the pre-computed similarity matrix of the internal profiles against
 themselves.
 
+N.B. The internal_gcts and bg_gcts should each contain only WITHIN-cell
+calculations. In other words, this script needs to be run 6 times to get
+results for each cell line in the corpus.
+
 """
 
 import logging
@@ -47,7 +51,6 @@ def build_parser():
                         help="path to gct file of internal profiles")
     parser.add_argument("--bg_gct_path", "-b", required=True,
                         help="path to background similarity gct file")
-
     # TODO(LL): allow this to be optional
 
     # Optional args

@@ -1,10 +1,10 @@
 import unittest
-import steep_and_sip_external_on_clue as ssec
+import steep_and_sip_external_many as ssec
 
 # HOWTO: run from broadinstitute_psp directory
 
 
-class TestSteepAndSipExternalOnClue(unittest.TestCase):
+class TestSteepAndSipExternalMany(unittest.TestCase):
     def test_read_config_file(self):
 
         (cells, internal_gct_dir, bg_gct_dir,

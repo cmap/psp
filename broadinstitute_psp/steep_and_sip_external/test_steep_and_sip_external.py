@@ -1,11 +1,12 @@
-import unittest
-import os
 import numpy as np
+import os
+import unittest
 
 import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
-import steep_and_sip_external as sse
+import broadinstitute_psp.steep_and_sip_external.steep_and_sip_external as sse
 
-FUNCTIONAL_TESTS_DIR = "sip/functional_tests"
+
+FUNCTIONAL_TESTS_DIR = "steep_and_sip_external/functional_tests"
 
 
 class TestSteepAndSipExternal(unittest.TestCase):
