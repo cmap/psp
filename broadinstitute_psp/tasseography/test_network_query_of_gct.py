@@ -1,6 +1,11 @@
+import logging
 import pandas as pd
 import unittest
+import broadinstitute_psp.utils.setup_logger as setup_logger
 import network_query_of_gct as nq
+
+# Setup logger
+logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
 
 class TestNetworkQuery(unittest.TestCase):
@@ -110,4 +115,5 @@ class TestNetworkQuery(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    setup_logger.setup(verbose=True)
     unittest.main()

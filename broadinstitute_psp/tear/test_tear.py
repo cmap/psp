@@ -234,5 +234,5 @@ class TestTear(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    setup_logger.setup()
+    setup_logger.setup(verbose=True)
     unittest.main()

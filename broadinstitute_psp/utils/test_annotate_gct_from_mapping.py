@@ -1,11 +1,16 @@
+import logging
 import unittest
 import os
 import pandas as pd
 
+import broadinstitute_psp.utils.setup_logger as setup_logger
 import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
 import annotate_gct_from_mapping as agfm
 
 functional_tests_dir = "utils/functional_tests/"
+
+# Setup logger
+logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
 class TestAnnotate(unittest.TestCase):
 
@@ -53,4 +58,5 @@ class TestAnnotate(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    setup_logger.setup(verbose=True)
     unittest.main()

@@ -1,13 +1,16 @@
+import logging
 import numpy as np
 import os
 import unittest
 
+import broadinstitute_psp.utils.setup_logger as setup_logger
 import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
 import broadinstitute_psp.steep_and_sip_external.steep_and_sip_external as sse
 
-
 FUNCTIONAL_TESTS_DIR = "steep_and_sip_external/functional_tests"
 
+# Setup logger
+logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
 class TestSteepAndSipExternal(unittest.TestCase):
 
@@ -83,4 +86,5 @@ class TestSteepAndSipExternal(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    setup_logger.setup(verbose=True)
     unittest.main()
