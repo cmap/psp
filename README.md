@@ -8,7 +8,7 @@ A dependency of PSP is the [l1ktools repository](https://github.com/cmap/l1ktool
 
 Lev Litichevskiy  
 lev@broadinstitute.org  
-October 2016
+January 2017
 
 ## Setting up your environment
 
@@ -25,7 +25,7 @@ October 2016
   5. We will now create an environment with conda that will allow us to use PSP. Type the following in your Terminal:
 
       ```
-      conda create --name psp_env python=2 numpy scipy pandas matplotlib 
+      conda create --name psp_env python=2 scipy pandas matplotlib 
       ```
       
       'psp_env' will be the name of your conda environment, and the things after it are the packages that you want that environment to contain. Note that we are using python2, rather than python3. Click 'yes' through the various installation steps.
@@ -58,6 +58,12 @@ October 2016
       python dry/test_dry.py
       ```
       
+      To be thorough, you can run all tests with the following command:
+      
+      ```
+      python -m unittest discover ./ -p "test_*.py"
+      ```
+      
       Test files should be executed from the `broadinstitute_psp` directory, but other scripts can be run from anywhere. For example, you could run dry from anywhere by supplying the full path to the script. For example:
       
       ```
@@ -69,7 +75,7 @@ October 2016
 ### To set up your environment after the first time:
 
   1. Activate your conda environment by typing `source activate psp_env`, or if you are on a Windows computer, `activate psp_env`.
-  2. It's easiest to run your code from the `broadinstitute_psp` directory (the one that contains the dry, steep, etc. directories), so move there and try executing one of the test_scripts again:
+  2. It's easiest to run your code from the `broadinstitute_psp` directory (the one that contains the dry, steep, etc. directories), so move there and try executing one of the test scripts again:
     
       ```
       cd /Users/lev/code/proteomics-signature-pipeline/broadinstitute_psp
@@ -78,7 +84,7 @@ October 2016
 
 ## Configuration file
 
-Several of the files in PSP -- such as dry, steep, and sip -- require a configuration file. This file contains some parameters used by the production code (e.g. what values to consider NaN, default thresholds, provenance code abbreviations, etc.). By default, these scripts will look for this config file in `~/psp_production.cfg`. So if you want to never think about the config file again, just copy `psp_production.cfg`, which is in the top-directory of the PSP repo, to your home directory. Otherwise, you'll have to supply it explicitly with the --psp_config_path argument.
+Several of the files in PSP -- notably dry.py and steep_and_sip_external_many.py -- require a configuration file. This file contains various parameters used by the production code (e.g. what values to consider NaN, default thresholds, provenance code abbreviations, where to find certain files, etc.). By default, these scripts will look for this config file in `~/psp_production.cfg`. So if you want to never think about the config file again, just copy `psp_production.cfg`, which is in the top-directory of the PSP repo, to your home directory. Otherwise, you'll have to supply it explicitly with the --psp_config_path argument.
 
 ## Examples
 
@@ -114,25 +120,27 @@ One output file will be saved to your current directory: the GCT file containing
 
 ### Use Case 4: concat_gctoo
 
-A. You have a bunch of files that start with 'LINCS_GCP' in your Downloads folder that you want to concatenate. Type the following in your command line:
+This script lives in `l1ktools`. The main methods of this script are `hstack` (horizontal concatenation) and `vstack` (vertical concatenation). 
+
+A. You have a bunch of files that start with 'LINCS_GCP' in your Downloads folder that you want to concatenate **horizontally**. Type the following in your command line:
 
 ```
-python /Users/lev/code/l1ktools/python/broadinstitute_cmap/io/GCToo/concat_gctoo.py --file_wildcard '/Users/lev/Downloads/LINCS_GCP*'
+python /Users/lev/code/l1ktools/python/broadinstitute_cmap/io/GCToo/concat_gctoo.py --file_wildcard '/Users/lev/Downloads/LINCS_GCP*' --concat_direction horz
 ```
 
 This will save a file called `concated.gct` in your current directory.  Make sure that the wildcard is in quotes!
 
-B. You have 2 files that you want to concatenate: /Users/lev/file_to_concatenate1.gct and /Users/lev/file_to_concatenate2.gct. Type the following in your command line:
+B. You have 2 files that you want to concatenate **horizontally**: /Users/lev/file_to_concatenate1.gct and /Users/lev/file_to_concatenate2.gct. Type the following in your command line:
 
 ```
-python /Users/lev/code/l1ktools/python/broadinstitute_cmap/io/GCToo/concat_gctoo.py --list_of_gct_paths /Users/lev/file_to_concatenate1.gct /Users/lev/file_to_concatenate2.gct
+python /Users/lev/code/l1ktools/python/broadinstitute_cmap/io/GCToo/concat_gctoo.py --list_of_gct_paths /Users/lev/file_to_concatenate1.gct /Users/lev/file_to_concatenate2.gct --concat_direction horz
 ```
 
-C. You have 2 GCToo objects in memory that you want to concatenate. hstack is the method in concat_gctoo.py that actually does the concatenation. From within the Python console or script where you have your 2 GCToos (gct1 & gct2), type the following:
+C. You have 2 GCToo objects in memory that you want to concatenate **vertically**. vstack is the method in concat_gctoo.py that will actually do the concatenation. From within the Python console or script where you have your 2 GCToos (gct1 & gct2), type the following:
 
 ```
 import broadinstitute_cmap.io.GCToo.concat_gctoo as cg
-concated = cg.hstack([gct1, gct2])
+concated = cg.vstack([gct1, gct2])
 ```
 
 Components
@@ -141,10 +149,11 @@ harvest: pushing and pulling data from Panorama (coming soon)
 dry: level 2 &rarr; level 3 data; performs filtering and normalization  
 steep: level 3 or level 4 (z-scored) &rarr; level 5 data; computes similarity  
 sip: level 5 &rarr; level 6 data; computes connectivity  
+steep_and_sip_external: level 3 or level 4 (z-scored) &rarr; level 6 data; combines 2 scripts into 1  
 utils: miscellanous other scripts  
 
 Data levels
 -----------
 ![alt text][logo]
 
-[logo]: https://github.com/cmap/proteomics-signature-pipeline/blob/1907ca5661ae617e03678e2e800f06b5503b4b29/2016-07-29_proteomics_data_levels.png "Proteomics Data Levels"
+[logo]: https://github.com/cmap/proteomics-signature-pipeline/blob/ea03fc6f133e5c2af1ec5bf27144222780e8d732/broadinstitute_psp/misc/2016-07-29_proteomics_data_levels.png "Proteomics Data Levels"
