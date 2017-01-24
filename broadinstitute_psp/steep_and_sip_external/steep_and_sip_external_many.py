@@ -110,8 +110,8 @@ def main(args):
 
         # Return how much time it took
         end_time = datetime.datetime.now()
-        minutes_elapsed = (end_time - start_time).seconds / 60.
-        logger.info("steep_and_sip_external_many.py completed in {:.1f} min.".format(minutes_elapsed))
+        seconds_elapsed = (end_time - start_time).seconds
+        logger.info("steep_and_sip_external_many.py completed in {:.0f} sec.".format(seconds_elapsed))
 
 
     except Exception:
