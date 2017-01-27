@@ -38,6 +38,8 @@ def build_parser():
                               "will determine file format (e.g. png, svg)"))
     parser.add_argument("--annot_fields", "-a", nargs="*", default=["pert_iname", "moa"],
                         help="fields from metadata to use for annotating nodes")
+    parser.add_argument("--node_color_field", "-nc", default="moa",
+                        help="field from metadata to use for coloring nodes")
     parser.add_argument("--threshold", "-t", default=0.8, type=float, help="connectivity threshold")
     parser.add_argument("--verbose", "-v", action="store_true", default=False,
                         help="whether to increase the # of messages reported")
@@ -54,6 +56,9 @@ def main(args):
     # Assert data_df is square
     assert gct.data_df.shape[0] == gct.data_df.shape[1]
 
+    # Make dictionary of node colors for plotting
+    color_dict = make_color_dict(gct.col_metadata_df, args.node_color_field)
+
     # Convert to Graph
     g = convert_gct_to_graph(gct, args.annot_fields)
 
@@ -63,7 +68,7 @@ def main(args):
     # Write nodes and edges to file
 
     # # Plot result
-    plot_network(g, args.out_fig_name)
+    plot_network(g, args.out_fig_name, color_dict, args.node_color_field)
 
 
 def convert_gct_to_graph(gct, annotation_fields):
@@ -94,6 +99,25 @@ def convert_gct_to_graph(gct, annotation_fields):
     return g
 
 
+def make_color_dict(meta_df, color_field):
+    """ Keys are unique entries in df[color_field], values are RGB color tuples.
+
+    Args:
+        meta_df (pandas df)
+
+    Returns:
+        color_dict
+
+    """
+    unique_vals = meta_df[color_field].unique()
+    num_unique_vals = len(unique_vals)
+
+    palette = ig.drawing.colors.ClusterColoringPalette(num_unique_vals)
+    color_dict = dict(zip(unique_vals, palette))
+
+    return color_dict
+
+
 def trim_graph(g, thresh):
     """ Remove edges and vertices that are below the threshold. Modify g
     in-place.
@@ -116,22 +140,18 @@ def trim_graph(g, thresh):
     g.delete_vertices(vertices_to_delete)
 
 
-def plot_network(g, fig_name):
-
-    # Color according to MOA
-    unique_moa = set(g.vs["moa"])
-    num_moa = len(unique_moa)
-    palette = ig.drawing.colors.ClusterColoringPalette(num_moa)
-    moa_color_dict = dict(zip(unique_moa, palette))
-    moa_colors = [moa_color_dict[moa] for moa in g.vs["moa"]]
-
+def plot_network(g, fig_name, color_field, color_dict):
+    margin = 80
     ig.plot(g, fig_name,
             vertex_size=10,
             vertex_label=g.vs['pert_iname'],
-            vertex_color=moa_colors,
+            vertex_color=[color_dict[val] for val in g.vs[color_field]],
             vertex_label_dist=2,
             edge_arrow_size=0.3,
-            edge_curved=False)
+            edge_curved=False,
+            margin=(margin, margin, margin, margin))
+
+    logger.info("Network saved to {}".format(fig_name))
 
 
 if __name__ == "__main__":
