@@ -36,7 +36,12 @@ def build_parser():
     parser.add_argument("--out_fig_name", "-of", default="network.png",
                         help=("what to name the output figure; file extension " +
                               "will determine file format (e.g. png, svg)"))
-    parser.add_argument("--annot_fields", "-a", nargs="*", default=["pert_iname", "moa"],
+    parser.add_argument("--out_node_name", "-on", default="nodes.tsv",
+                        help="what to name output nodes file")
+    parser.add_argument("--out_edge_name", "-oe", default="edges.tsv",
+                        help="what to name output edges file")
+    parser.add_argument("--annot_fields", "-a", nargs="*",
+                        default=["pert_iname", "moa"],
                         help="fields from metadata to use for annotating nodes")
     parser.add_argument("--node_color_field", "-nc", default="moa",
                         help="field from metadata to use for coloring nodes")
@@ -66,13 +71,16 @@ def main(args):
     trim_graph(g, args.threshold)
 
     # Write nodes and edges to file
+    write_edge_tsv(g, args.out_edge_name)
+    write_node_tsv(g, args.out_node_name)
 
-    # # Plot result
+    # Plot result
     plot_network(g, args.out_fig_name, color_dict, args.node_color_field)
 
 
 def convert_gct_to_graph(gct, annotation_fields):
-    """ Convert gct to an igraph.Graph object.
+    """ Convert gct to an igraph.Graph object. Id is annotated as the id
+    attribute.
 
     Args:
         gct (GCToo object)
@@ -90,7 +98,10 @@ def convert_gct_to_graph(gct, annotation_fields):
     g = ig.Graph.Weighted_Adjacency(adj, mode=ig.ADJ_DIRECTED,
                                     attr="weight", loops=False)
 
-    # Annotate nodes
+    # Annotate nodes using ids
+    g.vs["id"] = gct.col_metadata_df.index.values
+
+    # Annotate nodes with other metadata
     for field in annotation_fields:
         assert field in gct.col_metadata_df.columns.values, (
                "field {} not present in the metadata.".format(field))
@@ -104,6 +115,7 @@ def make_color_dict(meta_df, color_field):
 
     Args:
         meta_df (pandas df)
+        color_field (string): metadata field to use for node colors
 
     Returns:
         color_dict
@@ -130,9 +142,9 @@ def trim_graph(g, thresh):
         None
 
     """
-
     # Remove edges
-    edges_to_delete = [e.index for e in g.es if not e['weight'] > thresh]
+    logger.info("Threshold: abs(e['weight']) > {thresh}]".format(thresh=thresh))
+    edges_to_delete = [e.index for e in g.es if not abs(e['weight']) > thresh]
     g.delete_edges(edges_to_delete)
 
     # Remove vertices
@@ -140,12 +152,57 @@ def trim_graph(g, thresh):
     g.delete_vertices(vertices_to_delete)
 
 
-def plot_network(g, fig_name, color_field, color_dict):
+def write_edge_tsv(g, out_edge_name):
+    """ Write edges to a tsv.
+
+    Args:
+        g (igraph.Graph)
+        out_edge_name (file path)
+
+    Returns:
+        None
+
+    """
+    # Make dataframe
+    source_target_weight_tuples = [(g.vs[e.source]["id"], g.vs[e.target]["id"],
+                                    e["weight"]) for e in g.es]
+    edge_df = pd.DataFrame(source_target_weight_tuples,
+                           columns=["query", "target", "value"])
+
+    # Write to file
+    edge_df.to_csv(out_edge_name, sep="\t", index=None)
+
+
+def write_node_tsv(g, out_node_name):
+    """ Write nodes (or vertices) to a tsv.
+
+    Args:
+        g (igraph.Graph)
+        meta_df (pandas df)
+        annot_fields (list of strings)
+        out_node_name (file path)
+
+    Returns:
+        None
+
+    """
+    # Make dataframe
+    node_attributes = g.vs.attribute_names()
+    node_df = pd.DataFrame.from_dict(
+        dict([(attr, g.vs[attr]) for attr in node_attributes]))
+
+    # Write to file
+    node_df.to_csv(out_node_name, sep="\t", index=None)
+
+
+def plot_network(g, fig_name, color_dict, color_field):
     margin = 80
+
+    node_colors = [color_dict[val] for val in g.vs[color_field]]
     ig.plot(g, fig_name,
             vertex_size=10,
             vertex_label=g.vs['pert_iname'],
-            vertex_color=[color_dict[val] for val in g.vs[color_field]],
+            vertex_color=node_colors,
             vertex_label_dist=2,
             edge_arrow_size=0.3,
             edge_curved=False,
