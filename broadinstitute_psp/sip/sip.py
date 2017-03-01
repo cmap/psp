@@ -53,7 +53,7 @@ def build_parser():
     parser.add_argument("--test_gct_path", "-t", required=True,
                         help="path to input gct file")
     parser.add_argument("--bg_gct_path", "-b", required=True,
-                        help="path to output directory")
+                        help="path to background gct file")
 
     # Optional args
     parser.add_argument("--out_name", "-o", default="sip_output.gct",
