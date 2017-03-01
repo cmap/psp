@@ -157,11 +157,11 @@ def prepare_multi_index_dfs(test_df, bg_df, fields_to_aggregate_in_test_gct_quer
         out_bg_df (multi-index pandas df)
 
     """
-    # Create aggregated level for queries (columns)
+    # Create aggregated level in test_df for queries (columns)
     (_, test_df_columns) = add_aggregated_level_to_multi_index(
         test_df.columns, fields_to_aggregate_in_test_gct_queries, query_field_name, sep)
 
-    # Create aggregated level for targets (rows)
+    # Create aggregated level in test_df for targets (rows)
     (_, test_df_index) = add_aggregated_level_to_multi_index(
         test_df.index, fields_to_aggregate_in_test_gct_targets, target_field_name, sep)
 
@@ -177,7 +177,6 @@ def prepare_multi_index_dfs(test_df, bg_df, fields_to_aggregate_in_test_gct_quer
         bg_df.columns, fields_to_aggregate_in_bg_gct, target_field_name, sep)
     (_, bg_df_index) = add_aggregated_level_to_multi_index(
         bg_df.index, fields_to_aggregate_in_bg_gct, target_field_name, sep)
-    out_bg_field = target_field_name
 
     # Create out_bg_df
     out_bg_df = pd.DataFrame(bg_df.values, index=bg_df_index, columns=bg_df_columns)
@@ -223,7 +222,6 @@ def check_symmetry(test_mi_df, bg_mi_df):
     return is_test_df_sym, is_bg_df_sym
 
 
-
 def compute_connectivities(test_df, bg_df, test_gct_query_field, test_gct_target_field, bg_gct_field, connectivity_metric, is_test_df_sym):
     """ Compute all connectivities for a single test_df and a single bg_df.
 
@@ -261,15 +259,36 @@ def compute_connectivities(test_df, bg_df, test_gct_query_field, test_gct_target
     conn_df_columns = pd.MultiIndex.from_tuples(np.unique(test_df.columns.values))
     conn_df_columns.names = test_df.columns.names
 
+    # Sort by test_gct_query_field to ensure that it still aligns with queries
+    sorted_conn_df_columns = conn_df_columns.sortlevel(test_gct_query_field)[0]
+    assert np.array_equal(
+        sorted_conn_df_columns.get_level_values(test_gct_query_field), queries), (
+        "queries do not match the {test_gct_query_field} level in sorted_conn_df_columns. " +
+        "queries:\n{queries}\nsorted_conn_df_columns.get_level_values({test_gct_query_field}):\n{sorted_conn_df}").format(
+        test_gct_query_field=test_gct_query_field,
+        queries=queries,
+        sorted_conn_df=sorted_conn_df_columns.get_level_values(test_gct_query_field))
+
     # Row multi-index of output df is the unique version of test_df.index, but
     # only for targets also in bg_df
     conn_df_index = pd.MultiIndex.from_tuples(np.unique(test_df.index[test_df.index.get_level_values(test_gct_target_field).isin(targets)].values))
     conn_df_index.names = test_df.index.names
 
+    # Sort by test_gct_target_field to ensure that it still aligns with targets
+    sorted_conn_df_index = conn_df_index.sortlevel(test_gct_target_field)[0]
+    assert np.array_equal(
+        sorted_conn_df_index.get_level_values(test_gct_target_field), targets), (
+        "targets do not match the {test_gct_target_field} level in sorted_conn_df_index. " +
+        "targets:\n{targets}\nsorted_conn_df_index.get_level_values({test_gct_target_field}):\n{sorted_conn_df}").format(
+        test_gct_target_field=test_gct_target_field,
+        targets=targets,
+        sorted_conn_df=sorted_conn_df_index.get_level_values(test_gct_target_field))
+
     # Initialize conn_df and signed_conn_df :: len(targets) x len(queries)
-    # Use regular rather than multi-index to make insertion of connectivity
-    # values easier
-    conn_df = pd.DataFrame(np.zeros([len(targets), len(queries)]) * np.nan, index=targets, columns=queries)
+    # Use regular rather than multi-index dfs to make insertion of connectivity
+    # values easier; convert to multi-indices after the for-loop
+    conn_df = pd.DataFrame(np.zeros([len(targets), len(queries)]) * np.nan,
+                           index=targets, columns=queries)
     signed_conn_df = conn_df.copy()
 
     for target in targets:
@@ -293,10 +312,8 @@ def compute_connectivities(test_df, bg_df, test_gct_query_field, test_gct_target
                     if connectivity_metric == "ks_test":
 
                         # Compute single connectivity
-                        (ks_stat, pval) = ks_test_single(test_vals, bg_vals)
+                        (ks_stat, _) = ks_test_single(test_vals, bg_vals)
                         conn_df.loc[target, query] = ks_stat
-
-                        # TODO(lev): figure out what to do with pvals
 
                         # Compute signed connectivity as well
                         signed_ks_stat = add_sign_to_conn(ks_stat, test_vals, bg_vals)
@@ -308,6 +325,10 @@ def compute_connectivities(test_df, bg_df, test_gct_query_field, test_gct_target
                         conn = percentile_score_single(test_vals, bg_vals)
                         conn_df.loc[target, query] = conn
 
+                        # Compute signed connectivity as well
+                        signed_conn = add_sign_to_conn(conn, test_vals, bg_vals)
+                        signed_conn_df.loc[target, query] = signed_conn
+
                     else:
                         err_msg = ("connectivity metric must be either ks_test or " +
                                    "percentile_score. connectivity_metric: {}").format(connectivity_metric)
@@ -315,10 +336,10 @@ def compute_connectivities(test_df, bg_df, test_gct_query_field, test_gct_target
                         raise(Exception(err_msg))
 
     # Replace the regular indices with multi-indices
-    conn_df.index = conn_df_index
-    conn_df.columns = conn_df_columns
-    signed_conn_df.index = conn_df_index
-    signed_conn_df.columns = conn_df_columns
+    conn_df.index = sorted_conn_df_index
+    conn_df.columns = sorted_conn_df_columns
+    signed_conn_df.index = sorted_conn_df_index
+    signed_conn_df.columns = sorted_conn_df_columns
 
     return conn_df, signed_conn_df
 
