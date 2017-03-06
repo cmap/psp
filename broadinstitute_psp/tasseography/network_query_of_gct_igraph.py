@@ -52,6 +52,9 @@ def build_parser():
     return parser
 
 
+# TODO(lev): make a (bipartite) version of this script for assymetric matrices
+
+
 def main(args):
 
     # Read gct
@@ -195,11 +198,12 @@ def write_node_tsv(g, out_node_name):
     node_df.to_csv(out_node_name, sep="\t", index=None)
 
 
-def plot_network(g, fig_name, color_dict, color_field):
+def plot_network(g, fig_name, color_dict, color_field, layout="fr"):
     margin = 80
 
     node_colors = [color_dict[val] for val in g.vs[color_field]]
     ig.plot(g, fig_name,
+            layout=layout,
             vertex_size=10,
             vertex_label=g.vs['pert_iname'],
             vertex_color=node_colors,
