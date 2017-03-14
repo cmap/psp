@@ -67,11 +67,11 @@ def build_parser():
                               "set to None for symmetric GCTs;"))
 
     parser.add_argument("--row_annot_fields", "-ra", nargs="*",
-                        default=["pert_iname", "moa"],
+                        default=["pert_iname", "moa", "cell_id"],
                         help=("fields from row metadata to use for " +
                               "annotating row vertices"))
     parser.add_argument("--col_annot_fields", "-ca", nargs="*",
-                        default=["pert_iname", "moa"],
+                        default=["pert_iname", "moa", "cell_id"],
                         help=("fields from column metadata to use for " +
                               "annotating column vertices; should be the " +
                               "as row_annot_fields if GCT is symmetric"))
@@ -99,21 +99,21 @@ def main(args):
         logger.info(("Row metadata equals column metadata. " +
                      "Assuming symmetric GCT."))
 
-        assert all(args.row_annot_fields == args.col_annot_fields), (
+        assert args.row_annot_fields == args.col_annot_fields, (
             ("row_annot_fields should be the same as col_annot_fields if the " +
              "GCT is symmetric. args.row_annot_fields: {}, " +
              "args.col_annot_fields: {}").format(args.row_annot_fields,
-                                               args.col_annot_fields))
+                                                 args.col_annot_fields))
 
         assert args.query_in_row_or_col is None, (
             ("query_in_row_or_col should be None for symmetric GCTs. " +
-             "args.query_in_row_or_col: {}".format(args.query_in_row_or_col)))
+             "args.query_in_row_or_col: {}").format(args.query_in_row_or_col))
 
         # Main method for symmetric gcts
         main_sym(gct, args.out_fig_name, args.out_gml_name,
                  args.row_annot_fields, args.my_query, args.query_field,
                  args.threshold, args.vertex_label_field,
-                 args.vertex_color_field)
+                 args.vertex_color_field, layout="fr")
 
     else:
         logger.info(("Row metadata does not equal column metadata. " +
@@ -139,7 +139,11 @@ def main_sym(gct, out_fig_name, out_gml_name, vertex_annot_fields, my_query,
     # Convert gct to Graph object
     g = sym_gct_to_graph(gct, vertex_annot_fields)
 
-    # TODO(LL): make color dict using vertex_color_field
+    # Add 'color' field to use for coloring vertices
+    if vertex_color_field is not None:
+        add_color_attribute(g, vertex_color_field)
+
+    # TODO(LL): add abs_value and sign attributes to edges
 
     # Remove edges (and optionally vertices) from subgraph below threshold
     subgraph = remove_edges_and_vertices_below_thresh(g, threshold)
@@ -164,7 +168,6 @@ def main_sym(gct, out_fig_name, out_gml_name, vertex_annot_fields, my_query,
     if out_fig_name:
         plot_network(out_graph, out_fig_name,
                      vertex_label_field=vertex_label_field,
-                     vertex_color_field=vertex_color_field,
                      layout=layout)
 
 
@@ -175,7 +178,11 @@ def main_asym(gct, out_fig_name, out_gml_name, row_annot_fields, col_annot_field
     # Convert gct to Graph object
     g = asym_gct_to_graph(gct, row_annot_fields, col_annot_fields)
 
-    # TODO(LL): make color dict using vertex_color_field
+    # Add 'color' field to use for coloring vertices
+    if vertex_color_field is not None:
+        add_color_attribute(g, vertex_color_field)
+
+    # TODO(LL): add abs_value and sign attributes to edges
 
     # Remove edges (and optionally vertices) from subgraph below threshold
     subgraph = remove_edges_and_vertices_below_thresh(g, threshold)
@@ -200,7 +207,6 @@ def main_asym(gct, out_fig_name, out_gml_name, row_annot_fields, col_annot_field
     if out_fig_name:
         plot_network(out_graph, out_fig_name,
                      vertex_label_field=vertex_label_field,
-                     vertex_color_field=vertex_color_field,
                      layout="bipartite")
 
 
@@ -291,6 +297,33 @@ def asym_gct_to_graph(gct, row_annot_fields, col_annot_fields):
                 v[annot_field] = gct.row_metadata_df.loc[v["id"], annot_field]
 
     return g
+
+
+def add_color_attribute(g, vertex_color_field):
+    """ Add a vertex attribute called 'color' that corresponds to an existing
+     vertex attribute vertex_color_field.
+
+    Args:
+        @param g:
+        @type g: iGraph.Graph object
+        @param vertex_color_field: name of existing vertex attribute
+        @type vertex_color_field: string
+
+    Returns:
+        None
+
+    """
+    # Figure out how many unique elements we have in vertex_color_field
+    unique_elements = set(g.vs[vertex_color_field])
+
+    # Create a dictionary in which each unique element is assigned a color
+    my_palette = ig.RainbowPalette(n=len(unique_elements))
+    color_dict = dict(zip(
+        unique_elements, my_palette.get_many(range(my_palette.length))))
+
+    # Populate the 'color' vertex attribute
+    list_of_colors = [color_dict[v[vertex_color_field]] for v in g.vs()]
+    g.vs["color"] = list_of_colors
 
 
 def remove_edges_and_vertices_below_thresh(g, thresh, delete_vertices=True):
@@ -484,7 +517,7 @@ def get_vertex_ids_of_neighbors(g, vertex_ids_of_queries):
     return vertex_ids_of_neighbors
 
 
-def plot_network(g, out_fig_name, vertex_label_field, vertex_color_field,layout="fr"):
+def plot_network(g, out_fig_name, vertex_label_field, layout="fr"):
     """ Plot network.
 
     Args:
@@ -494,8 +527,6 @@ def plot_network(g, out_fig_name, vertex_label_field, vertex_color_field,layout=
         @type out_fig_name: string or None
         @param vertex_label_field: vertex attribute field used for labels
         @type vertex_label_field: string
-        @param vertex_color_field: vertex attribute field used for colors
-        @type vertex_color_field: string
         @param layout: layout to use for plotting; default = "fr", aka
             Fruchterman Reingold; some other options include "kk" for
             Kamada Kawai, "circle" for circular, and "bipartite"
@@ -513,18 +544,17 @@ def plot_network(g, out_fig_name, vertex_label_field, vertex_color_field,layout=
     else:
         labels = g.vs[vertex_label_field]
 
-    # Check if vertex_color_field was provided
-    if vertex_color_field is None:
-        colors = None
-    else:
-        colors = g.vs[vertex_color_field]
+    # # Check if vertex_color_field was provided
+    # if vertex_color_field is None:
+    #     colors = None
+    # else:
+    #     colors = g.vs[vertex_color_field]
 
     # Do it
     ig.plot(g, out_fig_name,
             layout=layout,
             vertex_size=10,
             vertex_label=labels,
-            vertex_color=colors,
             vertex_label_dist=2,
             edge_arrow_size=0.3,
             edge_curved=False,

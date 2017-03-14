@@ -118,6 +118,20 @@ class TestTasseography(unittest.TestCase):
         # Use numpy testing to get around NaN
         np.testing.assert_array_equal(out.es["weight"], self.asym_g.es["weight"])
 
+    def test_add_color_attribute(self):
+        g_copy = self.sym_g.copy()
+        same_color = (1.0, 0.0, 0.0, 1.0)
+        tasseography.add_color_attribute(g_copy, "cell_id")
+        self.assertSequenceEqual(g_copy.vs["color"],
+                                 [same_color, same_color, same_color])
+
+        g_copy2 = self.asym_g.copy()
+        tasseography.add_color_attribute(g_copy2, "cell_id")
+        self.assertSequenceEqual(g_copy2.vs["color"],
+                                 [same_color, same_color, same_color,
+                                  (0.0, 0.0, 1.0, 1.0),
+                                  (0.0, 1.0, 0.0, 1.0)])
+
     def test_remove_edges_and_vertices_below_thresh(self):
 
         out = tasseography.remove_edges_and_vertices_below_thresh(self.asym_g, 0.6, True)
@@ -167,7 +181,7 @@ class TestTasseography(unittest.TestCase):
     def test_plot_network(self):
         out_fig_name = "test_plot_network_output.png"
 
-        tasseography.plot_network(self.sym_g, out_fig_name, "id", None)
+        tasseography.plot_network(self.sym_g, out_fig_name, "id")
 
         # Make sure plot was produced
         self.assertTrue(os.path.exists(out_fig_name))
@@ -179,7 +193,7 @@ class TestTasseography(unittest.TestCase):
         out_fig_name = "test_plot_bipartite_output.png"
 
         tasseography.plot_network(
-            self.asym_g, out_fig_name, "id", None, layout="bipartite")
+            self.asym_g, out_fig_name, "id", layout="bipartite")
 
         # Make sure plot was produced
         self.assertTrue(os.path.exists(out_fig_name))
