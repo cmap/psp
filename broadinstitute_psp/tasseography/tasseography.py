@@ -1,8 +1,17 @@
 """
 tasseography.py
 
-Collection of functions that produce networks from gct files. Includes
-functionality for both symmetric and asymmetric gcts.
+Collection of functions that produce networks from gct files. Networks are
+trimmed according to the provided threshold; only edges with an absolute value
+above the threshold are returned. If only a subgraph is desired,
+my_query can be used to specify one or more vertices. Only those vertices and
+their first-order neighbors will be returned in the figure and gml file.
+
+This module includes functionality for both symmetric and asymmetric gcts.
+In the case of an asymmetric gct, the output figure will be a bipartite graph.
+
+There are lots of arguments; the most important ones are input_gct_path,
+threshold, and my_query.s
 
 """
 
@@ -28,14 +37,50 @@ def build_parser():
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     # Required args
-    parser.add_argument("--in_path", "-i", required=True, help="path to input gct")
+    parser.add_argument("--input_gct_path", "-i", required=True,
+                        help="path to input gct")
 
     # Optional args
-    parser.add_argument("--my_query", "-q", nargs="*", help="query values")
-    parser.add_argument("--annot_fields", "-a", nargs="*", default=["pert_iname", "moa"],
-                        help="fields from metadata to use for annotating vertices")
+    parser.add_argument("--out_fig_name", "-of", default="network.png",
+                        help=("what to name the output figure; set to None " +
+                              "if no figure desired; extension determines " +
+                              "file type"))
+    parser.add_argument("--out_gml_name", "-og", default="network.gml",
+                        help=("what to name the output gml file; set to None " +
+                              "if no gml file desired; GML is a text file " +
+                              "format for graphs"))
     parser.add_argument("--threshold", "-t", default=0.8, type=float,
                         help="connectivity threshold")
+
+    parser.add_argument("--my_query", "-q", nargs="*", default=None, type=list,
+                        help=("only subgraphs including my_query will be " +
+                              "included; set to None to see all " +
+                              "connections above threshold"))
+    parser.add_argument("--query_field", "-qf", type=str,
+                        default="pert_iname",
+                        help=("field from metadata in which to look for " +
+                              "my_query; use 'id' to look in the indices"))
+    parser.add_argument("--query_in_row_or_col", "-rc", default=None,
+                        choices=["row", "col", None],
+                        help=("indicates whether to look for my_query in " +
+                              "query_field in the row or column metadata; " +
+                              "set to None for symmetric GCTs;"))
+
+    parser.add_argument("--row_annot_fields", "-ra", nargs="*",
+                        default=["pert_iname", "moa"],
+                        help=("fields from row metadata to use for " +
+                              "annotating row vertices"))
+    parser.add_argument("--col_annot_fields", "-ca", nargs="*",
+                        default=["pert_iname", "moa"],
+                        help=("fields from column metadata to use for " +
+                              "annotating column vertices; should be the " +
+                              "as row_annot_fields if GCT is symmetric"))
+    parser.add_argument("--vertex_label_field", "-vl", default="pert_iname",
+                        help=("metadata field to use for labeling " +
+                              "vertices in the figure"))
+    parser.add_argument("--vertex_color_field", "-vc", default=None,
+                        help=("metadata field to use for coloring " +
+                              "vertices in the figure"))
     parser.add_argument("--verbose", "-v", action="store_true", default=False,
                         help="whether to increase the # of messages reported")
 
@@ -45,40 +90,63 @@ def build_parser():
 def main(args):
 
     # Parse gct
-    gct = pg.parse(args.in_path)
+    gct = pg.parse(args.input_gct_path)
+
+    # TODO(LL): better integrate main_sym and main_asym
 
     # Figure out whether or not the gct is symmetric
     if gct.row_metadata_df.equals(gct.col_metadata_df):
-        logger.info("Row metadata equals column metadata. Assuming symmetric GCT.")
-        g = sym_gct_to_graph(gct, annot_fields)
+        logger.info(("Row metadata equals column metadata. " +
+                     "Assuming symmetric GCT."))
+
+        assert all(args.row_annot_fields == args.col_annot_fields), (
+            ("row_annot_fields should be the same as col_annot_fields if the " +
+             "GCT is symmetric. args.row_annot_fields: {}, " +
+             "args.col_annot_fields: {}").format(args.row_annot_fields,
+                                               args.col_annot_fields))
+
+        assert args.query_in_row_or_col is None, (
+            ("query_in_row_or_col should be None for symmetric GCTs. " +
+             "args.query_in_row_or_col: {}".format(args.query_in_row_or_col)))
+
+        # Main method for symmetric gcts
+        main_sym(gct, args.out_fig_name, args.out_gml_name,
+                 args.row_annot_fields, args.my_query, args.query_field,
+                 args.threshold, args.vertex_label_field,
+                 args.vertex_color_field)
 
     else:
-        logger.info("Row metadata does not equal column metadata. Assuming asymmetric GCT.")
-        g = asym_gct_to_graph(gct, row_annot_fields, col_annot_fields)
+        logger.info(("Row metadata does not equal column metadata. " +
+                     "Assuming asymmetric GCT."))
 
-    # # Remove edges below thresh
-    # remove_edges_below_thresh(g, args.threshold)
-    #
-    # # Get ids of vertices to keep
-    # get_ids_of_vertices_sym()
+        assert args.query_in_row_or_col != "both", (
+            ("query_in_row_or_col must not be 'both' if the matrix is " +
+             "asymmetric. args.query_in_row_or_col: {}").format(
+                args.query_in_row_or_col))
+
+        # Main method for asymmetric gcts
+        main_asym(gct, args.out_fig_name, args.out_gml_name,
+                  args.row_annot_fields, args.col_annot_fields,
+                  args.my_query, args.query_field, args.query_in_row_or_col,
+                  args.threshold, args.vertex_label_field,
+                  args.vertex_color_field)
 
 
-
-
-def main_sym(gct, out_fig_name, vertex_annot_fields, my_query,
+def main_sym(gct, out_fig_name, out_gml_name, vertex_annot_fields, my_query,
              my_query_annot_field, threshold, vertex_label_field,
              vertex_color_field, layout):
 
     # Convert gct to Graph object
     g = sym_gct_to_graph(gct, vertex_annot_fields)
 
-    # TODO(LL): make color dict
+    # TODO(LL): make color dict using vertex_color_field
 
     # Remove edges (and optionally vertices) from subgraph below threshold
     subgraph = remove_edges_and_vertices_below_thresh(g, threshold)
 
     # Get vertex ids for my_query
-    vertex_ids_of_queries = get_vertex_ids_sym(subgraph, my_query, my_query_annot_field)
+    vertex_ids_of_queries = get_vertex_ids(subgraph, my_query,
+                                           my_query_annot_field, None)
 
     # Add in vertex ids for all first-order neighbors
     vertex_ids_of_queries_and_neighbors = get_vertex_ids_of_neighbors(
@@ -88,7 +156,9 @@ def main_sym(gct, out_fig_name, vertex_annot_fields, my_query,
     # Keep only vertices and edges related to queries and their neighbors
     out_graph = subgraph.induced_subgraph(vertex_ids_of_queries_and_neighbors)
 
-    # TODO(LL): export GML
+    # Write graph to .gml file if out_gml_name provided
+    if out_gml_name:
+        write_graph_to_gml(out_graph, out_gml_name)
 
     # Plot network if out_fig_name provided
     if out_fig_name:
@@ -98,27 +168,21 @@ def main_sym(gct, out_fig_name, vertex_annot_fields, my_query,
                      layout=layout)
 
 
-def main_asym(gct, out_fig_name, row_annot_fields, col_annot_fields,
-              my_query_in_rows, my_query_in_cols,
-              my_query_annot_field_in_rows, my_query_annot_field_in_cols,
+def main_asym(gct, out_fig_name, out_gml_name, row_annot_fields, col_annot_fields,
+              my_query, my_query_annot_field, query_in_row_or_col,
               threshold, vertex_label_field, vertex_color_field):
 
     # Convert gct to Graph object
     g = asym_gct_to_graph(gct, row_annot_fields, col_annot_fields)
 
-    # TODO(LL): make color dict
+    # TODO(LL): make color dict using vertex_color_field
 
     # Remove edges (and optionally vertices) from subgraph below threshold
     subgraph = remove_edges_and_vertices_below_thresh(g, threshold)
 
     # Get vertex ids for my_query_in_rows and my_query_in_cols
-    vertex_ids_of_queries = get_vertex_ids_asym(
-        subgraph, my_query_in_rows, my_query_in_cols,
-        my_query_annot_field_in_rows, my_query_annot_field_in_cols)
-
-    # TODO(LL): the logic needs to reworked; right now, there is no way to ask
-    # "show me all connections above thresh for these elements in the columns
-    # to any elements in the rows"
+    vertex_ids_of_queries = get_vertex_ids(
+        subgraph, my_query, my_query_annot_field, query_in_row_or_col)
 
     # Add in vertex ids for all first-order neighbors
     vertex_ids_of_queries_and_neighbors = get_vertex_ids_of_neighbors(
@@ -128,7 +192,9 @@ def main_asym(gct, out_fig_name, row_annot_fields, col_annot_fields,
     # Keep only vertices and edges related to queries and their neighbors
     out_graph = subgraph.induced_subgraph(vertex_ids_of_queries_and_neighbors)
 
-    # TODO(LL): export GML
+    # Write graph to .gml file if out_gml_name provided
+    if out_gml_name:
+        write_graph_to_gml(out_graph, out_gml_name)
 
     # Plot bipartite graph if out_fig_name provided
     if out_fig_name:
@@ -250,8 +316,12 @@ def remove_edges_and_vertices_below_thresh(g, thresh, delete_vertices=True):
     return subgraph
 
 
-def get_vertex_ids_sym(g, my_query, my_query_annot_field):
+def get_vertex_ids(g, my_query, my_query_annot_field, row_or_col):
     """ Extract vertices with the values in my_query in my_query_annot_field.
+    If row_or_col is "row", my_query will only be searched for in row vertices.
+    If row_or_col is "col", my_query will only be searched for in column
+    vertices. If row_or_col is None, my_query will be searched for in all
+    vertices.
 
     Args:
         @param g:
@@ -260,25 +330,59 @@ def get_vertex_ids_sym(g, my_query, my_query_annot_field):
         @type my_query: list of strings or None
         @param my_query_annot_field: vertex attribute field in which to look for my_query
         @param my_query_annot_field: string
+        @param row_or_col: indicates which vertices to look in
+        @type row_or_col: string or id
 
     Returns:
         vertex_ids (list of integers): vertex ids corresponding to my_query
 
     """
+    assert row_or_col in ["row", "col", None], (
+        "row_or_col must be 'row', 'col', or None. row_or_col: {}".format(row_or_col))
+
     # If no query provided, return all vertex ids
     if my_query is None:
-        vertex_ids = [v.index for v in g.vs()]
+        if row_or_col == "row":
+            vertex_ids = [v.index for v in g.vs() if not v["type"]]
+        elif row_or_col == "col":
+            vertex_ids = [v.index for v in g.vs() if v["type"]]
+        else:
+            vertex_ids = [v.index for v in g.vs()]
 
     elif type(my_query) is list:
 
-        # Find all vertices matching the values in my_query
-        vertex_ids = []
-        for q in my_query:
-            these_ids = [v.index for v in g.vs() if v[my_query_annot_field] == q]
-            if len(these_ids) < 1:
-                msg = "No vertices were found for query {} in vertex attribute {}.".format(q, my_query_annot_field)
-                logger.info(msg)
-            vertex_ids += these_ids
+        if row_or_col == "row":
+
+            # Find all ROW vertices matching the values in my_query
+            vertex_ids = []
+            for q in my_query:
+                these_ids = [v.index for v in g.vs() if v[my_query_annot_field] == q and not v["type"]]
+                if len(these_ids) < 1:
+                    msg = "No vertices were found for query {} in row vertex attribute {}.".format(q, my_query_annot_field)
+                    logger.info(msg)
+                vertex_ids += these_ids
+
+        elif row_or_col == "col":
+
+            # Find all COLUMN vertices matching the values in my_query
+            vertex_ids = []
+            for q in my_query:
+                these_ids = [v.index for v in g.vs() if v[my_query_annot_field] == q and v["type"]]
+                if len(these_ids) < 1:
+                    msg = "No vertices were found for query {} in column vertex attribute {}.".format(q, my_query_annot_field)
+                    logger.info(msg)
+                vertex_ids += these_ids
+
+        else:
+
+            # Find ALL vertices matching the values in my_query
+            vertex_ids = []
+            for q in my_query:
+                these_ids = [v.index for v in g.vs() if v[my_query_annot_field] == q]
+                if len(these_ids) < 1:
+                    msg = "No vertices were found for query {} in vertex attribute {}.".format(q, my_query_annot_field)
+                    logger.info(msg)
+                vertex_ids += these_ids
 
     else:
         msg = "my_query must be a list. my_query: {}".format(my_query)

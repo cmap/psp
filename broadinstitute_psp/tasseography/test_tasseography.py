@@ -54,29 +54,36 @@ class TestTasseography(unittest.TestCase):
 
     def test_main_sym(self):
         out_fig_name = "test_main_sym_output.png"
+        out_gml_name = "test_main_sym_output.gml"
 
         tasseography.main_sym(
-            self.sym_gct, out_fig_name, ["cell_id", "pert_type"],
+            self.sym_gct, out_fig_name, out_gml_name, ["cell_id", "pert_type"],
             ["great"], "pert_type", 0, "pert_type", None, layout="fr")
 
-        # Make sure plot was produced
+        # Make sure plot and gml files were produced
         self.assertTrue(os.path.exists(out_fig_name))
+        self.assertTrue(os.path.exists(out_gml_name))
 
-        # Remove it
+        # Now, remove them
         os.remove(out_fig_name)
+        os.remove(out_gml_name)
 
     def test_main_asym(self):
         out_fig_name = "test_main_asym_output.png"
+        out_gml_name = "test_main_asym_output.gml"
 
         tasseography.main_asym(
-            self.asym_gct, out_fig_name, ["pert_time"], ["cell_id", "pert_time"],
-            ["1h"], None, "pert_time", None, 0, "pert_time", None)
+            self.asym_gct, out_fig_name, out_gml_name, ["pert_time"],
+            ["cell_id", "pert_time"], ["1h"], "pert_time", "row", 0,
+            "pert_time", None)
 
-        # Make sure plot was produced
+        # Make sure plot and gml files were produced
         self.assertTrue(os.path.exists(out_fig_name))
+        self.assertTrue(os.path.exists(out_gml_name))
 
-        # Remove it
+        # Now, remove them
         os.remove(out_fig_name)
+        os.remove(out_gml_name)
 
     def test_sym_gct_to_graph(self):
         logger.debug("self.sym_gct:\n{}".format(self.sym_gct))
@@ -121,31 +128,23 @@ class TestTasseography(unittest.TestCase):
         self.assertSequenceEqual(out2.es["weight"], [-0.7, 0.9])
         self.assertSequenceEqual(out2.vs["id"], ["A", "B", "C", "o", "k"])
 
-    def test_get_vertex_ids_sym(self):
+    def test_get_vertex_ids(self):
 
-        out = tasseography.get_vertex_ids_sym(self.sym_g, ["great", "ok"], "pert_type")
+        out = tasseography.get_vertex_ids(self.sym_g, ["great", "ok"], "pert_type", None)
         self.assertItemsEqual(out, [0, 2])
 
-        out2 = tasseography.get_vertex_ids_sym(self.sym_g, None, "unimportant")
+        out2 = tasseography.get_vertex_ids(self.sym_g, None, "unimportant", None)
         self.assertItemsEqual(out2, [0, 1, 2])
 
         with self.assertRaises(Exception) as e:
-            tasseography.get_vertex_ids_sym(self.sym_g, "a", "unimportant")
+            tasseography.get_vertex_ids(self.sym_g, "a", "unimportant", None)
         self.assertIn("my_query must be a list", str(e.exception))
 
-    def test_get_vertex_ids_asym(self):
+        out = tasseography.get_vertex_ids(self.asym_g, ["A", "B"], "id", "row")
+        self.assertItemsEqual(out, [0, 1])
 
-        out = tasseography.get_vertex_ids_asym(
-            self.asym_g, ["A", "B"], ["3h"], "id", "pert_time")
-        self.assertItemsEqual(out, [0, 1, 3])
-
-        out2 = tasseography.get_vertex_ids_asym(
-            self.asym_g, None, ["A375"], "dont_matter", "cell_id")
-        self.assertItemsEqual(out2, [0, 1, 2, 4])
-
-        with self.assertRaises(Exception) as e:
-            tasseography.get_vertex_ids_asym(self.asym_g, "A", None, None, None)
-        self.assertIn("my_query_in_rows must be a list", str(e.exception))
+        out2 = tasseography.get_vertex_ids(self.asym_g, ["A375"], "cell_id", "col")
+        self.assertItemsEqual(out2, [4])
 
     def test_get_vertex_ids_of_neighbors(self):
 
