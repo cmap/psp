@@ -120,17 +120,26 @@ class TestTasseography(unittest.TestCase):
 
     def test_add_color_attribute(self):
         g_copy = self.sym_g.copy()
-        same_color = (1.0, 0.0, 0.0, 1.0)
         tasseography.add_color_attribute(g_copy, "cell_id")
-        self.assertSequenceEqual(g_copy.vs["color"],
-                                 [same_color, same_color, same_color])
+
+        # Colors returned don't appear to be stable; OSX v. Linux difference?
+        # So just check that it's the same color 3x
+        self.assertEqual(g_copy.vs["color"][0], g_copy.vs["color"][1])
+        self.assertEqual(g_copy.vs["color"][0], g_copy.vs["color"][2])
+        self.assertEqual(g_copy.vs["color"][1], g_copy.vs["color"][2])
 
         g_copy2 = self.asym_g.copy()
         tasseography.add_color_attribute(g_copy2, "cell_id")
-        self.assertSequenceEqual(g_copy2.vs["color"],
-                                 [same_color, same_color, same_color,
-                                  (0.0, 0.0, 1.0, 1.0),
-                                  (0.0, 1.0, 0.0, 1.0)])
+
+        # Make sure the first 3 colors are the same, that the last 2 colors
+        # aren't the same, and that either of the last 2 colors isn't
+        # one of the first 3
+        self.assertEqual(g_copy2.vs["color"][0], g_copy2.vs["color"][1])
+        self.assertEqual(g_copy2.vs["color"][0], g_copy2.vs["color"][2])
+        self.assertEqual(g_copy2.vs["color"][1], g_copy2.vs["color"][2])
+        self.assertNotEqual(g_copy2.vs["color"][0], g_copy2.vs["color"][3])
+        self.assertNotEqual(g_copy2.vs["color"][0], g_copy2.vs["color"][4])
+        self.assertNotEqual(g_copy2.vs["color"][3], g_copy2.vs["color"][4])
 
     def test_remove_edges_and_vertices_below_thresh(self):
 
