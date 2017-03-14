@@ -11,7 +11,7 @@ This module includes functionality for both symmetric and asymmetric gcts.
 In the case of an asymmetric gct, the output figure will be a bipartite graph.
 
 There are lots of arguments; the most important ones are input_gct_path,
-threshold, and my_query.s
+threshold, and my_query.
 
 """
 
@@ -419,75 +419,6 @@ def get_vertex_ids(g, my_query, my_query_annot_field, row_or_col):
 
     else:
         msg = "my_query must be a list. my_query: {}".format(my_query)
-        logger.error(msg)
-        raise Exception(msg)
-
-    return vertex_ids
-
-
-def get_vertex_ids_asym(g, my_query_in_rows, my_query_in_cols,
-                        my_query_annot_field_in_rows, my_query_annot_field_in_cols):
-    """ Extract vertices from the bipartite graph g. Row and column vertices are
-    specified separately.
-
-    Args:
-        @param g
-        @type g: igraph.Graph object
-        @param my_query_in_rows: vertices to keep in rows
-        @type my_query_in_rows: list of strings or None
-        @param my_query_in_cols: vertices to keep in columns
-        @type my_query_in_cols: list of strings or None
-        @param my_query_annot_field_in_rows: vertex attribute field in which to look for my_query_in_rows
-        @param my_query_annot_field_in_rows: string
-        @param my_query_annot_field_in_cols: vertex attribute field in which to look for my_query_in_cols
-        @param my_query_annot_field_in_cols: string
-
-    Returns:
-        vertex_ids (list of integers): vertex ids corresponding to my_query_in_cols and my_query_in_rows
-
-    """
-    # Initialize vertex_ids
-    vertex_ids = []
-
-    ### First, get row vertices
-
-    # If no query provided, return all vertex ids; v["type"] == False for rows
-    if my_query_in_rows is None:
-        vertex_ids += [v.index for v in g.vs() if not v["type"]]
-
-    elif type(my_query_in_rows) is list:
-
-        # Find all row vertices matching the values in my_query_in_rows
-        for row_q in my_query_in_rows:
-            these_ids = [v.index for v in g.vs() if not v["type"] and v[my_query_annot_field_in_rows] == row_q]
-            if len(these_ids) < 1:
-                msg = "No vertices were found for query {} in the row vertex attribute {}.".format(row_q, my_query_annot_field_in_rows)
-                logger.info(msg)
-            vertex_ids += these_ids
-
-    else:
-        msg = "my_query_in_rows must be a list. my_query_in_rows: {}".format(my_query_in_rows)
-        logger.error(msg)
-        raise Exception(msg)
-
-    ### Now, get column vertices
-
-    # If no query provided, return all vertex ids; v["type"] == True for columns
-    if my_query_in_cols is None:
-        vertex_ids += [v.index for v in g.vs() if v["type"]]
-
-    elif type(my_query_in_cols) is list:
-
-        # Find all column vertices matching the values in my_query_in_cols
-        for col_q in my_query_in_cols:
-            these_ids = [v.index for v in g.vs() if v["type"] and v[my_query_annot_field_in_cols] == col_q]
-            if len(these_ids) < 1:
-                msg = "No vertices were found for query {} in the column vertex attribute {}.".format(col_q, my_query_annot_field_in_cols)
-                logger.info(msg)
-            vertex_ids += these_ids
-
-    else:
-        msg = "my_query_in_cols must be a list. my_query_in_cols: {}".format(my_query_in_cols)
         logger.error(msg)
         raise Exception(msg)
 
