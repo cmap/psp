@@ -118,9 +118,9 @@ class TestTasseography(unittest.TestCase):
         # Use numpy testing to get around NaN
         np.testing.assert_array_equal(out.es["weight"], self.asym_g.es["weight"])
 
-    def test_add_color_attribute(self):
+    def test_add_color_attribute_to_vertices(self):
         g_copy = self.sym_g.copy()
-        tasseography.add_color_attribute(g_copy, "cell_id")
+        tasseography.add_color_attribute_to_vertices(g_copy, "cell_id")
 
         # Colors returned don't appear to be stable; OSX v. Linux difference?
         # So just check that it's the same color 3x
@@ -129,7 +129,7 @@ class TestTasseography(unittest.TestCase):
         self.assertEqual(g_copy.vs["color"][1], g_copy.vs["color"][2])
 
         g_copy2 = self.asym_g.copy()
-        tasseography.add_color_attribute(g_copy2, "cell_id")
+        tasseography.add_color_attribute_to_vertices(g_copy2, "cell_id")
 
         # Make sure the first 3 colors are the same, that the last 2 colors
         # aren't the same, and that either of the last 2 colors isn't
@@ -140,6 +140,19 @@ class TestTasseography(unittest.TestCase):
         self.assertNotEqual(g_copy2.vs["color"][0], g_copy2.vs["color"][3])
         self.assertNotEqual(g_copy2.vs["color"][0], g_copy2.vs["color"][4])
         self.assertNotEqual(g_copy2.vs["color"][3], g_copy2.vs["color"][4])
+
+    def test_add_color_attribute_to_edges(self):
+        r = (1., 0., 0., 1.)
+        b = (0., 0., 1., 1.)
+        k = (0., 0., 0., 1.)
+
+        g_copy = self.sym_g.copy()
+        tasseography.add_color_attribute_to_edges(g_copy)
+        self.assertSequenceEqual(g_copy.es["color"], [r, r, b])
+
+        g_copy2 = self.asym_g.copy()
+        tasseography.add_color_attribute_to_edges(g_copy2)
+        self.assertSequenceEqual(g_copy2.es["color"], [r, r, b, b, k, r])
 
     def test_remove_edges_and_vertices_below_thresh(self):
 

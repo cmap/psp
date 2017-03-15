@@ -52,7 +52,7 @@ def build_parser():
     parser.add_argument("--threshold", "-t", default=0.8, type=float,
                         help="connectivity threshold")
 
-    parser.add_argument("--my_query", "-q", nargs="*", default=None, type=list,
+    parser.add_argument("--my_query", "-q", nargs="*", default=None,
                         help=("only subgraphs including my_query will be " +
                               "included; set to None to see all " +
                               "connections above threshold"))
@@ -141,9 +141,10 @@ def main_sym(gct, out_fig_name, out_gml_name, vertex_annot_fields, my_query,
 
     # Add 'color' field to use for coloring vertices
     if vertex_color_field is not None:
-        add_color_attribute(g, vertex_color_field)
+        add_color_attribute_to_vertices(g, vertex_color_field)
 
-    # TODO(LL): add abs_value and sign attributes to edges
+    # Add 'color' attribute to edges
+    add_color_attribute_to_edges(g)
 
     # Remove edges (and optionally vertices) from subgraph below threshold
     subgraph = remove_edges_and_vertices_below_thresh(g, threshold)
@@ -180,9 +181,10 @@ def main_asym(gct, out_fig_name, out_gml_name, row_annot_fields, col_annot_field
 
     # Add 'color' field to use for coloring vertices
     if vertex_color_field is not None:
-        add_color_attribute(g, vertex_color_field)
+        add_color_attribute_to_vertices(g, vertex_color_field)
 
-    # TODO(LL): add abs_value and sign attributes to edges
+    # Add 'color' attribute to edges
+    add_color_attribute_to_edges(g)
 
     # Remove edges (and optionally vertices) from subgraph below threshold
     subgraph = remove_edges_and_vertices_below_thresh(g, threshold)
@@ -299,7 +301,7 @@ def asym_gct_to_graph(gct, row_annot_fields, col_annot_fields):
     return g
 
 
-def add_color_attribute(g, vertex_color_field):
+def add_color_attribute_to_vertices(g, vertex_color_field):
     """ Add a vertex attribute called 'color' that corresponds to an existing
      vertex attribute vertex_color_field.
 
@@ -324,6 +326,28 @@ def add_color_attribute(g, vertex_color_field):
     # Populate the 'color' vertex attribute
     list_of_colors = [color_dict[v[vertex_color_field]] for v in g.vs()]
     g.vs["color"] = list_of_colors
+
+
+def add_color_attribute_to_edges(g):
+    """ Add an edge attribute called 'color' indicating whether the edge has
+    positive or negative weight. -1 means negative, 1 means positive, 0 means
+    the weight was NaN.
+
+    Args:
+        @param g
+        @type g: iGraph.Graph object
+
+    Returns:
+
+    """
+    POSITIVE_EDGE_COLOR = (1., 0., 0., 1.)
+    NEGATIVE_EDGE_COLOR = (0., 0., 1., 1.)
+    OTHER_EDGE_COLOR = (0., 0., 0., 1.)
+
+    g.es["color"] = [
+        NEGATIVE_EDGE_COLOR if e["weight"] < 0
+        else POSITIVE_EDGE_COLOR if e["weight"] > 0
+        else OTHER_EDGE_COLOR for e in g.es()]
 
 
 def remove_edges_and_vertices_below_thresh(g, thresh, delete_vertices=True):
