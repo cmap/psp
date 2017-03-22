@@ -41,16 +41,17 @@ def build_parser():
                         help="path to input gct")
 
     # Optional args
-    parser.add_argument("--out_fig_name", "-of", default="network.png",
-                        help=("what to name the output figure; set to None " +
-                              "if no figure desired; extension determines " +
+    parser.add_argument("--out_fig_name", "-of", default=None,
+                        help=("what to name the output figure; if not provided, " +
+                              "no figure is produced; extension determines " +
                               "file type"))
-    parser.add_argument("--out_gml_name", "-og", default="network.gml",
-                        help=("what to name the output gml file; set to None " +
-                              "if no gml file desired; GML is a text file " +
+    parser.add_argument("--out_gml_name", "-og", default=None,
+                        help=("what to name the output gml file; if not provided, " +
+                              "no gml file is produced; GML is a common text file " +
                               "format for graphs"))
     parser.add_argument("--threshold", "-t", default=0.8, type=float,
-                        help="connectivity threshold")
+                        help=("only edges whose ABSOLUTE value is above the " +
+                              "threshold will be returned"))
 
     parser.add_argument("--my_query", "-q", nargs="*", default=None,
                         help=("only subgraphs including my_query will be " +
@@ -139,14 +140,14 @@ def main_sym(gct, out_fig_name, out_gml_name, vertex_annot_fields, my_query,
     # Convert gct to Graph object
     g = sym_gct_to_graph(gct, vertex_annot_fields)
 
-    # Add 'color' field to use for coloring vertices
+    # Add 'color' attribute to nodes based on entries in vertex_color_field
     if vertex_color_field is not None:
         add_color_attribute_to_vertices(g, vertex_color_field)
 
-    # Add 'color' attribute to edges
+    # Add 'color' attribute to edges based on whether 'weight' is + or -
     add_color_attribute_to_edges(g)
 
-    # Remove edges (and optionally vertices) from subgraph below threshold
+    # Remove edges from subgraph below threshold
     subgraph = remove_edges_and_vertices_below_thresh(g, threshold)
 
     # Get vertex ids for my_query
