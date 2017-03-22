@@ -118,25 +118,8 @@ def median_normalize(gct, divide_by_mad, ignore_subset_norm, config_metadata, pr
         updated_prov_code (list of strings)
 
     """
-    # Check if subsets_exist
-    subsets_exist = check_for_subsets(gct.row_metadata_df, gct.col_metadata_df,
-                                      config_metadata["row_subset_field"],
-                                      config_metadata["col_subset_field"])
+    if ignore_subset_norm:
 
-    if subsets_exist and not ignore_subset_norm:
-        logger.debug("Performing subset normalization.")
-        out_df = subset_normalize(gct, divide_by_mad,
-                                  config_metadata["row_subset_field"],
-                                  config_metadata["col_subset_field"])
-
-        # Provenance code entry depends on whether z-scoring is happening
-        if divide_by_mad:
-            prov_code_entry = config_metadata["subset_zscore_prov_code_entry"]
-        else:
-            prov_code_entry = config_metadata["subset_normalize_prov_code_entry"]
-        updated_prov_code = prov_code + [prov_code_entry]
-
-    else:
         # Subtract median of whole row from each entry in the row
         out_df = row_median_normalize(gct.data_df, divide_by_mad)
 
@@ -146,6 +129,40 @@ def median_normalize(gct, divide_by_mad, ignore_subset_norm, config_metadata, pr
         else:
             prov_code_entry = config_metadata["row_normalize_prov_code_entry"]
         updated_prov_code = prov_code + [prov_code_entry]
+
+    else:
+
+        # Check if subsets_exist
+        subsets_exist = check_for_subsets(gct.row_metadata_df, gct.col_metadata_df,
+                                          config_metadata["row_subset_field"],
+                                          config_metadata["col_subset_field"])
+        if subsets_exist:
+            logger.info("Subsets were found, so subset normalization will be performed.")
+
+            out_df = subset_normalize(gct, divide_by_mad,
+                                      config_metadata["row_subset_field"],
+                                      config_metadata["col_subset_field"])
+
+            # Provenance code entry depends on whether z-scoring is happening
+            if divide_by_mad:
+                prov_code_entry = config_metadata["subset_zscore_prov_code_entry"]
+            else:
+                prov_code_entry = config_metadata["subset_normalize_prov_code_entry"]
+            updated_prov_code = prov_code + [prov_code_entry]
+
+        else:
+            logger.info("No subsets were found, so regular normalization will be performed.")
+
+            # Subtract median of whole row from each entry in the row
+            out_df = row_median_normalize(gct.data_df, divide_by_mad)
+
+            # Provenance code entry depends on whether z-scoring is happening
+            if divide_by_mad:
+                prov_code_entry = config_metadata["zscore_prov_code_entry"]
+            else:
+                prov_code_entry = config_metadata["row_normalize_prov_code_entry"]
+            updated_prov_code = prov_code + [prov_code_entry]
+
 
     out_gct = GCToo.GCToo(data_df=out_df, row_metadata_df=gct.row_metadata_df,
                           col_metadata_df=gct.col_metadata_df)
