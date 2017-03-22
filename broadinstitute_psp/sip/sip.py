@@ -41,6 +41,8 @@ __email__ = "lev@broadinstitute.org"
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
 CONNECTIVITY_METRIC_FIELD = "connectivity_metric"
+QUERY_FIELD_NAME = "query_field"
+TARGET_FIELD_NAME = "target_field"
 
 
 def build_parser():
@@ -70,12 +72,6 @@ def build_parser():
     parser.add_argument("--fields_to_aggregate_in_bg_gct", "-bf",
                         nargs="+", default=["pert_id", "cell_id", "pert_time"],
                         help="list of metadata fields in the bg gct to aggregate")
-    parser.add_argument("--query_field_name", "-qn",
-                        type=str, default="query_field",
-                        help="what to name the output query field")
-    parser.add_argument("--target_field_name", "-tn",
-                        type=str, default="target_field",
-                        help="what to name the output target field")
     parser.add_argument("--separator", "-s", type=str, default=":",
                         help="string separator for aggregating fields together")
     parser.add_argument("--verbose", "-v", action="store_true", default=False,
@@ -100,8 +96,8 @@ def main(args):
         args.fields_to_aggregate_in_test_gct_queries,
         args.fields_to_aggregate_in_test_gct_targets,
         args.fields_to_aggregate_in_bg_gct,
-        args.query_field_name,
-        args.target_field_name,
+        QUERY_FIELD_NAME,
+        TARGET_FIELD_NAME,
         args.separator)
 
     # Check symmetry
@@ -109,11 +105,13 @@ def main(args):
 
     # Compute connectivity
     (conn_mi_df, signed_conn_mi_df) = compute_connectivities(
-        test_df, bg_df, args.query_field_name, args.target_field_name, args.target_field_name,
+        test_df, bg_df, QUERY_FIELD_NAME, TARGET_FIELD_NAME, TARGET_FIELD_NAME,
         args.connectivity_metric, is_test_df_sym)
 
     # Convert multi-index to component dfs in order to write output gct
-    (signed_data_df, signed_row_metadata_df, signed_col_metadata_df) = GCToo.multi_index_df_to_component_dfs(signed_conn_mi_df, rid=args.target_field_name, cid=args.query_field_name)
+    (signed_data_df, signed_row_metadata_df, signed_col_metadata_df) = (
+        GCToo.multi_index_df_to_component_dfs(
+            signed_conn_mi_df, rid=TARGET_FIELD_NAME, cid=QUERY_FIELD_NAME))
 
     # Append to queries a new column saying what connectivity metric was used
     add_connectivity_metric_to_metadata(signed_col_metadata_df, args.connectivity_metric, CONNECTIVITY_METRIC_FIELD)
