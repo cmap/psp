@@ -52,6 +52,15 @@ class TestTasseography(unittest.TestCase):
         cls.asym_g.vs["pert_time"] = ["3h", "1h", "2h", "3h", "6h"]
         cls.asym_g.es["weight"] = [0.1, 0.4, -0.7, -0.1, np.nan, 0.9]
 
+    def test_convert_percentile_to_thresh(self):
+        df = self.sym_data_df
+        out = tasseography.convert_percentile_to_thresh(df, 10)
+        self.assertAlmostEqual(out, 0.3)
+
+        asym_df = self.asym_data_df
+        out2 = tasseography.convert_percentile_to_thresh(asym_df, 90)
+        self.assertAlmostEqual(out2, 0.8)
+
     def test_main_sym(self):
         out_fig_name = "test_main_sym_output.png"
         out_gml_name = "test_main_sym_output.gml"
