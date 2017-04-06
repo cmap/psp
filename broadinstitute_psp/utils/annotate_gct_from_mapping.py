@@ -66,6 +66,12 @@ def main(args):
     # Parse mapping tsv file
     mapping = pd.read_csv(args.path_to_mapping_tsv, sep="\t", index_col=0)
 
+    # Make sure the ids from the mapping file are unique
+    duplicated_bool_array = mapping.index.duplicated()
+    assert sum(duplicated_bool_array) == 0, (
+        "ids in mapping file must be unique. duplicated ids in mapping:\n{}".format(
+        mapping.index[duplicated_bool_array]))
+
     for col in mapping.columns:
 
         if args.row_and_or_col == "both":
