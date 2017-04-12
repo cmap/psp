@@ -53,13 +53,13 @@ class TestTasseography(unittest.TestCase):
         cls.asym_g.es["weight"] = [0.1, 0.4, -0.7, -0.1, np.nan, 0.9]
 
     def test_convert_percentile_to_thresh(self):
-        df = self.sym_data_df
-        out = tasseography.convert_percentile_to_thresh(df, 10)
-        self.assertAlmostEqual(out, 0.3)
+        sym_g = self.sym_g
+        out = tasseography.convert_percentile_to_thresh(sym_g, 10)
+        self.assertAlmostEqual(out, 0.32)
 
-        asym_df = self.asym_data_df
-        out2 = tasseography.convert_percentile_to_thresh(asym_df, 90)
-        self.assertAlmostEqual(out2, 0.8)
+        asym_g = self.asym_g
+        out2 = tasseography.convert_percentile_to_thresh(asym_g, 90)
+        self.assertAlmostEqual(out2, 0.82)
 
     def test_main_sym(self):
         out_fig_name = "test_main_sym_output.png"
@@ -67,7 +67,7 @@ class TestTasseography(unittest.TestCase):
 
         tasseography.main_sym(
             self.sym_gct, out_fig_name, out_gml_name, ["cell_id", "pert_type"],
-            ["great"], "pert_type", 0, "pert_type", None, layout="fr")
+            ["great"], "pert_type", 0, None, "pert_type", None, layout="fr")
 
         # Make sure plot and gml files were produced
         self.assertTrue(os.path.exists(out_fig_name))
@@ -83,7 +83,7 @@ class TestTasseography(unittest.TestCase):
 
         tasseography.main_asym(
             self.asym_gct, out_fig_name, out_gml_name, ["pert_time"],
-            ["cell_id", "pert_time"], ["1h"], "pert_time", "row", 0,
+            ["cell_id", "pert_time"], ["1h"], "pert_time", "row", 0, None,
             "pert_time", None)
 
         # Make sure plot and gml files were produced

@@ -102,12 +102,6 @@ def main(args):
 
     # TODO(LL): better integrate main_sym and main_asym
 
-    # Calculate threshold from percentile if percentile provided
-    if args.percentile is not None:
-        thresh = convert_percentile_to_thresh(gct.data_df, args.percentile)
-    else:
-        thresh = args.threshold
-
     # Figure out whether or not the gct is symmetric
     if gct.row_metadata_df.equals(gct.col_metadata_df):
         logger.info(("Row metadata equals column metadata. " +
@@ -126,7 +120,7 @@ def main(args):
         # Main method for symmetric gcts
         main_sym(gct, args.out_fig_name, args.out_gml_name,
                  args.row_annot_fields, args.my_query, args.query_field,
-                 thresh, args.vertex_label_field,
+                 args.threshold, args.percentile, args.vertex_label_field,
                  args.vertex_color_field, layout="fr")
 
     else:
@@ -142,17 +136,16 @@ def main(args):
         main_asym(gct, args.out_fig_name, args.out_gml_name,
                   args.row_annot_fields, args.col_annot_fields,
                   args.my_query, args.query_field, args.query_in_row_or_col,
-                  thresh, args.vertex_label_field,
+                  args.threshold, args.percentile, args.vertex_label_field,
                   args.vertex_color_field)
 
 
-def convert_percentile_to_thresh(df, percentile):
-    """ Figure out what value in df corresponds to the given percentile.
-    Missing values are converted to zeroes.
+def convert_percentile_to_thresh(g, percentile):
+    """ Figure out what value in g corresponds to the given percentile.
 
     Args:
-        @param df:
-        @type df: pandas df
+        @param g:
+        @type g: igraph.Graph
         @param percentile: between 0 and 100
         @type percentile: float
 
@@ -163,18 +156,24 @@ def convert_percentile_to_thresh(df, percentile):
     assert percentile < 100 and percentile > 0, (
         "percentile must be between 0 and 100. percentile: {}".format(percentile))
 
-    thresh = np.percentile(np.nan_to_num(df.abs()), percentile)
+    thresh = np.nanpercentile(np.abs(g.es["weight"]), percentile)
 
     return thresh
 
 
 
 def main_sym(gct, out_fig_name, out_gml_name, vertex_annot_fields, my_query,
-             my_query_annot_field, threshold, vertex_label_field,
+             my_query_annot_field, threshold, percentile, vertex_label_field,
              vertex_color_field, layout):
 
     # Convert gct to Graph object
     g = sym_gct_to_graph(gct, vertex_annot_fields)
+
+    # Calculate threshold from percentile if percentile provided
+    if percentile is not None:
+        thresh = convert_percentile_to_thresh(g, percentile)
+    else:
+        thresh = threshold
 
     # Add 'color' attribute to nodes based on entries in vertex_color_field
     if vertex_color_field is not None:
@@ -195,6 +194,8 @@ def main_sym(gct, out_fig_name, out_gml_name, vertex_annot_fields, my_query,
         subgraph, vertex_ids_of_queries)
     logger.info("Graph has {} vertices.".format(len(vertex_ids_of_queries_and_neighbors)))
 
+    # TODO(LL): return also how many edges remain
+
     # Keep only vertices and edges related to queries and their neighbors
     out_graph = subgraph.induced_subgraph(vertex_ids_of_queries_and_neighbors)
 
@@ -211,10 +212,16 @@ def main_sym(gct, out_fig_name, out_gml_name, vertex_annot_fields, my_query,
 
 def main_asym(gct, out_fig_name, out_gml_name, row_annot_fields, col_annot_fields,
               my_query, my_query_annot_field, query_in_row_or_col,
-              threshold, vertex_label_field, vertex_color_field):
+              threshold, percentile, vertex_label_field, vertex_color_field):
 
     # Convert gct to Graph object
     g = asym_gct_to_graph(gct, row_annot_fields, col_annot_fields)
+
+    # Calculate threshold from percentile if percentile provided
+    if percentile is not None:
+        thresh = convert_percentile_to_thresh(g, percentile)
+    else:
+        thresh = threshold
 
     # Add 'color' field to use for coloring vertices
     if vertex_color_field is not None:
