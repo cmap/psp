@@ -162,7 +162,6 @@ def convert_percentile_to_thresh(g, percentile):
     return thresh
 
 
-
 def main_sym(gct, out_fig_name, out_gml_name, vertex_annot_fields, my_query,
              my_query_annot_field, threshold, percentile, vertex_label_field,
              vertex_color_field, layout):
@@ -184,7 +183,7 @@ def main_sym(gct, out_fig_name, out_gml_name, vertex_annot_fields, my_query,
     add_color_attribute_to_edges(g)
 
     # Remove edges from subgraph below threshold
-    subgraph = remove_edges_and_vertices_below_thresh(g, threshold)
+    subgraph = remove_edges_and_vertices_below_thresh(g, thresh)
 
     # Get vertex ids for my_query
     vertex_ids_of_queries = get_vertex_ids(subgraph, my_query,
@@ -232,7 +231,7 @@ def main_asym(gct, out_fig_name, out_gml_name, row_annot_fields, col_annot_field
     add_color_attribute_to_edges(g)
 
     # Remove edges (and optionally vertices) from subgraph below threshold
-    subgraph = remove_edges_and_vertices_below_thresh(g, threshold)
+    subgraph = remove_edges_and_vertices_below_thresh(g, thresh)
 
     # Get vertex ids for my_query_in_rows and my_query_in_cols
     vertex_ids_of_queries = get_vertex_ids(
