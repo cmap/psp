@@ -20,6 +20,7 @@ import sys
 import argparse
 import numpy as np
 import igraph as ig
+import warnings
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import broadinstitute_cmap.io.pandasGEXpress.parse as pg
@@ -192,12 +193,12 @@ def main_sym(gct, out_fig_name, out_gml_name, vertex_annot_fields, my_query,
     # Add in vertex ids for all first-order neighbors
     vertex_ids_of_queries_and_neighbors = get_vertex_ids_of_neighbors(
         subgraph, vertex_ids_of_queries)
-    logger.info("Graph has {} vertices.".format(len(vertex_ids_of_queries_and_neighbors)))
-
-    # TODO(LL): return also how many edges remain
 
     # Keep only vertices and edges related to queries and their neighbors
     out_graph = subgraph.induced_subgraph(vertex_ids_of_queries_and_neighbors)
+
+    logger.info("Graph has {} vertices.".format(out_graph.vcount()))
+    logger.info("Graph has {} edges.".format(out_graph.ecount()))
 
     # Write graph to .gml file if out_gml_name provided
     if out_gml_name:
@@ -581,6 +582,9 @@ def write_graph_to_gml(g, out_gml_name):
         None
 
     """
+    # Ignore warnings thrown by write_gml
+    warnings.simplefilter("ignore")
+
     g.write_gml(out_gml_name)
     logger.info("Graph written to {}.".format(out_gml_name))
 
