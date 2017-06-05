@@ -25,7 +25,7 @@ January 2017
   5. We will now create an environment with conda that will allow us to use PSP. Type the following in your Terminal:
 
       ```
-      conda create --name psp_env python=2 scipy pandas matplotlib 
+      conda create --name psp_env python=2 scipy pandas matplotlib h5py
       ```
       
       'psp_env' will be the name of your conda environment, and the things after it are the packages that you want that environment to contain. Note that we are using python2, rather than python3. Click 'yes' through the various installation steps.
