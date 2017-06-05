@@ -21,6 +21,7 @@ import argparse
 import numpy as np
 import igraph as ig
 import warnings
+import matplotlib.pyplot as plt
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import broadinstitute_cmap.io.pandasGEXpress.parse as pg
@@ -32,6 +33,7 @@ logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
 # Default layout is Fruchterman-Reingold
 LAYOUT = "fruchterman_reingold"
+COLORMAP = plt.cm.gnuplot
 
 def build_parser():
     """Build argument parser."""
@@ -370,9 +372,8 @@ def add_color_attribute_to_vertices(g, vertex_color_field):
     unique_elements = set(g.vs[vertex_color_field])
 
     # Create a dictionary in which each unique element is assigned a color
-    my_palette = ig.RainbowPalette(n=len(unique_elements))
     color_dict = dict(zip(
-        unique_elements, my_palette.get_many(range(my_palette.length))))
+        unique_elements, [COLORMAP(jj) for jj in np.linspace(0, 0.9, len(unique_elements))]))
 
     # Populate the 'color' vertex attribute
     list_of_colors = [color_dict[v[vertex_color_field]] for v in g.vs()]
