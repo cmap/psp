@@ -30,6 +30,8 @@ __email__ = "lev@broadinstitute.org"
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
+# Default layout is Fruchterman-Reingold
+LAYOUT = "fruchterman_reingold"
 
 def build_parser():
     """Build argument parser."""
@@ -84,7 +86,7 @@ def build_parser():
                         help=("fields from column metadata to use for " +
                               "annotating column vertices; should be the " +
                               "as row_annot_fields if GCT is symmetric"))
-    parser.add_argument("--vertex_label_field", "-vl", default="pert_iname",
+    parser.add_argument("--vertex_label_field", "-vl", default=None,
                         help=("metadata field to use for labeling " +
                               "vertices in the figure"))
     parser.add_argument("--vertex_color_field", "-vc", default=None,
@@ -122,7 +124,7 @@ def main(args):
         main_sym(gct, args.out_fig_name, args.out_gml_name,
                  args.row_annot_fields, args.my_query, args.query_field,
                  args.threshold, args.percentile, args.vertex_label_field,
-                 args.vertex_color_field, layout="fr")
+                 args.vertex_color_field, layout=LAYOUT)
 
     else:
         logger.info(("Row metadata does not equal column metadata. " +
