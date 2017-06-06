@@ -19,6 +19,7 @@ import uuid
 
 import cmapPy.pandasGEXpress.parse as parse
 import cmapPy.pandasGEXpress.write_gct as wg
+import cmapPy.pandasGEXpress.concat_gctoo as cg
 
 import broadinstitute_psp.steep_and_sip_external.steep_and_sip_external as steep_and_sip_external
 import broadinstitute_psp.utils.setup_logger as setup_logger
@@ -32,6 +33,7 @@ INTERNAL_GCT_FORMAT = "{assay}_{cell}_QCNORM.gct"
 BG_GCT_FORMAT = "{assay}_{cell}_SIM.gct"
 OUT_STEEP_FORMAT = "{cell}_SIM.gct"
 OUT_SIP_FORMAT = "{cell}_CONN.gct"
+OUT_CONCATED_NAME = "CONCATED_CONN.gct"
 OUT_DIR_FORMAT = "steep_and_sip_external_many_{uuid}"
 
 # TODO(LL): rename this, make this easy for AO's use case (e.g. annotation)?
@@ -84,6 +86,9 @@ def main(args):
         # Read in the external profiles only once
         external_gct = parse(args.external_gct_path, convert_neg_666=False, make_multiindex=True)
 
+        # Initialize list to store connectivity gcts
+        list_of_conn_gcts = []
+
         # Loop over cell lines in corpus
         for cell in cells:
 
@@ -102,11 +107,19 @@ def main(args):
                 "ks_test", args.fields_to_aggregate_for_external_profiles,
                 fields_to_aggregate_for_internal_profiles)
 
+            # Append this connectivity gct
+            list_of_conn_gcts.append(conn_gct)
+
             # Write output gcts
             out_steep_name = os.path.join(actual_out_dir, OUT_STEEP_FORMAT.format(cell=cell))
             out_sip_name = os.path.join(actual_out_dir, OUT_SIP_FORMAT.format(cell=cell))
             wg.write(sim_gct, out_steep_name, data_null="NaN", metadata_null="NA", filler_null="NA")
             wg.write(conn_gct, out_sip_name, data_null="NaN", filler_null="NaN", metadata_null="NaN")
+
+        # Concatenate connectivity GCTs
+        concated = cg.vstack(list_of_conn_gcts)
+        actual_out_concated_name = os.path.join(actual_out_dir, OUT_CONCATED_NAME)
+        wg.write(concated, actual_out_concated_name, data_null="NaN", filler_null="NaN", metadata_null="NaN")
 
         # Write success.txt with timestamp
         success_path = os.path.join(actual_out_dir, "success.txt")
