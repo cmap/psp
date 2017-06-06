@@ -167,8 +167,8 @@ def prepare_multi_index_dfs(test_df, bg_df, fields_to_aggregate_in_test_gct_quer
     out_test_df = pd.DataFrame(test_df.values, index=test_df_index, columns=test_df_columns)
 
     # Sort out_test_df
-    out_test_df.sortlevel(level=target_field_name, axis=0, inplace=True)
-    out_test_df.sortlevel(level=query_field_name, axis=1, inplace=True)
+    out_test_df.sort_index(level=target_field_name, axis=0, inplace=True)
+    out_test_df.sort_index(level=query_field_name, axis=1, inplace=True)
 
     # Create aggregated level in bg_df
     (_, bg_df_columns) = add_aggregated_level_to_multi_index(
@@ -180,8 +180,8 @@ def prepare_multi_index_dfs(test_df, bg_df, fields_to_aggregate_in_test_gct_quer
     out_bg_df = pd.DataFrame(bg_df.values, index=bg_df_index, columns=bg_df_columns)
 
     # Sort out_bg_df
-    out_bg_df.sortlevel(level=target_field_name, axis=0, inplace=True)
-    out_bg_df.sortlevel(level=target_field_name, axis=1, inplace=True)
+    out_bg_df.sort_index(level=target_field_name, axis=0, inplace=True)
+    out_bg_df.sort_index(level=target_field_name, axis=1, inplace=True)
 
     return out_test_df, out_bg_df
 
