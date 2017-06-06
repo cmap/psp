@@ -12,6 +12,9 @@
 # EXTERNAL_GCT_PATH (wherever user-uploaded data is stored)
 # OUT_DIR (directory in which to save output; sub-directory is automatically made by steep_and_sip_external_many.py)
 # PSP_ON_CLUE_CONFIG_PATH (config file containing various variables; e.g. /home/psp/psp/broadinstitute_psp/psp_config.yml)
+# FIELDS_TO_AGGREGATE (which fields specify how replicates should be aggregated; e.g. pert_id cell_id
+
+# TODO: concatenate results
 
 #----------#
 
@@ -19,12 +22,13 @@ ASSAY=$1
 EXTERNAL_GCT_PATH=$2
 OUT_DIR=$3
 PSP_ON_CLUE_CONFIG_PATH=$4
+FIELDS_TO_AGGREGATE="${@:5}"
 
 # Activate conda environment
 source activate psp
 
 # Call Python script
-python steep_and_sip_external/steep_and_sip_external_many.py -a $ASSAY -e $EXTERNAL_GCT_PATH -o $OUT_DIR -p $PSP_ON_CLUE_CONFIG_PATH
+python steep_and_sip_external/steep_and_sip_external_many.py -a $ASSAY -e $EXTERNAL_GCT_PATH -o $OUT_DIR -p $PSP_ON_CLUE_CONFIG_PATH -fae $FIELDS_TO_AGGREGATE
 
 # Deactivate conda environment
 source deactivate

@@ -15,6 +15,7 @@ import os
 import sys
 import time
 import traceback
+import uuid
 
 import cmapPy.pandasGEXpress.parse as parse
 import cmapPy.pandasGEXpress.write_gct as wg
@@ -31,10 +32,9 @@ INTERNAL_GCT_FORMAT = "{assay}_{cell}_QCNORM.gct"
 BG_GCT_FORMAT = "{assay}_{cell}_SIM.gct"
 OUT_STEEP_FORMAT = "{cell}_SIM.gct"
 OUT_SIP_FORMAT = "{cell}_CONN.gct"
-OUT_DIR_FORMAT = "steep_and_sip_external_many_{time}"
+OUT_DIR_FORMAT = "steep_and_sip_external_many_{uuid}"
 
 # TODO(LL): rename this, make this easy for AO's use case (e.g. annotation)?
-# TODO(LL): need to figure out how we will pass -fae through
 
 def build_parser():
     """Build argument parser."""
@@ -52,6 +52,9 @@ def build_parser():
     parser.add_argument("--psp_on_clue_config_path", "-p",
                         default="clue/psp_on_clue.cfg",
                         help="filepath to psp_on_clue.cfg")
+    parser.add_argument("--fields_to_aggregate_for_external_profiles", "-fae",
+                        nargs="+", default=["pert_id", "cell_id", "pert_time"],
+                        help="list of metadata fields to use in aggregating replicates in external profiles")
 
     # Optional args
     parser.add_argument("--verbose", "-v", action="store_true", default=False,
@@ -64,16 +67,17 @@ def main(args):
 
     # Record start_time
     start_time = datetime.datetime.now()
+    start_time_msg = "steep_and_sip_external_many.py started at {}".format(
+        start_time.strftime('%Y-%m-%d %H:%M:%S'))
 
-    # Create output directory using start_time down to the millisecond
-    time_for_out_dir = start_time.strftime("%Y_%m_%d_%H%M%S%f")
-    actual_out_dir = os.path.join(args.out_dir, OUT_DIR_FORMAT.format(time=time_for_out_dir))
+    # Create output directory using UUID
+    actual_out_dir = os.path.join(args.out_dir, OUT_DIR_FORMAT.format(uuid=str(uuid.uuid1())))
     os.makedirs(actual_out_dir)
 
     try:
 
         # Read and unpack config file
-        (cells, internal_gct_dir, bg_gct_dir, fields_to_aggregate_for_external_profiles,
+        (cells, internal_gct_dir, bg_gct_dir,
          fields_to_aggregate_for_internal_profiles, similarity_metric,
          connectivity_metric) = read_config_file(args.psp_on_clue_config_path)
 
@@ -95,7 +99,7 @@ def main(args):
 
             (sim_gct, conn_gct) = steep_and_sip_external.do_steep_and_sip(
                 external_gct, internal_gct, bg_gct, "spearman",
-                "ks_test", fields_to_aggregate_for_external_profiles,
+                "ks_test", args.fields_to_aggregate_for_external_profiles,
                 fields_to_aggregate_for_internal_profiles)
 
             # Write output gcts
@@ -106,7 +110,7 @@ def main(args):
 
         # Write success.txt with timestamp
         success_path = os.path.join(actual_out_dir, "success.txt")
-        write_success(success_path)
+        write_success(success_path, start_time_msg)
 
         # Return how much time it took
         end_time = datetime.datetime.now()
@@ -119,7 +123,7 @@ def main(args):
         msg = "steep_and_sip_external_many.py failed. See {} for stacktrace.".format(failure_path)
 
         # Write failure.txt
-        write_failure(failure_path)
+        write_failure(failure_path, start_time_msg)
 
         # Raise exception
         logger.error(msg)
@@ -144,33 +148,33 @@ def read_config_file(config_path):
     cells = eval(config_corpus["cells"])
     internal_gct_dir = config_corpus["qcnorm_dir"]
     bg_gct_dir = config_corpus["sim_dir"]
-    fields_to_aggregate_for_external_profiles = eval(config_metadata["fields_to_aggregate_for_external_profiles"])
     fields_to_aggregate_for_internal_profiles = eval(config_metadata["fields_to_aggregate_for_internal_profiles"])
     similarity_metric = config_algorithms["similarity_metric"]
     connectivity_metric = config_algorithms["connectivity_metric"]
 
     return cells, internal_gct_dir, bg_gct_dir, \
-           fields_to_aggregate_for_external_profiles, \
            fields_to_aggregate_for_internal_profiles, \
            similarity_metric, connectivity_metric
 
 
-def write_success(file_name):
+def write_success(file_name, start_time_msg):
     # Create timestamp
-    timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     # Write timestamp to file_name
     f = open(file_name, 'w')
-    f.write("steep_and_sip_external_many.py completed at {}".format(timestamp))
+    f.write(start_time_msg + "\n")
+    f.write("steep_and_sip_external_many.py completed at {}\n".format(timestamp))
     f.close()
 
 
-def write_failure(file_name):
+def write_failure(file_name, start_time_msg):
     # Record stacktrace
     _, _, exc_traceback = sys.exc_info()
 
     # Write stacktrace to file_name
     f = open(file_name, "w")
+    f.write(start_time_msg + "\n")
     traceback.print_exc(exc_traceback, file=f)
     f.close()
 

@@ -15,7 +15,6 @@ class TestSteepAndSipExternalMany(unittest.TestCase):
     def test_read_config_file(self):
 
         (cells, internal_gct_dir, bg_gct_dir,
-         fields_to_aggregate_for_external_profiles,
          fields_to_aggregate_for_internal_profiles,
          similarity_metric, connectivity_metric) = ssec.read_config_file("clue/psp_on_clue.cfg")
 
@@ -29,7 +28,7 @@ class TestSteepAndSipExternalMany(unittest.TestCase):
         try:
             tuple()[0]
         except Exception:
-            ssec.write_failure(out_file)
+            ssec.write_failure(out_file, "Started way back when!")
 
         self.assertTrue(os.path.exists(out_file))
         os.remove(out_file)
@@ -37,7 +36,7 @@ class TestSteepAndSipExternalMany(unittest.TestCase):
     def test_write_success(self):
         out_file = os.path.join(FUNCTIONAL_TESTS_DIR, "success.txt")
 
-        ssec.write_success(out_file)
+        ssec.write_success(out_file, "Started now!")
 
         self.assertTrue(os.path.exists(out_file))
         os.remove(out_file)
@@ -48,13 +47,16 @@ class TestSteepAndSipExternalMany(unittest.TestCase):
         test_external = os.path.join(FUNCTIONAL_TESTS_DIR, "test_steep_and_sip_external_many_single_sample.gct")
         test_config = os.path.join(FUNCTIONAL_TESTS_DIR, "test_steep_and_sip_external_many.cfg")
 
-        args_string = "-a {} -e {} -o {} -p {}".format(
-            "GCP", test_external, FUNCTIONAL_TESTS_DIR, test_config)
+        args_string = "-a {} -e {} -o {} -p {} -fae {}".format(
+            "GCP", test_external, FUNCTIONAL_TESTS_DIR, test_config, "pert_id cell_id")
         args = ssec.build_parser().parse_args(args_string.split())
+        logger.info(args)
 
         ssec.main(args)
 
-        out_dirs = glob.glob(os.path.join(FUNCTIONAL_TESTS_DIR, "steep_and_sip_external_many_????_??_??*"))
+        out_dirs = glob.glob(os.path.join(
+            FUNCTIONAL_TESTS_DIR, "steep_and_sip_external_many_*-*-*-*"))
+        logger.debug("out_dirs:{}".format(out_dirs))
         self.assertTrue(len(out_dirs) > 0)
 
         # Delete each output directory (could be more than 1 if previous cleanup failed)
