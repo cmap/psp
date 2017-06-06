@@ -21,8 +21,8 @@ import sys
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import broadinstitute_psp.utils.psp_utils as psp_utils
 import broadinstitute_psp.dry.dry as dry
-import broadinstitute_cmap.io.pandasGEXpress.GCToo as GCToo
-import broadinstitute_cmap.io.pandasGEXpress.write_gct as wg
+import cmapPy.pandasGEXpress.GCToo as GCToo
+import cmapPy.pandasGEXpress.write_gct as wg
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"

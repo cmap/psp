@@ -4,7 +4,7 @@ import os
 import pandas as pd
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
+import cmapPy.pandasGEXpress.parse as parse
 import annotate_gct_from_mapping as agfm
 
 functional_tests_dir = "utils/functional_tests/"
@@ -27,8 +27,8 @@ class TestAnnotate(unittest.TestCase):
         agfm.main(args)
 
         # Read in expected and actual outputs
-        e_gct = pg.parse(expected_gct_path)
-        out_gct = pg.parse(out_path)
+        e_gct = parse(expected_gct_path)
+        out_gct = parse(out_path)
 
         pd.util.testing.assert_frame_equal(e_gct.data_df, out_gct.data_df)
         pd.util.testing.assert_frame_equal(e_gct.row_metadata_df, out_gct.row_metadata_df)

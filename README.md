@@ -1,14 +1,12 @@
 # Proteomics Signature Pipeline (PSP)
 
 This is a package of Python scripts that enable processing and analysis of proteomic signatures produced by the LINCS Proteomic Characterization Center for Signaling and Epigenetics (PCCSE) at the Broad Institute. You can download the raw data from the [Panorama Repository](https://panoramaweb.org/labkey/project/LINCS/begin.view? "Panorama Repository"). (You will want the unprocessed gcts.)  
-  
-A dependency of PSP is the [l1ktools repository](https://github.com/cmap/l1ktools "l1ktools"), a public repo maintained by the Connectivity Map at the Broad Institute. This is where we get the files for parsing, writing, and concatenating gct and gctx files.
 
 ## Maintainer
 
 Lev Litichevskiy  
 lev@broadinstitute.org  
-January 2017
+June 2017
 
 ## Setting up your environment
 
@@ -16,7 +14,7 @@ January 2017
 
   1. First, you must clone this repository into a local directory on your computer. For example, I cloned the repository in the directory `/Users/lev/code/proteomics-signature-pipeline`. If you need more information about cloning, go to this page provided by Github: https://help.github.com/articles/cloning-a-repository/.
 
-  2. To manage our Python environment, we'll use a program called conda. Download conda from the following website: http://conda.pydata.org/miniconda.html. Miniconda or Anaconda will do, but I'd recommend Miniconda because it's more lightweight.
+  2. To manage our Python environment, we'll use a program called conda. Download conda from the following website: http://conda.pydata.org/miniconda.html. Miniconda or Anaconda will do, but we recommend Miniconda because it's more lightweight.
 
   3. Now, we will continue with the setup using the command line, so open the terminal or command prompt.
 
@@ -25,33 +23,32 @@ January 2017
   5. We will now create an environment with conda that will allow us to use PSP. Type the following in your Terminal:
 
       ```
-      conda create --name psp_env python=2 scipy pandas matplotlib h5py
+      conda create --name psp_env --channel bioconda python=2 pandas scipy cmapPy h5py
       ```
       
-      'psp_env' will be the name of your conda environment, and the things after it are the packages that you want that environment to contain. Note that we are using python2, rather than python3. Click 'yes' through the various installation steps.
+      'psp_env' will be the name of your conda environment, and the things after it are the packages that our environment will contain. Note that we are using python2, not python3. We also have to specify that we should also look in the `bioconda` channel in order to find the [cmapPy](https://github.com/cmap/cmappy "cmapPy Github") package (tools for interacting with .gct and .gctx files) You'll have to type 'yes' to proceed through the installation.
+      
+  6. OPTIONAL: There are additional dependencies that you will need in order to use the tasseography scripts (i.e. showing connections as graphs):
+    
+      ```
+      conda install --channel conda-forge python-igraph matplotlib
+      ```
+      
+      igraph is a package for manipulating graphs, and you'll need matplotlib to produce output figures.
 
-  6. To activate your environment, type `source activate psp_env`, or if you are on a Windows computer, `activate psp_env`. You should now see `[psp_env]` or `(psp_env)` prepended to the start of your command prompt. For example:
+  7. To activate your environment, type `source activate psp_env`, or if you are on a Windows computer, `activate psp_env`. You should now see `[psp_env]` or `(psp_env)` prepended to the start of your command prompt. For example:
 
       ```
       (psp_env) /Users/lev/code/proteomics-signature-pipeline $
       ```
 
-  7. We will now run a script to make our environment aware of the contents of the PSP repository that we cloned. Move to the top directory of your cloned repository (e.g. `/Users/lev/code/proteomics-signature-pipeline`), and then type:
+  8. We will now run a script to make our environment aware of the contents of the PSP repository that we cloned. Move to the top directory of your cloned repository (e.g. `/Users/lev/code/proteomics-signature-pipeline`), and then type:
 
       ```
       python setup_psp.py develop
-      ```
-
-  8. This repository is dependent on another repository ([l1ktools](https://github.com/cmap/l1ktools "l1ktools")) for the code that parses and writes gct and gctx files. So you must also clone l1ktools onto your computer (like step 1). For example, I cloned l1ktools into `/Users/lev/code/l1ktools`.   
+      ```   
   
-  9. We will now a run a script to make our environment aware of files that we need. (You may need to checkout a different branch first; try `git checkout develop`.) Move to the `python` directory and run another setup script by typing the following:
-    
-      ```
-      cd /Users/lev/code/l1ktools/python/
-      python setup.py develop
-      ```
-  
-  10. That's it! To make sure that everything has been set up correctly, navigate to the `broadinstitute_psp` directory of PSP and try executing one of the Python test scripts:
+  9. That's it! To make sure that everything has been set up correctly, navigate to the `broadinstitute_psp` directory of PSP and try executing one of the Python test scripts:
 
       ```
       cd /Users/lev/code/proteomics-signature-pipeline/broadinstitute_psp/
@@ -84,7 +81,7 @@ January 2017
 
 ## Configuration file
 
-Several of the files in PSP -- notably dry.py and steep_and_sip_external_many.py -- require a configuration file. This file contains various parameters used by the production code (e.g. what values to consider NaN, default thresholds, provenance code abbreviations, where to find certain files, etc.). By default, these scripts will look for this config file in `~/psp_production.cfg`. So if you want to never think about the config file again, just copy `psp_production.cfg`, which is in the top-directory of the PSP repo, to your home directory. Otherwise, you'll have to supply it explicitly with the --psp_config_path argument.
+Several of the files in PSP -- notably dry.py and steep_and_sip_external_many.py -- require a configuration file. This file contains various parameters used by the production code (e.g. what values to consider NaN, default thresholds, provenance code abbreviations, where to find certain files, etc.). By default, these scripts will look for this config file in `~/psp_production.cfg`. So if you want to never think about the config file again, just copy `psp_production.cfg`, which is in the top-directory of the PSP repo, to your home directory (i.e. something like `/Users/lev`). Otherwise, you'll have to supply it explicitly with the --psp_config_path argument.
 
 ## Examples
 
@@ -118,38 +115,15 @@ python sip/sip.py --test_gct_path ./steep_output.gct --bg_gct_path /Users/lev/bu
 
 One output file will be saved to your current directory: the GCT file containing the _connectivities_ between the samples of new_data.gct and the samples of old_data.gct.
 
-### Use Case 4: concat_gctoo
-
-This script lives in `l1ktools`. The main methods of this script are `hstack` (horizontal concatenation) and `vstack` (vertical concatenation). 
-
-A. You have a bunch of files that start with 'LINCS_GCP' in your Downloads folder that you want to concatenate **horizontally**. Type the following in your command line:
-
-```
-python /Users/lev/code/l1ktools/python/broadinstitute_cmap/io/GCToo/concat_gctoo.py --file_wildcard '/Users/lev/Downloads/LINCS_GCP*' --concat_direction horz
-```
-
-This will save a file called `concated.gct` in your current directory.  Make sure that the wildcard is in quotes!
-
-B. You have 2 files that you want to concatenate **horizontally**: /Users/lev/file_to_concatenate1.gct and /Users/lev/file_to_concatenate2.gct. Type the following in your command line:
-
-```
-python /Users/lev/code/l1ktools/python/broadinstitute_cmap/io/GCToo/concat_gctoo.py --list_of_gct_paths /Users/lev/file_to_concatenate1.gct /Users/lev/file_to_concatenate2.gct --concat_direction horz
-```
-
-C. You have 2 GCToo objects in memory that you want to concatenate **vertically**. vstack is the method in concat_gctoo.py that will actually do the concatenation. From within the Python console or script where you have your 2 GCToos (gct1 & gct2), type the following:
-
-```
-import broadinstitute_cmap.io.GCToo.concat_gctoo as cg
-concated = cg.vstack([gct1, gct2])
-```
-
 Components
 ----------
 harvest: pushing and pulling data from Panorama (coming soon)  
-dry: level 2 &rarr; level 3 data; performs filtering and normalization  
-steep: level 3 or level 4 (z-scored) &rarr; level 5 data; computes similarity  
-sip: level 5 &rarr; level 6 data; computes connectivity  
-steep_and_sip_external: level 3 or level 4 (z-scored) &rarr; level 6 data; combines 2 scripts into 1  
+dry: level 2 &rarr; level 3 data; performs QC  
+tear: level 3 &rarr; level 4 data; performs row median normalization or z-scoring  
+steep: level 3 or level 4 &rarr; level 5 data; computes similarity  
+sip: level 5 &rarr; level 6 data; computes connectivity
+  
+steep_and_sip_external: level 3 or level 4 &rarr; level 6 data; combines 2 scripts into 1  
 utils: miscellanous other scripts  
 
 Data levels

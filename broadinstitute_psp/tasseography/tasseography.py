@@ -24,7 +24,7 @@ import warnings
 import matplotlib.pyplot as plt
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import broadinstitute_cmap.io.pandasGEXpress.parse as pg
+import cmapPy.pandasGEXpress.parse as parse
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
@@ -103,7 +103,7 @@ def build_parser():
 def main(args):
 
     # Parse gct
-    gct = pg.parse(args.input_gct_path)
+    gct = parse(args.input_gct_path)
 
     # TODO(LL): better integrate main_sym and main_asym
 

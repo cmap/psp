@@ -5,9 +5,9 @@ import numpy as np
 import pandas as pd
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import broadinstitute_cmap.io.pandasGEXpress.GCToo as GCToo
-import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
-import broadinstitute_cmap.io.pandasGEXpress.write_gct as wg
+import cmapPy.pandasGEXpress.GCToo as GCToo
+import cmapPy.pandasGEXpress.parse as parse
+import cmapPy.pandasGEXpress.write_gct as wg
 import steep
 
 # Setup logger
@@ -95,7 +95,7 @@ class TestSteep(unittest.TestCase):
         args1 = steep.build_parser().parse_args(arg_string1.split())
         steep.main(args1)
 
-        sim_gct1 = pg.parse(out_name1)
+        sim_gct1 = parse(out_name1)
         e_index1 = pd.Index(["a", "b"])
         spearman_series = pd.Series(["spearman", "spearman"],
                                     index=["a", "b"],
@@ -120,7 +120,7 @@ class TestSteep(unittest.TestCase):
         args2 = steep.build_parser().parse_args(arg_string2.split())
         steep.main(args2)
 
-        sim_gct2 = pg.parse(out_name2)
+        sim_gct2 = parse(out_name2)
         e_index2 = pd.Index(["a", "b"])
         e_columns2 = pd.Index(["c", "d", "e"])
         spearman_series2 = pd.Series(["spearman", "spearman", "spearman"],

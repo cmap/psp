@@ -12,9 +12,9 @@ import os
 import sys
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import broadinstitute_cmap.io.pandasGEXpress.slice_gct as sg
-import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
-import broadinstitute_cmap.io.pandasGEXpress.write_gct as wg
+import cmapPy.pandasGEXpress.slice_gct as sg
+import cmapPy.pandasGEXpress.parse as parse
+import cmapPy.pandasGEXpress.write_gct as wg
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
@@ -39,7 +39,7 @@ def main(args):
     # Import data
     assert os.path.exists(args.in_gct_path), (
         "in_gct_path could not be found: {}").format(args.in_gct_path)
-    in_gct = pg.parse(args.in_gct_path)
+    in_gct = parse(args.in_gct_path)
 
     # First, check if any rows are all NaN; if so, remove them
     dropped_df = in_gct.data_df.dropna(how="all")

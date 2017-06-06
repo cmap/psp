@@ -12,9 +12,9 @@ import argparse
 import pandas as pd
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import broadinstitute_cmap.io.pandasGEXpress.slice_gct as slice_gct
-import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
-import broadinstitute_cmap.io.pandasGEXpress.write_gct as wg
+import cmapPy.pandasGEXpress.slice_gct as slice_gct
+import cmapPy.pandasGEXpress.parse as parse
+import cmapPy.pandasGEXpress.write_gct as wg
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
@@ -50,7 +50,7 @@ def main(args):
     """ The main method. """
 
     # Import gct
-    in_gct = pg.parse(args.in_gct_path)
+    in_gct = parse(args.in_gct_path)
 
     # Create the separated gcts
     (out_gcts, out_gct_prefixes) = separate(in_gct, args.separate_field, args.row_or_col)

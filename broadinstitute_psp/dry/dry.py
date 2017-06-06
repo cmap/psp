@@ -16,8 +16,8 @@ import os
 import pandas as pd
 import sys
 
-import broadinstitute_cmap.io.pandasGEXpress.GCToo as GCToo
-import broadinstitute_cmap.io.pandasGEXpress.write_gct as wg
+import cmapPy.pandasGEXpress.GCToo as GCToo
+import cmapPy.pandasGEXpress.write_gct as wg
 import broadinstitute_psp.utils.qc_gct2pw as gct2pw
 import broadinstitute_psp.utils.psp_utils as psp_utils
 import broadinstitute_psp.utils.setup_logger as setup_logger

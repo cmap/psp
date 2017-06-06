@@ -16,7 +16,7 @@ import pandas as pd
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import broadinstitute_psp.utils.psp_utils as utils
-import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
+import cmapPy.pandasGEXpress.parse as parse
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
@@ -51,7 +51,7 @@ def build_parser():
 
 def main(args):
     # Import gct
-    gct = pg.parse(args.gct_file_path)
+    gct = parse(args.gct_file_path)
 
     # Get plate and well names
     (plate_names, well_names) = extract_plate_and_well_names(

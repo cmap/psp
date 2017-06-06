@@ -4,7 +4,7 @@ import os
 import unittest
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
+import cmapPy.pandasGEXpress.parse as parse
 import broadinstitute_psp.steep_and_sip_external.steep_and_sip_external as sse
 
 FUNCTIONAL_TESTS_DIR = "steep_and_sip_external/functional_tests"
@@ -17,13 +17,13 @@ class TestSteepAndSipExternal(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         external_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_steep_and_sip_external_external.gct")
-        cls.external_gct = pg.parse(external_gct_path, convert_neg_666=False, make_multiindex=True)
+        cls.external_gct = parse(external_gct_path, convert_neg_666=False, make_multiindex=True)
 
         internal_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_steep_and_sip_external_internal.gct")
-        cls.internal_gct = pg.parse(internal_gct_path, convert_neg_666=False, make_multiindex=True)
+        cls.internal_gct = parse(internal_gct_path, convert_neg_666=False, make_multiindex=True)
 
         bg_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_steep_and_sip_external_bg.gct")
-        cls.bg_gct = pg.parse(bg_gct_path, convert_neg_666=False, make_multiindex=True)
+        cls.bg_gct = parse(bg_gct_path, convert_neg_666=False, make_multiindex=True)
 
     def test_replicates_in_external(self):
         # Test what happens when the external dataset has replicates

@@ -4,8 +4,8 @@ import os
 import numpy as np
 import pandas as pd
 
-import broadinstitute_cmap.io.pandasGEXpress as GCToo
-import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
+import cmapPy.pandasGEXpress as GCToo
+import cmapPy.pandasGEXpress.parse as parse
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import tear
 
@@ -27,7 +27,7 @@ class TestTear(unittest.TestCase):
         tear.main(args)
 
         # Read in result
-        out_gct = pg.parse(out_name)
+        out_gct = parse(out_name)
 
         e_values = np.array(
             [[0., 4.07, -1.48, -10.71, 0.],

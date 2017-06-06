@@ -21,9 +21,9 @@ import pandas as pd
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import broadinstitute_psp.steep.steep as steep
 import broadinstitute_psp.sip.sip as sip
-import broadinstitute_cmap.io.pandasGEXpress.GCToo as GCToo
-import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
-import broadinstitute_cmap.io.pandasGEXpress.write_gct as wg
+import cmapPy.pandasGEXpress.GCToo as GCToo
+import cmapPy.pandasGEXpress.parse as parse
+import cmapPy.pandasGEXpress.write_gct as wg
 import broadinstitute_psp.utils.psp_utils as utils
 
 __author__ = "Lev Litichevskiy"
@@ -79,9 +79,9 @@ def build_parser():
 def main(args):
 
     # Parse input gcts
-    external_gct = pg.parse(args.external_gct_path, convert_neg_666=False, make_multiindex=True)
-    internal_gct = pg.parse(args.internal_gct_path, convert_neg_666=False, make_multiindex=True)
-    bg_gct = pg.parse(args.bg_gct_path, convert_neg_666=False, make_multiindex=True)
+    external_gct = parse(args.external_gct_path, convert_neg_666=False, make_multiindex=True)
+    internal_gct = parse(args.internal_gct_path, convert_neg_666=False, make_multiindex=True)
+    bg_gct = parse(args.bg_gct_path, convert_neg_666=False, make_multiindex=True)
 
     # Meat of the script
     (sim_gct, conn_gct) = do_steep_and_sip(

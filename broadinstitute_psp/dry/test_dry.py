@@ -13,7 +13,7 @@ import os
 import numpy as np
 import pandas as pd
 
-import broadinstitute_cmap.io.pandasGEXpress.GCToo as GCToo
+import cmapPy.pandasGEXpress.GCToo as GCToo
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import dry
 

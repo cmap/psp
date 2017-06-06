@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import unittest
 
-import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
+import cmapPy.pandasGEXpress.parse as parse
 import broadinstitute_psp.utils.separate_gct as sg
 import broadinstitute_psp.utils.setup_logger as setup_logger
 
@@ -18,12 +18,12 @@ a375_gct_path = functional_tests_dir + "test_separate_expected_A375.gct"
 ht29_gct_path = functional_tests_dir + "test_separate_expected_HT29.gct"
 a549_gct_path = functional_tests_dir + "test_separate_expected_A549.gct"
 
-in_gct = pg.parse(in_gct_path)
-thing1_gct = pg.parse(thing1_gct_path)
-thing2_gct = pg.parse(thing2_gct_path)
-a375_gct = pg.parse(a375_gct_path)
-ht29_gct = pg.parse(ht29_gct_path)
-a549_gct = pg.parse(a549_gct_path)
+in_gct = parse(in_gct_path)
+thing1_gct = parse(thing1_gct_path)
+thing2_gct = parse(thing2_gct_path)
+a375_gct = parse(a375_gct_path)
+ht29_gct = parse(ht29_gct_path)
+a549_gct = parse(a549_gct_path)
 
 
 class TestSeparateGct(unittest.TestCase):

@@ -9,7 +9,7 @@ import numpy as np
 import logging
 import pandas as pd
 
-import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
+import cmapPy.pandasGEXpress.parse as parse
 import broadinstitute_psp.utils.setup_logger as setup_logger
 
 # Location of gcts processed using R code
@@ -56,8 +56,8 @@ failed_row_metadata = []
 mean_diffs = []
 for dry_file, r_file in zip(dry_files, r_files):
 
-    dry_gct = pg.parse(dry_file)
-    r_gct = pg.parse(r_file)
+    dry_gct = parse(dry_file)
+    r_gct = parse(r_file)
 
     logger.debug("dry_file: {}".format(dry_file))
     logger.debug("r_file: {}".format(r_file))

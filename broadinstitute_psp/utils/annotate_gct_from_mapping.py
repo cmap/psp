@@ -20,8 +20,8 @@ import argparse
 import pandas as pd
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
-import broadinstitute_cmap.io.pandasGEXpress.write_gct as wg
+import cmapPy.pandasGEXpress.parse as parse
+import cmapPy.pandasGEXpress.write_gct as wg
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
@@ -61,7 +61,7 @@ def build_parser():
 def main(args):
 
     # Parse gct file
-    gct = pg.parse(args.path_to_gct)
+    gct = parse(args.path_to_gct)
 
     # Parse mapping tsv file
     mapping = pd.read_csv(args.path_to_mapping_tsv, sep="\t", index_col=0)

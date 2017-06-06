@@ -19,9 +19,9 @@ import argparse
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import broadinstitute_psp.utils.psp_utils as psp_utils
-import broadinstitute_cmap.io.pandasGEXpress.GCToo as GCToo
-import broadinstitute_cmap.io.pandasGEXpress.parse as pg
-import broadinstitute_cmap.io.pandasGEXpress.write_gct as wg
+import cmapPy.pandasGEXpress.GCToo as GCToo
+import cmapPy.pandasGEXpress.parse as parse
+import cmapPy.pandasGEXpress.write_gct as wg
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
@@ -54,7 +54,7 @@ def build_parser():
 def main(args):
 
     # Read in the first gct
-    gct1 = pg.parse(args.in_gct_path, convert_neg_666=False, make_multiindex=True)
+    gct1 = parse(args.in_gct_path, convert_neg_666=False, make_multiindex=True)
 
     # If second gct provided, compute similarity between 2 gcts
     if args.in_gct2_path is not None:
@@ -62,7 +62,7 @@ def main(args):
                     "between the columns of in_gct and in_gct2.")
 
         # Read in the second gct
-        gct2 = pg.parse(args.in_gct2_path, convert_neg_666=False, make_multiindex=True)
+        gct2 = parse(args.in_gct2_path, convert_neg_666=False, make_multiindex=True)
 
         # Compute similarities between gct1 and gct2
         out_df = compute_similarity_bw_two_dfs(gct1.data_df, gct2.data_df, args.similarity_metric)

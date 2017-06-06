@@ -12,9 +12,9 @@ import glob
 import os
 import numpy as np
 
-import broadinstitute_cmap.io.pandasGEXpress.GCToo as GCToo
-import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
-import broadinstitute_cmap.io.pandasGEXpress.write_gct as wg
+import cmapPy.pandasGEXpress.GCToo as GCToo
+import cmapPy.pandasGEXpress.parse as parse
+import cmapPy.pandasGEXpress.write_gct as wg
 
 
 def build_parser():
@@ -61,7 +61,7 @@ def main(args):
         print "prefix: {}".format(prefix)
 
     # Import gcts
-    gctoos = [pg.parse(x) for x in gct_paths]
+    gctoos = [parse(x) for x in gct_paths]
 
     assert len(gctoos) > 1, "gct_paths: {}".format(gct_paths)
 

@@ -6,7 +6,7 @@ import pandas as pd
 import scipy.stats as stats
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
+import cmapPy.pandasGEXpress.parse as parse
 import sip
 
 # Setup logger
@@ -31,8 +31,8 @@ class TestSip(unittest.TestCase):
 
         # Compare the output of main with the expected output
         e_out_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_sip_expected_conn.gct")
-        e_out_gct = pg.parse(e_out_path)
-        out_gct = pg.parse(out_path)
+        e_out_gct = parse(e_out_path)
+        out_gct = parse(out_path)
 
         self.assertTrue(np.allclose(e_out_gct.data_df.values, out_gct.data_df.values), (
             "\ne_out_gct.data_df:\n{}\nout_gct.data_df:\n{}".format(

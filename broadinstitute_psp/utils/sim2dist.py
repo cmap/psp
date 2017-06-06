@@ -15,9 +15,9 @@ import argparse
 import sys
 
 import utils.setup_logger as setup_logger
-import broadinstitute_cmap.io.pandasGEXpress.GCToo as GCToo
-import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
-import broadinstitute_cmap.io.pandasGEXpress.write_gct as wg
+import cmapPy.pandasGEXpress.GCToo as GCToo
+import cmapPy.pandasGEXpress.parse as parse
+import cmapPy.pandasGEXpress.write_gct as wg
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
@@ -38,7 +38,7 @@ def build_parser():
 def main(args):
 
     # Import data
-    in_gct = pg.parse(args.in_gct_path)
+    in_gct = parse(args.in_gct_path)
 
     # Compute distance df
     dist_df = 1 - in_gct.data_df

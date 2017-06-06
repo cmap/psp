@@ -16,8 +16,8 @@ import sys
 import time
 import traceback
 
-import broadinstitute_cmap.io.pandasGEXpress.parse as pg
-import broadinstitute_cmap.io.pandasGEXpress.write_gct as wg
+import cmapPy.pandasGEXpress.parse as parse
+import cmapPy.pandasGEXpress.write_gct as wg
 
 import broadinstitute_psp.steep_and_sip_external.steep_and_sip_external as steep_and_sip_external
 import broadinstitute_psp.utils.setup_logger as setup_logger
@@ -78,7 +78,7 @@ def main(args):
          connectivity_metric) = read_config_file(args.psp_on_clue_config_path)
 
         # Read in the external profiles only once
-        external_gct = pg.parse(args.external_gct_path, convert_neg_666=False, make_multiindex=True)
+        external_gct = parse(args.external_gct_path, convert_neg_666=False, make_multiindex=True)
 
         # Loop over cell lines in corpus
         for cell in cells:
@@ -86,12 +86,12 @@ def main(args):
             # Import gct with the internal profiles for this cell line
             internal_gct_path = os.path.join(internal_gct_dir, INTERNAL_GCT_FORMAT.format(
                 assay=args.assay, cell=cell))
-            internal_gct = pg.parse(internal_gct_path, convert_neg_666=False, make_multiindex=True)
+            internal_gct = parse(internal_gct_path, convert_neg_666=False, make_multiindex=True)
 
             # Import gct with the similarity matrix for this cell line
             bg_gct_path = os.path.join(bg_gct_dir, BG_GCT_FORMAT.format(
                 assay=args.assay, cell=cell))
-            bg_gct = pg.parse(bg_gct_path, convert_neg_666=False, make_multiindex=True)
+            bg_gct = parse(bg_gct_path, convert_neg_666=False, make_multiindex=True)
 
             (sim_gct, conn_gct) = steep_and_sip_external.do_steep_and_sip(
                 external_gct, internal_gct, bg_gct, "spearman",

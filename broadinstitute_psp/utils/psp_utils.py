@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 
-import broadinstitute_cmap.io.pandasGEXpress.parse_gct as pg
+import cmapPy.pandasGEXpress.parse as parse
 
 def read_gct_and_config_file(gct_path, config_path):
     """Read gct and config file.
@@ -34,7 +34,7 @@ def read_gct_and_config_file(gct_path, config_path):
     config_parameters = dict(config_parser.items("parameters"))
 
     # Parse the gct file and return GCToo object
-    gct = pg.parse(gct_path, convert_neg_666=False, make_multiindex=True)
+    gct = parse(gct_path, convert_neg_666=False, make_multiindex=True)
 
     return gct, config_io, config_metadata, config_parameters
 

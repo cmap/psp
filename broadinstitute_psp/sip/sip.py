@@ -30,9 +30,9 @@ import numpy as np
 from scipy import stats
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import broadinstitute_cmap.io.pandasGEXpress.GCToo as GCToo
-import broadinstitute_cmap.io.pandasGEXpress.parse as pg
-import broadinstitute_cmap.io.pandasGEXpress.write_gct as wg
+import cmapPy.pandasGEXpress.GCToo as GCToo
+import cmapPy.pandasGEXpress.parse as parse
+import cmapPy.pandasGEXpress.write_gct as wg
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
@@ -84,10 +84,10 @@ def main(args):
     """ The main method. """
 
     # Read test gct
-    test_gct = pg.parse(args.test_gct_path, convert_neg_666=False, make_multiindex=True)
+    test_gct = parse(args.test_gct_path, convert_neg_666=False, make_multiindex=True)
 
     # Read bg_gct
-    bg_gct = pg.parse(args.bg_gct_path, convert_neg_666=False, make_multiindex=True)
+    bg_gct = parse(args.bg_gct_path, convert_neg_666=False, make_multiindex=True)
 
     # Create an aggregated metadata field for index and columns of both gcts
     # and sort by that field
