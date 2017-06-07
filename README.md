@@ -20,13 +20,23 @@ June 2017
 
   4. Type `conda info` to verify that conda has been installed on your system. You should see some information about the "Current conda install." If you don't, then conda has not been installed properly.
 
-  5. We will now create an environment with conda that will allow us to use PSP. Type the following in your Terminal:
+  5. We will now create an environment with conda that will allow us to use PSP. If on OSX or Linux, type the following in your Terminal:
 
       ```
-      conda create --name psp_env --channel bioconda python=2 pandas scipy cmapPy h5py
+      conda create --name psp_env --channel bioconda python=2 pandas scipy h5py cmapPy
       ```
       
       'psp_env' will be the name of your conda environment, and the things after it are the packages that our environment will contain. Note that we are using python2, not python3. We also have to specify that we should also look in the `bioconda` channel in order to find the [cmapPy](https://github.com/cmap/cmappy "cmapPy Github") package (tools for interacting with .gct and .gctx files) You'll have to type 'yes' to proceed through the installation.
+      
+      If on PC, type the following in your terminal:
+      
+      ```
+      conda create --name psp_env --channel bioconda python=2 pandas scipy h5py
+      activate psp_env
+      pip install cmapPy
+      ```
+      
+      Unfortunately, bioconda (which is where [cmapPy](https://github.com/cmap/cmappy "cmapPy Github") is hosted) does not support Windows, so we have to use pip to install it.
       
   6. OPTIONAL: There are additional dependencies that you will need in order to use the tasseography scripts (i.e. showing connections as graphs):
     
@@ -36,7 +46,7 @@ June 2017
       
       igraph is a package for manipulating graphs, and you'll need matplotlib to produce output figures.
 
-  7. To activate your environment, type `source activate psp_env`, or if you are on a Windows computer, `activate psp_env`. You should now see `[psp_env]` or `(psp_env)` prepended to the start of your command prompt. For example:
+  7. To activate your environment, type `source activate psp_env`, or if you are on a PC, `activate psp_env`. You should now see `[psp_env]` or `(psp_env)` prepended to the start of your command prompt. For example:
 
       ```
       (psp_env) /Users/lev/code/proteomics-signature-pipeline $
@@ -78,6 +88,15 @@ June 2017
       cd /Users/lev/code/proteomics-signature-pipeline/broadinstitute_psp
       python dry/test_dry.py
       ```
+
+## cmapPy
+
+cmapPy is the repository of Python tools for interacting with .gct and .gctx files. This repo relies heavily on it. We install it using conda or pip above. Note that you also get 3 command line tools for free: gct2gctx, gctx2gct, and concat_gctoo. For example, type the following in your terminal:
+
+`concat_gctoo -h` 
+
+If you see the help page for concat_gctoo, you can use this tool directly from the command line. See the [cmapPy repo](https://github.com/cmap/cmappy "cmapPy Github")  for more information.
+
 
 ## Configuration file
 
