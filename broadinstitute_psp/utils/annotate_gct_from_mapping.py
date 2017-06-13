@@ -28,7 +28,6 @@ __email__ = "lev@broadinstitute.org"
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
-
 def build_parser():
     """Build argument parser."""
 
@@ -48,8 +47,9 @@ def build_parser():
                         default="both",
                         help=("whether to apply the mapping to only the row metadata, " +
                               "only the col metadata, or both"))
-    parser.add_argument("--gct_from_field", "-f", default="pert_id",
-                        help="field already in the gct file")
+    parser.add_argument("--gct_from_field", "-f", default=None,
+                        help=("field already in the gct file; if None, ids " +
+                              "will be used"))
     parser.add_argument("--missing_entry", "-me", default="NA",
                         help="what to put for an entry if it doesn't have a mapping")
     parser.add_argument("--verbose", "-v", action="store_true", default=False,
@@ -98,18 +98,24 @@ def annotate_meta_df(meta_df, to_entries, gct_from_field, missing_entry):
         None
 
     """
-    assert gct_from_field in meta_df.columns, ("gct_from_field must be a metadata header. " +
-        "meta_df.columns.values: {}, gct_from_field: {}".format(
-        meta_df.columns.values, gct_from_field))
+    # If no metadata field is given, use index values
+    if gct_from_field is None:
+        entries_from_gct = meta_df.index.values
+
+    else:
+        assert gct_from_field in meta_df.columns, ("gct_from_field must be a metadata header. " +
+            "meta_df.columns.values: {}, gct_from_field: {}".format(
+            meta_df.columns.values, gct_from_field))
+
+        entries_from_gct = meta_df.loc[:, gct_from_field]
 
     # Create mapped_metadata as an array
-    mapped_metadata = [to_entries.loc[entry_in_gct] if entry_in_gct in to_entries.index else missing_entry for entry_in_gct in meta_df.loc[:, gct_from_field]]
+    mapped_metadata = [to_entries.loc[entry_in_gct] if entry_in_gct in to_entries.index else missing_entry for entry_in_gct in entries_from_gct]
 
     # Insert destination_metadata into row and col metadata
     meta_df[to_entries.name] = mapped_metadata
 
     return None
-
 
 
 if __name__ == "__main__":
