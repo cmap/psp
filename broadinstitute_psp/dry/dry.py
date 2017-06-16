@@ -269,20 +269,23 @@ def log_transform_if_needed(gct, prov_code, prov_code_entry):
         out_gct (GCToo object)
         updated_prov_code (list of strings): updated
     """
-    # Initialize output gct as input gct
-    out_gct = gct
-
     # Check if log2 transformation has already occurred
     if prov_code_entry in prov_code:
         logger.info("{} has already occurred.".format(prov_code_entry))
         updated_prov_code = prov_code
+
+        out_gct = gct
+
     else:
         assert not (gct.data_df < 0).sum().sum(), (
             "data_df should not contain negative values. gct.data_df:\n{}".format(
                 gct.data_df))
 
-        out_gct.data_df = log_transform(gct.data_df, log_base=2)
+        out_df = log_transform(gct.data_df, log_base=2)
         updated_prov_code = prov_code + [prov_code_entry]
+
+        # Return new GCToo
+        out_gct = GCToo.GCToo(out_df, gct.row_metadata_df, gct.col_metadata_df)
 
     return out_gct, updated_prov_code
 
@@ -410,6 +413,7 @@ def initial_filtering(gct, assay_type, sample_frac_cutoff, probe_frac_cutoff, pr
     sample_nan_data_df = filter_samples_by_nan(gct.data_df, sample_frac_cutoff)
     thresh_digit = ("{:.1f}".format(sample_frac_cutoff)).split(".")[1]
     sample_filt_prov_code_entry_formatted = "{}{}".format(sample_filt_prov_code_entry, thresh_digit)
+
     (out_gct, prov_code) = update_metadata_and_prov_code(
         sample_nan_data_df, gct.row_metadata_df, gct.col_metadata_df, sample_filt_prov_code_entry_formatted, prov_code)
 
