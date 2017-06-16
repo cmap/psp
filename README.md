@@ -100,7 +100,7 @@ If you see the help page for concat_gctoo, you can use this tool directly from t
 
 ## Configuration file
 
-Several of the files in PSP -- notably dry.py and steep_and_sip_external_many.py -- require a configuration file. This file contains various parameters used by the production code (e.g. what values to consider NaN, default thresholds, provenance code abbreviations, where to find certain files, etc.). By default, these scripts will look for this config file in `~/psp_production.cfg`. So if you want to never think about the config file again, just copy `psp_production.cfg`, which is in the top-directory of the PSP repo, to your home directory (i.e. something like `/Users/lev`). Otherwise, you'll have to supply it explicitly with the --psp_config_path argument.
+Several of the files in PSP -- notably dry.py and external_query_many.py -- require a configuration file. This file contains various parameters used by the production code (e.g. what values to consider NaN, default thresholds, provenance code abbreviations, where to find certain files, etc.). By default, these scripts will look for this config file in `~/psp_production.cfg`. So if you want to never think about the config file again, just copy `psp_production.cfg`, which is in the top-directory of the PSP repo, to your home directory (i.e. something like `/Users/lev`). Otherwise, you'll have to supply it explicitly with the --psp_config_path argument.
 
 ## Examples
 
@@ -139,11 +139,12 @@ Components
 harvest: pushing and pulling data from Panorama (coming soon)  
 dry: level 2 &rarr; level 3 data; performs QC  
 tear: level 3 &rarr; level 4 data; performs row median normalization or z-scoring  
-steep: level 3 or level 4 &rarr; level 5 data; computes similarity  
-sip: level 5 &rarr; level 6 data; computes connectivity
-  
-steep_and_sip_external: level 3 or level 4 &rarr; level 6 data; combines 2 scripts into 1  
-utils: miscellanous other scripts  
+
+steep: computes similarities using level 3 or level 4 data  
+sip: computes connectivities using similarity matrices
+external_query: computes connectivities using level 3 or level 4 data (combines steep and sip)
+
+utils: miscellanous other scripts 
 
 Data levels
 -----------

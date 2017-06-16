@@ -1,0 +1,7 @@
+#1.3					
+2	2	2	2		
+id	moa	connectivity_metric	moa1	moa2
+moa	NA	NA	moa1	moa2
+connectivity_metric	NA	NA	ks_test	ks_test
+moa1	moa1	ks_test	0.60	-0.15
+moa2	moa2	ks_test	0.15	-0.60

@@ -1,0 +1,9 @@
+#1.3						
+4	4	2	2			
+id	chd1	connectivity_metric	drugA	drugB	drugC	drugD
+chd1	NA	NA	drugA	drugB	drugC	drugD
+connectivity_metric	NA	NA	ks_test	ks_test	ks_test	ks_test
+drugA	drugA	ks_test	NaN	0.666	0.333	-0.666
+drugB	drugB	ks_test	0.666	NaN	0.333	-0.666
+drugC	drugC	ks_test	0.666	0.333	NaN	-0.666
+drugD	drugD	ks_test	-0.666	0.333	0.666	NaN

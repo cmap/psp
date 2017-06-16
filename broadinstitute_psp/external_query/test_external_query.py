@@ -5,29 +5,29 @@ import unittest
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import cmapPy.pandasGEXpress.parse as parse
-import broadinstitute_psp.steep_and_sip_external.steep_and_sip_external as sse
+import broadinstitute_psp.external_query.external_query as eq
 
-FUNCTIONAL_TESTS_DIR = "steep_and_sip_external/functional_tests"
+FUNCTIONAL_TESTS_DIR = "external_query/functional_tests"
 
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
-class TestSteepAndSipExternal(unittest.TestCase):
+class TestExternalQuery(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        external_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_steep_and_sip_external_external.gct")
+        external_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_external_query_external.gct")
         cls.external_gct = parse(external_gct_path, convert_neg_666=False, make_multiindex=True)
 
-        internal_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_steep_and_sip_external_internal.gct")
+        internal_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_external_query_internal.gct")
         cls.internal_gct = parse(internal_gct_path, convert_neg_666=False, make_multiindex=True)
 
-        bg_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_steep_and_sip_external_bg.gct")
+        bg_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_external_query_bg.gct")
         cls.bg_gct = parse(bg_gct_path, convert_neg_666=False, make_multiindex=True)
 
     def test_replicates_in_external(self):
         # Test what happens when the external dataset has replicates
-        (sim_gct, conn_gct) = sse.do_steep_and_sip(
+        (sim_gct, conn_gct) = eq.do_steep_and_sip(
             self.external_gct, self.internal_gct, self.bg_gct, "spearman",
             "ks_test", ["pert_id", "cell_id", "pert_time"],
             ["pert_id", "cell_id", "pert_time"])
@@ -59,7 +59,7 @@ class TestSteepAndSipExternal(unittest.TestCase):
 
     def test_no_replicates_in_external(self):
         # Test what happens when the external dataset has no replicates
-        (sim_gct, conn_gct) = sse.do_steep_and_sip(
+        (sim_gct, conn_gct) = eq.do_steep_and_sip(
             self.external_gct, self.internal_gct, self.bg_gct, "spearman",
             "ks_test", ["det_well"],
             ["pert_id", "cell_id", "pert_time"])

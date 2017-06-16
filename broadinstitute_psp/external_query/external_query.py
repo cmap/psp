@@ -1,5 +1,5 @@
 """
-steep_and_sip_external.py
+external_query.py
 
 Run steep.py (compute similarities) and sip.py (compute connectivities) on an
 external gct file. The required inputs are a path to a gct of external profiles
@@ -91,7 +91,7 @@ def main(args):
         args.fields_to_aggregate_for_internal_profiles)
 
     # Write output gcts
-    wg.write(sim_gct, args.out_steep_name, data_null="NaN", metadata_null="NA", filler_null="NA")
+    wg.write(sim_gct, args.out_steep_name, data_null="NaN", metadata_null="NaN", filler_null="NaN")
     wg.write(conn_gct, args.out_sip_name, data_null="NaN", filler_null="NaN", metadata_null="NaN")
 
 

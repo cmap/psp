@@ -1,9 +1,11 @@
 """
-steep_and_sip_external_many.py
+external_query_many.py
 
-Runs steep_and_sip_external.py for each cell line in the corpus. Most of the
+Runs external_query.py for each cell line in the corpus. Most of the
 arguments come from the config file. The default config file points to the
 latest QCNORM and SIM directories.
+
+Optionally, also computes introspect.
 
 """
 
@@ -21,7 +23,8 @@ import cmapPy.pandasGEXpress.parse as parse
 import cmapPy.pandasGEXpress.write_gct as wg
 import cmapPy.pandasGEXpress.concat_gctoo as cg
 
-import broadinstitute_psp.steep_and_sip_external.steep_and_sip_external as steep_and_sip_external
+import broadinstitute_psp.external_query.external_query as eq
+import broadinstitute_psp.introspect.introspect as introspect
 import broadinstitute_psp.utils.setup_logger as setup_logger
 
 __author__ = "Lev Litichevskiy"
@@ -34,7 +37,8 @@ BG_GCT_FORMAT = "{assay}_{cell}_SIM.gct"
 OUT_STEEP_FORMAT = "{cell}_SIM.gct"
 OUT_SIP_FORMAT = "{cell}_CONN.gct"
 OUT_CONCATED_NAME = "CONCATED_CONN.gct"
-OUT_DIR_FORMAT = "steep_and_sip_external_many_{uuid}"
+OUT_INTROSPECT_NAME = "INTROSPECT_CONN.gct"
+OUT_DIR_FORMAT = "external_query_many_{uuid}"
 
 # TODO(LL): rename this, make this easy for AO's use case (e.g. annotation)?
 
@@ -47,6 +51,8 @@ def build_parser():
     # Required args
     parser.add_argument("--assay", "-a", required=True, choices=["GCP", "P100"],
                         help="which assay's data to query")
+    parser.add_argument("--introspect", "-i", action="store_true", default=False,
+                        help="whether to also compute introspect")
     parser.add_argument("--external_gct_path", "-e", required=True,
                         help="path to gct file of external profiles")
     parser.add_argument("--out_dir", "-o", required=True,
@@ -69,11 +75,12 @@ def main(args):
 
     # Record start_time
     start_time = datetime.datetime.now()
-    start_time_msg = "steep_and_sip_external_many.py started at {}".format(
+    start_time_msg = "external_query_many.py started at {}".format(
         start_time.strftime('%Y-%m-%d %H:%M:%S'))
 
     # Create output directory using UUID
-    actual_out_dir = os.path.join(args.out_dir, OUT_DIR_FORMAT.format(uuid=str(uuid.uuid1())))
+    this_uuid = str(uuid.uuid1())
+    actual_out_dir = os.path.join(args.out_dir, OUT_DIR_FORMAT.format(uuid=this_uuid ))
     os.makedirs(actual_out_dir)
 
     try:
@@ -85,6 +92,15 @@ def main(args):
 
         # Read in the external profiles only once
         external_gct = parse(args.external_gct_path, convert_neg_666=False, make_multiindex=True)
+
+        # If requested, do introspect
+        (_, introspect_gct) = introspect.do_steep_and_sip(
+            external_gct, similarity_metric, connectivity_metric,
+            args.fields_to_aggregate_for_external_profiles)
+
+        # Write introspect result
+        actual_out_introspect_name = os.path.join(actual_out_dir, OUT_INTROSPECT_NAME)
+        wg.write(introspect_gct, actual_out_introspect_name, data_null="NaN", metadata_null="NaN", filler_null="NaN")
 
         # Initialize list to store connectivity gcts
         list_of_conn_gcts = []
@@ -102,7 +118,7 @@ def main(args):
                 assay=args.assay, cell=cell))
             bg_gct = parse(bg_gct_path, convert_neg_666=False, make_multiindex=True)
 
-            (sim_gct, conn_gct) = steep_and_sip_external.do_steep_and_sip(
+            (sim_gct, conn_gct) = eq.do_steep_and_sip(
                 external_gct, internal_gct, bg_gct, "spearman",
                 "ks_test", args.fields_to_aggregate_for_external_profiles,
                 fields_to_aggregate_for_internal_profiles)
@@ -110,15 +126,17 @@ def main(args):
             # Append this connectivity gct
             list_of_conn_gcts.append(conn_gct)
 
-            # Write output gcts
-            out_steep_name = os.path.join(actual_out_dir, OUT_STEEP_FORMAT.format(cell=cell))
-            out_sip_name = os.path.join(actual_out_dir, OUT_SIP_FORMAT.format(cell=cell))
-            wg.write(sim_gct, out_steep_name, data_null="NaN", metadata_null="NA", filler_null="NA")
-            wg.write(conn_gct, out_sip_name, data_null="NaN", filler_null="NaN", metadata_null="NaN")
+            # # Write output gcts
+            # out_steep_name = os.path.join(actual_out_dir, OUT_STEEP_FORMAT.format(cell=cell))
+            # out_sip_name = os.path.join(actual_out_dir, OUT_SIP_FORMAT.format(cell=cell))
+            # wg.write(sim_gct, out_steep_name)
+            # wg.write(conn_gct, out_sip_name)
 
         # Concatenate connectivity GCTs
         concated = cg.vstack(list_of_conn_gcts)
         actual_out_concated_name = os.path.join(actual_out_dir, OUT_CONCATED_NAME)
+
+        # Write concatenated result
         wg.write(concated, actual_out_concated_name, data_null="NaN", filler_null="NaN", metadata_null="NaN")
 
         # Write success.txt with timestamp
@@ -128,12 +146,12 @@ def main(args):
         # Return how much time it took
         end_time = datetime.datetime.now()
         seconds_elapsed = (end_time - start_time).seconds
-        logger.info("steep_and_sip_external_many.py completed in {:.0f} sec.".format(seconds_elapsed))
+        logger.info("external_query_many.py completed in {:.0f} sec.".format(seconds_elapsed))
 
 
     except Exception:
         failure_path = os.path.join(actual_out_dir, "failure.txt")
-        msg = "steep_and_sip_external_many.py failed. See {} for stacktrace.".format(failure_path)
+        msg = "external_query_many.py failed. See {} for stacktrace.".format(failure_path)
 
         # Write failure.txt
         write_failure(failure_path, start_time_msg)
@@ -141,6 +159,8 @@ def main(args):
         # Raise exception
         logger.error(msg)
         raise Exception(msg)
+
+    return this_uuid
 
 
 def read_config_file(config_path):
@@ -177,7 +197,7 @@ def write_success(file_name, start_time_msg):
     # Write timestamp to file_name
     f = open(file_name, 'w')
     f.write(start_time_msg + "\n")
-    f.write("steep_and_sip_external_many.py completed at {}\n".format(timestamp))
+    f.write("external_query_many.py completed at {}\n".format(timestamp))
     f.close()
 
 

@@ -101,7 +101,7 @@ def main(args):
         args.separator)
 
     # Check symmetry
-    (is_test_df_sym, is_bg_df_sym) = check_symmetry(test_gct.multi_index_df, bg_gct.multi_index_df)
+    (is_test_df_sym, _) = check_symmetry(test_gct.multi_index_df, bg_gct.multi_index_df)
 
     # Compute connectivity
     (conn_mi_df, signed_conn_mi_df) = compute_connectivities(
