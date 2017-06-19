@@ -1,11 +1,9 @@
 """
 external_query_many.py
 
-Runs external_query.py for each cell line in the corpus. Most of the
-arguments come from the config file. The default config file points to the
-latest QCNORM and SIM directories.
-
-Optionally, also computes introspect.
+Runs external_query.py for each cell line in the corpus and optionally also
+computes introspect. Most of the arguments come from the config file.
+The default config file points to the latest QCNORM and SIM directories.
 
 """
 
@@ -61,7 +59,7 @@ def build_parser():
                         default="clue/psp_on_clue.cfg",
                         help="filepath to psp_on_clue.cfg")
     parser.add_argument("--fields_to_aggregate_for_external_profiles", "-fae",
-                        nargs="+", default=["pert_id", "cell_id", "pert_time"],
+                        nargs="*", default=["pert_id", "cell_id", "pert_time"],
                         help="list of metadata fields to use in aggregating replicates in external profiles")
 
     # Optional args
