@@ -64,13 +64,13 @@ def build_parser():
                         choices=["ks_test", "percentile_score"],
                         help="metric to use for computing connectivity")
     parser.add_argument("--fields_to_aggregate_in_test_gct_queries", "-tfq",
-                        nargs="+", default=["pert_id", "cell_id", "pert_time"],
+                        nargs="*", default=["pert_id", "cell_id", "pert_time"],
                         help="list of metadata fields in the columns of the test gct to aggregate")
     parser.add_argument("--fields_to_aggregate_in_test_gct_targets", "-tft",
-                        nargs="+", default=["pert_id", "cell_id", "pert_time"],
+                        nargs="*", default=["pert_id", "cell_id", "pert_time"],
                         help="list of metadata fields in the rows of the test gct to aggregate")
     parser.add_argument("--fields_to_aggregate_in_bg_gct", "-bf",
-                        nargs="+", default=["pert_id", "cell_id", "pert_time"],
+                        nargs="*", default=["pert_id", "cell_id", "pert_time"],
                         help="list of metadata fields in the bg gct to aggregate")
     parser.add_argument("--separator", "-s", type=str, default=":",
                         help="string separator for aggregating fields together")
@@ -155,13 +155,37 @@ def prepare_multi_index_dfs(test_df, bg_df, fields_to_aggregate_in_test_gct_quer
         out_bg_df (multi-index pandas df)
 
     """
-    # Create aggregated level in test_df for queries (columns)
-    (_, test_df_columns) = add_aggregated_level_to_multi_index(
-        test_df.columns, fields_to_aggregate_in_test_gct_queries, query_field_name, sep)
+    # Check if columns are multi-index or regular index
+    if isinstance(test_df.columns, pd.core.index.MultiIndex):
 
-    # Create aggregated level in test_df for targets (rows)
-    (_, test_df_index) = add_aggregated_level_to_multi_index(
-        test_df.index, fields_to_aggregate_in_test_gct_targets, target_field_name, sep)
+        # If no aggregation fields were provided, use cid
+        if len(fields_to_aggregate_in_test_gct_queries) == 0:
+            fields_to_aggregate_in_test_gct_queries = ["cid"]
+
+        # Create aggregated level in test_df for queries (columns)
+        (_, test_df_columns) = add_aggregated_level_to_multi_index(
+            test_df.columns, fields_to_aggregate_in_test_gct_queries, query_field_name, sep)
+
+    else:
+        logger.info(("No metadata provided for test GCT columns. " +
+                     "Using ids as perturbation identifiers."))
+        test_df_columns = index_to_multi_index(test_df.columns, query_field_name)
+
+    # Check if index is multi-index or regular index
+    if isinstance(test_df.index, pd.core.index.MultiIndex):
+
+        # If no aggregation fields were provided, use rid
+        if len(fields_to_aggregate_in_test_gct_targets) == 0:
+            fields_to_aggregate_in_test_gct_targets = ["rid"]
+
+        # Create aggregated level in test_df for targets (rows)
+        (_, test_df_index) = add_aggregated_level_to_multi_index(
+            test_df.index, fields_to_aggregate_in_test_gct_targets, target_field_name, sep)
+
+    else:
+        logger.info(("No metadata provided for test GCT index. " +
+                     "Using ids as perturbation identifiers."))
+        test_df_index = index_to_multi_index(test_df.index, target_field_name)
 
     # Create out_test_df
     out_test_df = pd.DataFrame(test_df.values, index=test_df_index, columns=test_df_columns)
@@ -170,11 +194,41 @@ def prepare_multi_index_dfs(test_df, bg_df, fields_to_aggregate_in_test_gct_quer
     out_test_df.sort_index(level=target_field_name, axis=0, inplace=True)
     out_test_df.sort_index(level=query_field_name, axis=1, inplace=True)
 
-    # Create aggregated level in bg_df
-    (_, bg_df_columns) = add_aggregated_level_to_multi_index(
-        bg_df.columns, fields_to_aggregate_in_bg_gct, target_field_name, sep)
-    (_, bg_df_index) = add_aggregated_level_to_multi_index(
-        bg_df.index, fields_to_aggregate_in_bg_gct, target_field_name, sep)
+    # Check if columns are multi-index or regular index
+    if isinstance(bg_df.columns, pd.core.index.MultiIndex):
+
+        # If no aggregation fields were provided, use cid
+        if len(fields_to_aggregate_in_bg_gct) == 0:
+            (_, bg_df_columns) = add_aggregated_level_to_multi_index(
+                bg_df.columns, ["cid"], target_field_name, sep)
+
+        else:
+            # Create aggregated level in bg_df
+            (_, bg_df_columns) = add_aggregated_level_to_multi_index(
+                bg_df.columns, fields_to_aggregate_in_bg_gct, target_field_name, sep)
+
+    else:
+        logger.info(("No metadata provided for background GCT columns. " +
+                     "Using ids as perturbation identifiers."))
+        bg_df_columns = index_to_multi_index(bg_df.columns, target_field_name)
+
+    # Check if index multi-index or regular index
+    if isinstance(bg_df.index, pd.core.index.MultiIndex):
+
+        # If no aggregation fields were provided, use rid
+        if len(fields_to_aggregate_in_bg_gct) == 0:
+            (_, bg_df_index) = add_aggregated_level_to_multi_index(
+                bg_df.index, ["rid"], target_field_name, sep)
+
+        else:
+            # Create aggregated level in bg_df
+            (_, bg_df_index) = add_aggregated_level_to_multi_index(
+                bg_df.index, fields_to_aggregate_in_bg_gct, target_field_name, sep)
+
+    else:
+        logger.info(("No metadata provided for background GCT index. " +
+                     "Using ids as perturbation identifiers."))
+        bg_df_index = index_to_multi_index(bg_df.index, target_field_name)
 
     # Create out_bg_df
     out_bg_df = pd.DataFrame(bg_df.values, index=bg_df_index, columns=bg_df_columns)
@@ -489,6 +543,7 @@ def extract_bg_vals_from_sym(target, multi_index_level_name, bg_df):
 
     return vals
 
+
 def extract_bg_vals_from_non_sym(target, multi_index_level_name, bg_df):
     """ Extract all values that have some interaction with target.
 
@@ -510,6 +565,13 @@ def extract_bg_vals_from_non_sym(target, multi_index_level_name, bg_df):
     vals = bg_df.loc[bg_df.index.get_level_values(multi_index_level_name) == target, :].values.flatten()
 
     return vals
+
+
+def index_to_multi_index(regular_index, new_level_name):
+    out_mi = pd.MultiIndex.from_arrays([regular_index.values, regular_index.values],
+                                       names=["id", new_level_name])
+
+    return out_mi
 
 
 def add_aggregated_level_to_multi_index(mi, levels_to_aggregate, aggregated_level_name, sep):

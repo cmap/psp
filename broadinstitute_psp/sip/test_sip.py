@@ -51,8 +51,8 @@ class TestSip(unittest.TestCase):
 
         test_df_index = pd.MultiIndex.from_arrays(
             [["A", "B", "C", "C", "B", "A"],
-             ["A375", "A375", "A375", "A375", "A375", "A375"],
-             [10, 10, 10, 10, 10, 10]], names=["pert_iname", "cell", "dose"])
+             ["x1", "x3", "x5", "x6", "x4", "x2"],
+             [10, 10, 10, 10, 10, 10]], names=["pert_iname", "rid", "dose"])
         test_df_columns = pd.MultiIndex.from_arrays(
             [["F", "F", "F", "E", "E", "E"], [1, 2, 3, 4, 5, 6]], names=["pert_uname", "dose"])
         test_df = pd.DataFrame(
@@ -98,9 +98,37 @@ class TestSip(unittest.TestCase):
 
         (out_test_df, out_bg_df) = sip.prepare_multi_index_dfs(
             test_df, bg_df, ["pert_uname"], ["pert_iname", "dose"], ["cell"], "query_field", "target_field", ":")
-
         pd.util.testing.assert_frame_equal(out_test_df, e_test_df)
         pd.util.testing.assert_frame_equal(out_bg_df, e_bg_df)
+
+        # Test if one of the index or columns is not multi-index and if
+        # no aggregation fields provided
+        test_df2 = test_df.copy(deep=True)
+        test_df_columns2 = pd.Index(["F", "F", "F", "E", "E", "E"])
+        test_df2.columns = test_df_columns2
+
+        e_test_df2 = e_test_df.copy(deep=True)
+        e_test_df2.columns = pd.MultiIndex.from_arrays(
+            [["E", "E", "E", "F", "F", "F"], ["E", "E", "E", "F", "F", "F"]],
+            names=["id", "query_field"])
+        e_test_df2.index = pd.MultiIndex.from_arrays(
+            [["x1", "x2", "x3", "x4", "x5", "x6"], ["x1", "x2", "x3", "x4", "x5", "x6"]],
+            names=["rid", "target_field"])
+
+        e_bg_df_index2 = pd.MultiIndex.from_arrays(
+            [[1, 2, 3, 4], ["1", "2", "3", "4"]],
+            names=["thing", "target_field"])
+        e_bg_df2 = pd.DataFrame(
+            [[1, 2, 3, 5],
+             [7, 11, 13, 17],
+             [19, 23, 29, 31],
+             [-3, 5, 7, 11]],
+            index=e_bg_df_index2, columns=e_bg_df_index2)
+
+        (out_test_df2, out_bg_df2) = sip.prepare_multi_index_dfs(
+            test_df2, bg_df, ["IRRELEVANT"], [], ["thing"], "query_field", "target_field", ":")
+        pd.util.testing.assert_frame_equal(out_test_df2, e_test_df2)
+        pd.util.testing.assert_frame_equal(out_bg_df2, e_bg_df2)
 
     def test_check_symmetry(self):
         df_mat = np.array(
@@ -328,6 +356,14 @@ class TestSip(unittest.TestCase):
         with self.assertRaises(Exception) as e:
             sip.compute_connectivities(test_df, bg_df, "aggregated2", "aggregated", "bg_aggregated", "wtcs", False)
         self.assertIn("connectivity metric must be either ks_test or", str(e.exception))
+
+    def test_index_to_multi_index(self):
+        my_index = pd.Index(["a", "d", "c"])
+        e_index = pd.MultiIndex.from_arrays([["a", "d", "c"], ["a", "d", "c"]],
+                                            names=["id", "agg"])
+
+        out_index = sip.index_to_multi_index(my_index, "agg")
+        pd.testing.assert_index_equal(e_index, out_index)
 
     def test_add_aggregated_level_to_multi_index(self):
         # Create group_id column
