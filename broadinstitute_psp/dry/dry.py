@@ -102,6 +102,9 @@ def main(args):
     (l2x_gct, prov_code) = log_transform_if_needed(
         in_gct, prov_code, config_metadata["log_transform_prov_code_entry"])
 
+    import pdb
+    pdb.set_trace()
+
     ### INITIAL FILTERING
     (filt_gct, prov_code, post_sample_nan_remaining) = initial_filtering(
         l2x_gct, assay_type, args.sample_frac_cutoff, args.probe_frac_cutoff,
@@ -367,6 +370,8 @@ def gcp_histone_normalize(data_df, gcp_normalization_peptide_id):
 
     # Subtract the normalization values from all rows
     out_df = out_df - norm_values
+
+    # TODO(LL): if the norm peptide was not detected, should the sample be dropped?
 
     return out_df
 
