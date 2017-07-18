@@ -1,22 +1,22 @@
 """
 prot_query.py
 
-This bash script consumes one .yml configuration file with user-defined inputs.
-An example can be found under clue/user_input.yml. This file lives on S3, so
-we need to download it.
+This bash script consumes one configuration file (.yml) with user-defined
+inputs. An example can be found under clue/example_user_input.yml. This file
+lives on S3, so we need to download it.
 
-his script is a thin wrapper for external_query_many.py that takes care of the
-user-defined .yml file and grabs the external, uploaded GCT from S3. A second
-.yml file (psp_on_clue.yml) is handled by external_query_many.py.
+This script is a thin wrapper for external_query_many.py. It takes care of the
+user-defined config file and grabs the external, uploaded GCT from S3. A second
+config file (psp_on_clue.yml) is handled by external_query_many.py.
 
 """
-
 import ConfigParser
 import argparse
 import logging
 import os
 import requests
 import sys
+import StringIO
 
 import broadinstitute_psp.external_query.external_query_many as eqm
 import broadinstitute_psp.utils.setup_logger as setup_logger
@@ -26,7 +26,7 @@ __email__ = "lev@broadinstitute.org"
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
-TMP_USER_INPUT_YML_PATH = "/tmp/tmp_user_input.yml"
+DUMMY_SECTION_NAME = "DUMMY_SECTION"
 
 
 def build_parser():
@@ -38,22 +38,29 @@ def build_parser():
     # Required args
     parser.add_argument("--user_input_yml", "-u", required=True,
                         help=".yml file with user-defined inputs")
+    parser.add_argument("--verbose", "-v", action="store_true", default=False,
+                        help="whether to increase the # of messages reported")
     return parser
 
 
 def main(args):
 
-    # Grab user_input_yml from S3 and save to temporary file
-    get_file_from_s3(args.user_input_yml, TMP_USER_INPUT_YML_PATH)
+    # Grab user_input_yml from S3 and store as a string
+    user_input_yml_as_string = get_yml_from_s3(args.user_input_yml)
 
-    # Read in the temporary file and unpack the yml file
+    # Extract what I need from the config file string
     (assay, introspect, s3_gct_path, fae, out_dir, psp_on_clue_config_path) = (
-        read_config_file(TMP_USER_INPUT_YML_PATH))
+        read_config_file(user_input_yml_as_string))
 
-    # Download GCT from S3
-    name_of_gct_file = "s3_gct_path".split("/")[-1]
-    local_gct_path = os.path.join(out_dir, name_of_gct_file)
-    get_file_from_s3(s3_gct_path, local_gct_path)
+    # Create output directory
+    os.makedirs(out_dir)
+
+    # Make sure out_dir exists
+    assert os.path.exists(out_dir), (
+        "out_dir must exist in order to save the GCT there. out_dir: {}").format(out_dir)
+
+    # Download GCT from S3 and save it in out_dir
+    local_gct_path = get_gct_from_s3(s3_gct_path, out_dir)
 
     # Call external_query_many with arguments
     eqm_args = argparse.Namespace(
@@ -61,43 +68,58 @@ def main(args):
         introspect=introspect,
         external_gct_path=local_gct_path,
         out_dir=out_dir,
+        all=True,
         psp_on_clue_config_path=psp_on_clue_config_path,
         fields_to_aggregate_for_external_profiles=fae)
+
     eqm.main(eqm_args)
 
 
-def get_file_from_s3(s3_path, out_path):
+def get_yml_from_s3(s3_path):
 
     # Read file in as a string
     file_as_string = requests.get(s3_path).text
 
-    # Write to temporary file
-    with open(out_path, "w") as f:
-        f.write(file_as_string)
-
-    return None
+    return file_as_string
 
 
-def read_config_file(config_path):
+def read_config_file(config_as_string):
 
-    assert os.path.exists(config_path), (
-        "Config file can't be found. config_path: {}".format(config_path))
+    # Prepend a section header; ConfigParser doesn't work for files without
+    # section headers
+    new_top_line = "[" + DUMMY_SECTION_NAME + "]\n"
+    config_as_string_with_header = new_top_line + config_as_string
 
-    # Read config file
+    buf = StringIO.StringIO(config_as_string_with_header)
     config_parser = ConfigParser.RawConfigParser()
-    config_parser.read(config_path)
+    config_parser.readfp(buf)
 
-    # Get user-defined inputs
-    assay = config_parser.get("user_input", "assay")
-    introspect = config_parser.getboolean("user_input", "introspect")
-    s3_gct_path = config_parser.get("user_input", "external_gct_path")
-    fae = eval(config_parser.get("user_input", "fields_to_aggregate"))
-
-    # Get inputs that we generated or provided
-    out_dir = config_parser.get("other", "out_dir")
-    psp_on_clue_config_path = config_parser.get("other", "psp_on_clue_yml")
+    # Unpack config file
+    assay = config_parser.get(DUMMY_SECTION_NAME, "assay")
+    introspect = config_parser.getboolean(DUMMY_SECTION_NAME, "introspect")
+    s3_gct_path = config_parser.get(DUMMY_SECTION_NAME, "external_gct_path")
+    fae = eval(config_parser.get(DUMMY_SECTION_NAME, "fields_to_aggregate"))
+    out_dir = config_parser.get(DUMMY_SECTION_NAME, "out_dir")
+    psp_on_clue_config_path = config_parser.get(DUMMY_SECTION_NAME, "psp_on_clue_yml")
 
     return assay, introspect, s3_gct_path, fae, out_dir, psp_on_clue_config_path
+
+
+def get_gct_from_s3(s3_path, out_dir):
+
+    # Get the last part of the S3 name
+    name_of_gct_file = s3_path.split("/")[-1]
+
+    # Configure the output filename
+    local_gct_path = os.path.join(out_dir, name_of_gct_file)
+
+    # Read file in as a string
+    file_as_string = requests.get(s3_path).text
+
+    with open(local_gct_path, "w") as f:
+        f.write(file_as_string)
+
+    return local_gct_path
 
 
 if __name__ == "__main__":
