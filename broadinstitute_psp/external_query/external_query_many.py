@@ -3,7 +3,8 @@ external_query_many.py
 
 Runs external_query.py for each cell line in the corpus and optionally also
 computes introspect. Most of the arguments come from the config file.
-The default config file points to the latest QCNORM and SIM directories.
+The default config file points to the latest signature and similarity
+directories.
 
 """
 
@@ -15,7 +16,6 @@ import os
 import sys
 import time
 import traceback
-import uuid
 
 import cmapPy.pandasGEXpress.parse as parse
 import cmapPy.pandasGEXpress.write_gct as wg
@@ -30,15 +30,13 @@ __email__ = "lev@broadinstitute.org"
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
-INTERNAL_GCT_FORMAT = "{assay}_{cell}_QCNORM.gct"
+INTERNAL_GCT_FORMAT = "{assay}_{cell}_DIFF.gct"
 BG_GCT_FORMAT = "{assay}_{cell}_SIM.gct"
 OUT_STEEP_FORMAT = "{cell}_SIM.gct"
 OUT_SIP_FORMAT = "{cell}_CONN.gct"
 OUT_CONCATED_NAME = "CONCATED_CONN.gct"
 OUT_INTROSPECT_NAME = "INTROSPECT_CONN.gct"
-OUT_DIR_FORMAT = "external_query_many_{uuid}"
 
-# TODO(LL): rename this, make this easy for AO's use case (e.g. annotation)?
 
 def build_parser():
     """Build argument parser."""
@@ -54,13 +52,15 @@ def build_parser():
     parser.add_argument("--external_gct_path", "-e", required=True,
                         help="path to gct file of external profiles")
     parser.add_argument("--out_dir", "-o", required=True,
-                        help="output directory")
+                        help="directory in which to dump output")
     parser.add_argument("--psp_on_clue_config_path", "-p",
-                        default="clue/psp_on_clue.cfg",
-                        help="filepath to psp_on_clue.cfg")
+                        default="clue/psp_on_clue.yml",
+                        help="filepath to psp_on_clue.yml")
     parser.add_argument("--fields_to_aggregate_for_external_profiles", "-fae",
                         nargs="*", default=["pert_id", "cell_id", "pert_time"],
                         help="list of metadata fields to use in aggregating replicates in external profiles")
+    parser.add_argument("--all", action="store_true", default=False,
+                        help="whether to produce all output matrices")
 
     # Optional args
     parser.add_argument("--verbose", "-v", action="store_true", default=False,
@@ -76,10 +76,8 @@ def main(args):
     start_time_msg = "external_query_many.py started at {}".format(
         start_time.strftime('%Y-%m-%d %H:%M:%S'))
 
-    # Create output directory using UUID
-    this_uuid = str(uuid.uuid1())
-    actual_out_dir = os.path.join(args.out_dir, OUT_DIR_FORMAT.format(uuid=this_uuid ))
-    os.makedirs(actual_out_dir)
+    # Create output directory
+    assert os.path.exists(args.out_dir), "args.out_dir: {}".format(args.out_dir)
 
     try:
 
@@ -97,7 +95,7 @@ def main(args):
             args.fields_to_aggregate_for_external_profiles)
 
         # Write introspect result
-        actual_out_introspect_name = os.path.join(actual_out_dir, OUT_INTROSPECT_NAME)
+        actual_out_introspect_name = os.path.join(args.out_dir, OUT_INTROSPECT_NAME)
         wg.write(introspect_gct, actual_out_introspect_name, data_null="NaN", metadata_null="NaN", filler_null="NaN")
 
         # Initialize list to store connectivity gcts
@@ -124,21 +122,23 @@ def main(args):
             # Append this connectivity gct
             list_of_conn_gcts.append(conn_gct)
 
-            # # Write output gcts
-            # out_steep_name = os.path.join(actual_out_dir, OUT_STEEP_FORMAT.format(cell=cell))
-            # out_sip_name = os.path.join(actual_out_dir, OUT_SIP_FORMAT.format(cell=cell))
-            # wg.write(sim_gct, out_steep_name)
-            # wg.write(conn_gct, out_sip_name)
+            # Write all output gcts if requested
+            if args.all:
+                out_steep_name = os.path.join(args.out_dir, OUT_STEEP_FORMAT.format(cell=cell))
+                out_sip_name = os.path.join(args.out_dir, OUT_SIP_FORMAT.format(cell=cell))
+
+                wg.write(sim_gct, out_steep_name)
+                wg.write(conn_gct, out_sip_name)
 
         # Concatenate connectivity GCTs
         concated = cg.vstack(list_of_conn_gcts)
-        actual_out_concated_name = os.path.join(actual_out_dir, OUT_CONCATED_NAME)
+        actual_out_concated_name = os.path.join(args.out_dir, OUT_CONCATED_NAME)
 
         # Write concatenated result
         wg.write(concated, actual_out_concated_name, data_null="NaN", filler_null="NaN", metadata_null="NaN")
 
         # Write success.txt with timestamp
-        success_path = os.path.join(actual_out_dir, "success.txt")
+        success_path = os.path.join(args.out_dir, "success.txt")
         write_success(success_path, start_time_msg)
 
         # Return how much time it took
@@ -146,9 +146,8 @@ def main(args):
         seconds_elapsed = (end_time - start_time).seconds
         logger.info("external_query_many.py completed in {:.0f} sec.".format(seconds_elapsed))
 
-
     except Exception:
-        failure_path = os.path.join(actual_out_dir, "failure.txt")
+        failure_path = os.path.join(args.out_dir, "failure.txt")
         msg = "external_query_many.py failed. See {} for stacktrace.".format(failure_path)
 
         # Write failure.txt
@@ -158,7 +157,7 @@ def main(args):
         logger.error(msg)
         raise Exception(msg)
 
-    return this_uuid
+    return None
 
 
 def read_config_file(config_path):
@@ -177,7 +176,7 @@ def read_config_file(config_path):
 
     # Unpack the config file
     cells = eval(config_corpus["cells"])
-    internal_gct_dir = config_corpus["qcnorm_dir"]
+    internal_gct_dir = config_corpus["signature_dir"]
     bg_gct_dir = config_corpus["sim_dir"]
     fields_to_aggregate_for_internal_profiles = eval(config_metadata["fields_to_aggregate_for_internal_profiles"])
     similarity_metric = config_algorithms["similarity_metric"]
