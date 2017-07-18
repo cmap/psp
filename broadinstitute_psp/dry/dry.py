@@ -102,9 +102,6 @@ def main(args):
     (l2x_gct, prov_code) = log_transform_if_needed(
         in_gct, prov_code, config_metadata["log_transform_prov_code_entry"])
 
-    import pdb
-    pdb.set_trace()
-
     ### INITIAL FILTERING
     (filt_gct, prov_code, post_sample_nan_remaining) = initial_filtering(
         l2x_gct, assay_type, args.sample_frac_cutoff, args.probe_frac_cutoff,
