@@ -75,6 +75,9 @@ PROJECT_NAME_BASE = "LINCS/"
 CONTEXT_PATH = "labkey"
 SCHEMA = "targetedms"
 SKY_FILES_TABLE = "runs"
+PREFIX_FOR_SKY_FILES = "https://panoramaweb.org/labkey/_webdav/LINCS/"
+MIDDLE_STRING_FOR_SKY_FILES = "/@files/GCT/"
+SUFFIX_FOR_SKY_FILES = ".sky.zip"
 
 ROW_METADATA_TABLE = "generalmoleculeannotation"
 ROW_METADATA_VIEW = "GCT_peptide_annotation"
@@ -156,7 +159,7 @@ def get_skyline_files(assay_type):
         logger.debug("sky_files:\n{}".format(sky_files))
         logger.info("Number of rows returned: " + str(result["rowCount"]))
     else:
-        logger.error("Failed to load results from " + SCHEMA + "." + table)
+        logger.error("Failed to load results from " + SCHEMA + "." + SKY_FILES_TABLE)
 
     return sky_files
 
@@ -173,18 +176,20 @@ def create_sky_files_log(sky_files, dir_w_log_files):
     # TODO(LL): CONTINUE HERE!
 
 
-    actual_out_name = os.path.join(dir_w_log_files, out_name)
+    # actual_out_name = os.path.join(dir_w_log_files, out_name)
+
+    pass
 
 
 
 
 
 
-def create_urls_from_skyline_files(assay_type, sky_files, suffix):
+def create_urls_from_skyline_files(assay_type, sky_files, file_ext):
+
     # Create the URLS
-    url_prefix = ("https://panoramaweb.org/labkey/_webdav/LINCS/" +
-                  assay_type + "/@files/GCT/")
-    urls = [url_prefix + sky_file.strip(".sky.zip") + suffix for sky_file in sky_files]
+    url_prefix = (PREFIX_FOR_SKY_FILES + assay_type + MIDDLE_STRING_FOR_SKY_FILES)
+    urls = [url_prefix + sky_file.strip(SUFFIX_FOR_SKY_FILES) + file_ext for sky_file in sky_files]
     logger.debug("urls: {}".format(urls))
 
     return urls
@@ -199,18 +204,22 @@ def download_urls(urls, out_dir):
 
         # Retrieve the URL
         urllib.urlretrieve(url, full_save_name)
-
-
+        logger.info("File saved to {}.".format(full_save_name))
 
 
 def get_run_ids(wildcard):
     pass
 
-# setup_logger.setup(verbose=False)
-# connect_to_row_metadata("GCP", 3030)
 
-# assay_type = "P100"
-#
-# skyline_files = get_skyline_files(assay_type)
-# urls = create_urls_from_skyline_files(assay_type, skyline_files, ".gct")
-# download_urls(urls, "/cmap/data/proteomics/harvest/wget_unprocessed")
+def copy_unprocessed_gcts_from_panorama(assay_type, out_dir):
+
+    skyline_files = get_skyline_files(assay_type)
+    urls = create_urls_from_skyline_files(assay_type, skyline_files, ".gct")
+    download_urls(urls, out_dir)
+
+
+if __name__ == "__main__":
+    # logger.info("main method is empty")
+    setup_logger.setup(verbose=True)
+    copy_unprocessed_gcts_from_panorama("GCP", "/cmap/data/proteomics/harvest/")
+    copy_unprocessed_gcts_from_panorama("P100", "/cmap/data/proteomics/harvest/")
