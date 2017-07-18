@@ -1,4 +1,3 @@
-import glob
 import logging
 import os
 import shutil
@@ -16,7 +15,7 @@ class TestExternalQueryMany(unittest.TestCase):
 
         (cells, internal_gct_dir, bg_gct_dir,
          fields_to_aggregate_for_internal_profiles,
-         similarity_metric, connectivity_metric) = eqm.read_config_file("clue/psp_on_clue.cfg")
+         similarity_metric, connectivity_metric) = eqm.read_config_file("clue/psp_on_clue.yml")
 
         self.assertEqual(cells[2], "MCF7")
         self.assertEqual(fields_to_aggregate_for_internal_profiles[1], "cell_id")
@@ -44,20 +43,28 @@ class TestExternalQueryMany(unittest.TestCase):
     # Slow (~30 sec.)
     @unittest.skipUnless(os.path.exists("/cmap/"), "/cmap/ needs to exist to run TestExternalQueryMany.test_main")
     def test_main(self):
+
+        out_dir = os.path.join(FUNCTIONAL_TESTS_DIR, "test_external_query_dir")
         test_external = os.path.join(FUNCTIONAL_TESTS_DIR, "test_external_query_many_single_sample.gct")
         test_config = os.path.join(FUNCTIONAL_TESTS_DIR, "test_external_query_many.cfg")
 
+        # Delete out_dir if it exists already
+        if os.path.exists(out_dir):
+            shutil.rmtree(out_dir)
+
+        # Create out_dir
+        os.makedirs(out_dir)
+
         args_string = "-a {} -e {} -o {} -p {} -fae {} -i".format(
-            "GCP", test_external, FUNCTIONAL_TESTS_DIR, test_config, "pert_id cell_id")
+            "GCP", test_external, out_dir, test_config, "pert_id cell_id")
         args = eqm.build_parser().parse_args(args_string.split())
         logger.info(args)
 
-        this_uuid = eqm.main(args)
-
-        out_dir = os.path.join(FUNCTIONAL_TESTS_DIR, "external_query_many_" + this_uuid)
+        eqm.main(args)
 
         self.assertTrue(os.path.exists(os.path.join(out_dir, "CONCATED_CONN.gct")))
         self.assertTrue(os.path.exists(os.path.join(out_dir, "INTROSPECT_CONN.gct")))
+        self.assertTrue(os.path.exists(os.path.join(out_dir, "success.txt")))
 
         # Clean up
         shutil.rmtree(out_dir)
