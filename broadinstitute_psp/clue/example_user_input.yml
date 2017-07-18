@@ -1,0 +1,10 @@
+[user_input]
+assay = GCP
+name = P100 MCF7 inhibitors
+introspect = true
+external_gct_path = https://s3.amazonaws.com/data.clue.io/psp/P100_MCF7_Jnk_inhibitors_6H_24H_n12x96.gct
+fields_to_aggregate = ["pert_id", "cell_id", "pert_time"]
+
+[other]
+out_dir = 527ef1c3-8859-44fb-a5b1-27f4a060a38d
+psp_on_clue_yml = clue/psp_on_clue.yml
