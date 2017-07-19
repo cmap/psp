@@ -38,6 +38,12 @@ def build_parser():
     # Required args
     parser.add_argument("--user_input_yml", "-u", required=True,
                         help=".yml file with user-defined inputs")
+    parser.add_argument("--out_dir", "-o", default=None,
+                        help=("output directory that overrides " +
+                              "what's provided in user_input_yml"))
+    parser.add_argument("--psp_on_clue_yml", "-p", default=None,
+                        help=("path to local YML file that overrides " +
+                              "what's provided in user_input_yml"))
     parser.add_argument("--verbose", "-v", action="store_true", default=False,
                         help="whether to increase the # of messages reported")
     return parser
@@ -51,6 +57,13 @@ def main(args):
     # Extract what I need from the config file string
     (assay, introspect, s3_gct_path, fae, out_dir, psp_on_clue_config_path) = (
         read_config_file(user_input_yml_as_string))
+
+    # Override user-provided inputs
+    if args.out_dir:
+        out_dir = args.out_dir
+
+    if args.psp_on_clue_yml:
+        psp_on_clue_config_path = args.psp_on_clue_yml
 
     # Create output directory
     os.makedirs(out_dir)

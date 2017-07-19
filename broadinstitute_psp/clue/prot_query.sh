@@ -9,14 +9,19 @@
 # 1. cd to the psp/broadinstitute_psp directory
 # 2. Call this script.
 
+# Two more args are added to enable testing: out_dir and psp_on_clue_yml.
+# These will override whatever is provided by the user-defined config file.
+
 #----------#
 
 USER_INPUT_CONFIG_PATH=$1
+OUT_DIR=$2
+PSP_ON_CLUE_YML=$3
 
 # Activate conda environment
 source activate psp
 
-python clue/prot_query.py -u $USER_INPUT_CONFIG_PATH
+python clue/prot_query.py -u $USER_INPUT_CONFIG_PATH -o $OUT_DIR -p $PSP_ON_CLUE_YML
 
 # Deactivate conda environment
 source deactivate

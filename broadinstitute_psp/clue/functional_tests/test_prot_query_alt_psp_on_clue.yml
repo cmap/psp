@@ -1,0 +1,15 @@
+# Just for testing
+[corpus]
+cells = ["A375", "A549"]
+signature_dir = /cmap/data/proteomics/tear/2017-06-19/cell_specific/
+sim_dir = /cmap/data/proteomics/steep/within_cell/
+
+[metadata]
+# List of metadata fields to aggregate for internal profiles
+fields_to_aggregate_for_internal_profiles = ["pert_id", "cell_id", "pert_time"]
+
+[algorithms]
+# Metric to use for comparing sample profiles
+similarity_metric = spearman
+# Metric to use for computing connectivity
+connectivity_metric = ks_test
