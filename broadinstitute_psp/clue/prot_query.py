@@ -27,6 +27,7 @@ __email__ = "lev@broadinstitute.org"
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
 DUMMY_SECTION_NAME = "DUMMY_SECTION"
+NAME_OF_USER_INPUT_YML = "user_input.yml"
 
 
 def build_parser():
@@ -61,16 +62,19 @@ def main(args):
     # Override user-provided inputs
     if args.out_dir:
         out_dir = args.out_dir
-
     if args.psp_on_clue_yml:
         psp_on_clue_config_path = args.psp_on_clue_yml
 
-    # Create output directory
-    os.makedirs(out_dir)
+    # Check if output directory exists; if not, make it
+    if os.path.exists(out_dir):
+        logger.info("Output directory already exists.")
+    else:
+        os.makedirs(out_dir)
+        logger.info("Created output directory. out_dir: {}".format(out_dir))
 
-    # Make sure out_dir exists
-    assert os.path.exists(out_dir), (
-        "out_dir must exist in order to save the GCT there. out_dir: {}").format(out_dir)
+    # Save user_input_yml into out_dir
+    local_yml_path = os.path.join(out_dir, NAME_OF_USER_INPUT_YML)
+    save_yml_to_file(user_input_yml_as_string, local_yml_path)
 
     # Download GCT from S3 and save it in out_dir
     local_gct_path = get_gct_from_s3(s3_gct_path, out_dir)
@@ -116,6 +120,14 @@ def read_config_file(config_as_string):
     psp_on_clue_config_path = config_parser.get(DUMMY_SECTION_NAME, "psp_on_clue_yml")
 
     return assay, introspect, s3_gct_path, fae, out_dir, psp_on_clue_config_path
+
+
+def save_yml_to_file(yml_string, out_path):
+
+    with open(out_path, "w") as f:
+        f.write(yml_string)
+
+    return None
 
 
 def get_gct_from_s3(s3_path, out_dir):

@@ -18,6 +18,17 @@ class TestProtQuery(unittest.TestCase):
 
 		self.assertEqual(out_string[:20], 'assay: GCP\nname: P10')
 
+	def test_save_yml_to_file(self):
+
+		out_path = "clue/functional_tests/test_save_yml_to_file.yml"
+		yml_string = 'assay: GCP\nname: P100 MCF7 inhibitors\nintrospect: true\n'
+		prot_query.save_yml_to_file(yml_string, out_path)
+
+		self.assertTrue(os.path.exists(out_path))
+
+		# Clean up
+		os.remove(out_path)
+
 	def test_get_gct_from_s3(self):
 
 		out_dir = "clue/functional_tests"
