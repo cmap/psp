@@ -27,7 +27,7 @@ __email__ = "lev@broadinstitute.org"
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
 DUMMY_SECTION_NAME = "DUMMY_SECTION"
-NAME_OF_USER_INPUT_YML = "user_input.yml"
+NAME_OF_USER_INPUT_YML = "config.yaml"
 
 
 def build_parser():
