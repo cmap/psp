@@ -44,7 +44,7 @@ class TestProtQuery(unittest.TestCase):
 
 	def test_read_config_file(self):
 
-		config_as_string = 'assay: GCP\nname: P100 MCF7 inhibitors\nintrospect: true\nexternal_gct_path: https://s3.amazonaws.com/data.clue.io/psp/P100_MCF7_Jnk_inhibitors_6H_24H_n12x96_unzipped.gct\nfields_to_aggregate: ["pert_id", "cell_id", "pert_time"]\nout_dir: clue/functional_tests/527ef1c3\npsp_on_clue_yml: clue/psp_on_clue.yml\n'
+		config_as_string = 'assay: GCP\nname: P100 MCF7 inhibitors\nintrospect: true\ninput_file: https://s3.amazonaws.com/data.clue.io/psp/P100_MCF7_Jnk_inhibitors_6H_24H_n12x96_unzipped.gct\nfields_to_aggregate: ["pert_id", "cell_id", "pert_time"]\nout_dir: clue/functional_tests/527ef1c3\npsp_on_clue_yml: clue/psp_on_clue.yml\n'
 		[_, introspect, _, fae, out_dir, _] = prot_query.read_config_file(config_as_string)
 
 		self.assertEqual(introspect, True)

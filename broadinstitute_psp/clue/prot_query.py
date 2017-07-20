@@ -114,7 +114,7 @@ def read_config_file(config_as_string):
     # Unpack config file
     assay = config_parser.get(DUMMY_SECTION_NAME, "assay")
     introspect = config_parser.getboolean(DUMMY_SECTION_NAME, "introspect")
-    s3_gct_path = config_parser.get(DUMMY_SECTION_NAME, "external_gct_path")
+    s3_gct_path = config_parser.get(DUMMY_SECTION_NAME, "input_file")
     fae = eval(config_parser.get(DUMMY_SECTION_NAME, "fields_to_aggregate"))
     out_dir = config_parser.get(DUMMY_SECTION_NAME, "out_dir")
     psp_on_clue_config_path = config_parser.get(DUMMY_SECTION_NAME, "psp_on_clue_yml")
