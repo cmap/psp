@@ -85,7 +85,7 @@ def main(args):
         introspect=introspect,
         external_gct_path=local_gct_path,
         out_dir=out_dir,
-        all=True,
+        all=False,
         psp_on_clue_config_path=psp_on_clue_config_path,
         fields_to_aggregate_for_external_profiles=fae)
 

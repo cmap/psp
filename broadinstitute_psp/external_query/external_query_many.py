@@ -59,7 +59,7 @@ def build_parser():
     parser.add_argument("--fields_to_aggregate_for_external_profiles", "-fae",
                         nargs="*", default=["pert_id", "cell_id", "pert_time"],
                         help="list of metadata fields to use in aggregating replicates in external profiles")
-    parser.add_argument("--all", action="store_true", default=False,
+    parser.add_argument("--all", default=False, action="store_true",
                         help="whether to produce all output matrices")
 
     # Optional args
