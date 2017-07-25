@@ -14,7 +14,7 @@ import logging
 import argparse
 import sys
 
-import utils.setup_logger as setup_logger
+import broadinstitute_psp.utils.setup_logger as setup_logger
 import cmapPy.pandasGEXpress.GCToo as GCToo
 import cmapPy.pandasGEXpress.parse as parse
 import cmapPy.pandasGEXpress.write_gct as wg
