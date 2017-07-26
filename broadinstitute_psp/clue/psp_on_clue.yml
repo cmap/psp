@@ -2,7 +2,7 @@
 # addition, you can use this file when running external_query_many.py
 # to point to the latest signatures and similarities.
 
-# TODO(LL): probably need to combine this with the other config file someday
+# TODO(LL): probably need to combine this with the other config file someday 
 
 [corpus]
 cells = ["A375", "A549", "MCF7", "NPC", "PC3", "YAPC"]
