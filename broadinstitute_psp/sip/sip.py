@@ -339,8 +339,7 @@ def compute_connectivities(test_df, bg_df, test_gct_query_field, test_gct_target
     # Initialize conn_df and signed_conn_df :: len(targets) x len(queries)
     # Use regular rather than multi-index dfs to make insertion of connectivity
     # values easier; convert to multi-indices after the for-loop
-    conn_df = pd.DataFrame(np.zeros([len(targets), len(queries)]) * np.nan,
-                           index=targets, columns=queries)
+    conn_df = pd.DataFrame(np.nan, index=targets, columns=queries)
     signed_conn_df = conn_df.copy()
 
     for target in targets:
@@ -349,7 +348,8 @@ def compute_connectivities(test_df, bg_df, test_gct_query_field, test_gct_target
         bg_vals = extract_bg_vals_from_sym(target, bg_gct_field, bg_df)
 
         # Make sure bg_vals has at least 1 element before continuing
-        if len(bg_vals) > 0:
+        # and that bg_vals is not all NaN
+        if len(bg_vals) > 0 and not all(np.isnan(bg_vals)):
 
             for query in queries:
                 logger.debug("query: {}, target: {}".format(query, target))
@@ -359,7 +359,8 @@ def compute_connectivities(test_df, bg_df, test_gct_query_field, test_gct_target
                                               test_gct_target_field, test_df, is_test_df_sym)
 
                 # Make sure test_vals has at least 1 element before continuing
-                if len(test_vals) > 0:
+                # and that test_vals is not all NaN
+                if len(test_vals) > 0 and not all(np.isnan(test_vals)):
 
                     if connectivity_metric == "ks_test":
 

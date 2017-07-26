@@ -13,15 +13,15 @@ logger = logging.getLogger(setup_logger.LOGGER_NAME)
 class TestProtQuery(unittest.TestCase):
 	def test_get_yml_from_s3(self):
 
-		example_yml_on_s3 = "https://s3.amazonaws.com/data.clue.io/psp/example_user_input.yml"
+		example_yml_on_s3 = "https://s3.amazonaws.com/data.clue.io/psp/examples/example_user_input.yml"
 		out_string = prot_query.get_yml_from_s3(example_yml_on_s3)
 
-		self.assertEqual(out_string[:20], 'assay: GCP\nname: P10')
+		self.assertEqual(out_string[:20], 'assay: P100\nname: P1')
 
 	def test_save_yml_to_file(self):
 
 		out_path = "clue/functional_tests/test_save_yml_to_file.yml"
-		yml_string = 'assay: GCP\nname: P100 MCF7 inhibitors\nintrospect: true\n'
+		yml_string = 'assay: P100\nname: P100 MCF7 inhibitors\nintrospect: true\n'
 		prot_query.save_yml_to_file(yml_string, out_path)
 
 		self.assertTrue(os.path.exists(out_path))
@@ -32,11 +32,11 @@ class TestProtQuery(unittest.TestCase):
 	def test_get_gct_from_s3(self):
 
 		out_dir = "clue/functional_tests"
-		s3_path = "https://s3.amazonaws.com/data.clue.io/psp/P100_MCF7_Jnk_inhibitors_6H_24H_n12x96_unzipped.gct"
+		s3_path = "https://s3.amazonaws.com/data.clue.io/psp/examples/P100_MCF7_Jnk_inhibitors_6H_24H_n12x96_example.gct"
 
 		local_path = prot_query.get_gct_from_s3(s3_path, out_dir)
 
-		self.assertEqual(local_path, "clue/functional_tests/P100_MCF7_Jnk_inhibitors_6H_24H_n12x96_unzipped.gct")
+		self.assertEqual(local_path, "clue/functional_tests/P100_MCF7_Jnk_inhibitors_6H_24H_n12x96_example.gct")
 		self.assertTrue(os.path.exists(local_path))
 
 		# Clean up
@@ -44,7 +44,7 @@ class TestProtQuery(unittest.TestCase):
 
 	def test_read_config_file(self):
 
-		config_as_string = 'assay: GCP\nname: P100 MCF7 inhibitors\nintrospect: true\ninput_file: https://s3.amazonaws.com/data.clue.io/psp/P100_MCF7_Jnk_inhibitors_6H_24H_n12x96_unzipped.gct\nfields_to_aggregate: ["pert_id", "cell_id", "pert_time"]\nout_dir: clue/functional_tests/527ef1c3\npsp_on_clue_yml: clue/psp_on_clue.yml\n'
+		config_as_string = 'assay: P100\nname: P100 MCF7 inhibitors\nintrospect: true\ninput_file: s3://data.clue.io/psp/some_file_on_s3.gct\nfields_to_aggregate: ["pert_id", "cell_id", "pert_time"]\nout_dir: clue/functional_tests/527ef1c3\npsp_on_clue_yml: clue/psp_on_clue.yml\n'
 		[_, introspect, _, fae, out_dir, _] = prot_query.read_config_file(config_as_string)
 
 		self.assertEqual(introspect, True)
@@ -61,7 +61,7 @@ class TestProtQuery(unittest.TestCase):
 		if os.path.exists(out_dir):
 			shutil.rmtree(out_dir)
 
-		config_path = "https://s3.amazonaws.com/data.clue.io/psp/example_user_input.yml"
+		config_path = "https://s3.amazonaws.com/data.clue.io/psp/examples/example_user_input.yml"
 		second_config_path = "clue/functional_tests/test_prot_query_alt_psp_on_clue.yml"
 		args_string = "-u {} -o {} -p {}".format(
 			config_path, out_dir, second_config_path).split()

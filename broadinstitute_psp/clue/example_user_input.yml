@@ -1,5 +1,5 @@
 # This is approximately how the .yml file from the Proteomics Query App should look.
-assay: GCP
+assay: P100
 name: P100 MCF7 inhibitors
 introspect: true
 input_file: https://s3.amazonaws.com/data.clue.io/psp/P100_MCF7_Jnk_inhibitors_6H_24H_n12x96_unzipped.gct
