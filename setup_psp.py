@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="psp",
-    version="1.4",
+    version="1.6",
     description="Package for processing GCP and P100 proteomics signatures",
     author="Lev Litichevskiy",
     author_email="lev@broadinstitute.org",
