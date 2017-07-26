@@ -26,6 +26,13 @@ class TestSteep(unittest.TestCase):
         self.assertTrue(np.allclose(out_df, e_df, atol=1e-2), (
           "out_df:\n{}\ne_df:\n{}").format(out_df, e_df))
 
+        # If dfs don't have rows in common, exception should be raised
+        df3 = pd.DataFrame([[5, 8], [3, 1], [-2, 0]], index=["a", "b", "c"])
+
+        with self.assertRaises(AssertionError) as e:
+            steep.compute_similarity_bw_two_dfs(df1, df3, "spearman")
+        self.assertIn("Are you sure", str(e.exception))
+
 
     def test_compute_similarity_within_df(self):
         ### Check that NaNs are handled correctly

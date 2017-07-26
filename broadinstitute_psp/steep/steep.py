@@ -133,6 +133,12 @@ def compute_similarity_bw_two_dfs(df1, df2, similarity_metric):
     # Return just the subset of data that was asked for
     out_df = full_df.iloc[df1_cols, df2_cols]
 
+    # Sanity-check: the whole matrix should not be NaN
+    assert not all(pd.isnull(out_df).values.flatten()), (
+        "All computed similarities are NaN. Are you sure that your GCTs " +
+        "have analytes (i.e. rows) in common? df1.index[0]: {}, " +
+        "df2.index[0]: {}").format(df1.index[0], df2.index[0])
+
     return out_df
 
 
