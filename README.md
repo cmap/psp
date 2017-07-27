@@ -1,18 +1,20 @@
 # Proteomics Signature Pipeline (PSP)
 
-This is a package of Python scripts that enable processing and analysis of proteomic signatures produced by the LINCS Proteomic Characterization Center for Signaling and Epigenetics (PCCSE) at the Broad Institute. You can download the raw data from the [Panorama Repository](https://panoramaweb.org/labkey/project/LINCS/begin.view? "Panorama Repository"). (You will want the unprocessed gcts.)  
+PSP is a collection of Python scripts that enable data processing and analysis of GCP and P100 proteomic data produced by the LINCS Proteomic Characterization Center for Signaling and Epigenetics (PCCSE) at the Broad Institute. You can download the raw data from the [Panorama Repository](https://panoramaweb.org/labkey/project/LINCS/begin.view? "Panorama Repository"). (You will want the unprocessed gcts.)
+
+In addition to the scripts available here, you can get quick access to these using web apps that we have built. Check them out at [clue.io/proteomics](https://clue.io/proteomics "Proteomics on Clue").
 
 ## Maintainer
 
 Lev Litichevskiy  
 lev@broadinstitute.org  
-June 2017
+July 2017
 
 ## Setting up your environment
 
 ### To set up your environment the first time:
 
-  1. First, you must clone this repository into a local directory on your computer. For example, I cloned the repository in the directory `/Users/lev/code/proteomics-signature-pipeline`. If you need more information about cloning, go to this page provided by Github: https://help.github.com/articles/cloning-a-repository/.
+  1. First, you must clone this repository into a local directory on your computer. For example, I cloned the repository in the directory `/Users/lev/code/psp`. If you need more information about cloning, go to this page provided by Github: https://help.github.com/articles/cloning-a-repository/.
 
   2. To manage our Python environment, we'll use a program called conda. Download conda from the following website: http://conda.pydata.org/miniconda.html. Miniconda or Anaconda will do, but we recommend Miniconda because it's more lightweight.
 
@@ -49,10 +51,10 @@ June 2017
   7. To activate your environment, type `source activate psp_env`, or if you are on a PC, `activate psp_env`. You should now see `[psp_env]` or `(psp_env)` prepended to the start of your command prompt. For example:
 
       ```
-      (psp_env) /Users/lev/code/proteomics-signature-pipeline $
+      (psp_env) /Users/lev/code/psp $
       ```
 
-  8. We will now run a script to make our environment aware of the contents of the PSP repository that we cloned. Move to the top directory of your cloned repository (e.g. `/Users/lev/code/proteomics-signature-pipeline`), and then type:
+  8. We will now run a script to make our environment aware of the contents of the PSP repository that we cloned. Move to the top directory of your cloned repository (e.g. `/Users/lev/code/psp`), and then type:
 
       ```
       python setup_psp.py develop
@@ -61,7 +63,7 @@ June 2017
   9. That's it! To make sure that everything has been set up correctly, navigate to the `broadinstitute_psp` directory of PSP and try executing one of the Python test scripts:
 
       ```
-      cd /Users/lev/code/proteomics-signature-pipeline/broadinstitute_psp/
+      cd /Users/lev/code/psp/broadinstitute_psp/
       python dry/test_dry.py
       ```
       
@@ -74,7 +76,7 @@ June 2017
       Test files should be executed from the `broadinstitute_psp` directory, but other scripts can be run from anywhere. For example, you could run dry from anywhere by supplying the full path to the script. For example:
       
       ```
-      python /Users/lev/code/proteomics-signature-pipeline/broadinstitute_psp/dry/dry.py --help
+      python /Users/lev/code/psp/broadinstitute_psp/dry/dry.py --help
       ```
       
       However, before doing this, make sure to check out the section below about the configuration file.
@@ -85,13 +87,13 @@ June 2017
   2. It's easiest to run your code from the `broadinstitute_psp` directory (the one that contains the dry, steep, etc. directories), so move there and try executing one of the test scripts again:
     
       ```
-      cd /Users/lev/code/proteomics-signature-pipeline/broadinstitute_psp
+      cd /Users/lev/code/psp/broadinstitute_psp
       python dry/test_dry.py
       ```
 
 ## cmapPy
 
-cmapPy is the repository of Python tools for interacting with .gct and .gctx files. This repo relies heavily on it. We install it using conda or pip above. Note that you also get 3 command line tools for free: gct2gctx, gctx2gct, and concat_gctoo. For example, type the following in your terminal:
+cmapPy is the repository of Python tools for interacting with .gct and .gctx files. This repo relies heavily on it. We install it using conda or pip above. Note that you also get several command line tools for free, such as gct2gctx, gctx2gct, slice_gct, and concat_gctoo. For example, type the following in your terminal:
 
 `concat_gctoo -h` 
 
@@ -100,7 +102,7 @@ If you see the help page for concat_gctoo, you can use this tool directly from t
 
 ## Configuration file
 
-Several of the files in PSP -- notably dry.py and external_query_many.py -- require a configuration file. This file contains various parameters used by the production code (e.g. what values to consider NaN, default thresholds, provenance code abbreviations, where to find certain files, etc.). By default, these scripts will look for this config file in `~/psp_production.cfg`. So if you want to never think about the config file again, just copy `psp_production.cfg`, which is in the top-directory of the PSP repo, to your home directory (i.e. something like `/Users/lev`). Otherwise, you'll have to supply it explicitly with the --psp_config_path argument.
+Several of the files in PSP -- notably dry.py -- require a configuration file. This file contains various parameters used by the production code (e.g. what values to consider NaN, default thresholds, provenance code abbreviations, where to find certain files, etc.). By default, these scripts will look for this config file in `~/psp_production.cfg`. So if you want to never think about the config file again, just copy `psp_production.cfg`, which is in the top-directory of the PSP repo, to your home directory (i.e. something like `/Users/lev`). Otherwise, you'll have to supply it explicitly with the --psp_config_path argument.
 
 ## Examples
 
@@ -134,6 +136,8 @@ python sip/sip.py --test_gct_path ./steep_output.gct --bg_gct_path /Users/lev/bu
 
 One output file will be saved to your current directory: the GCT file containing the _connectivities_ between the samples of new_data.gct and the samples of old_data.gct.
 
+Note that an alternative to these command line tools is to use a webapp that we have created. To query your own P100 or GCP data against Touchstone-P (our reference dataset), visit  [clue.io/proteomics-query](https://clue.io/proteomics-query "Proteomics Query").
+
 Components
 ----------
 harvest: pushing and pulling data from Panorama (coming soon)  
@@ -144,6 +148,7 @@ steep: computes similarities using level 3 or level 4 data
 sip: computes connectivities using similarity matrices
 external_query: computes connectivities using level 3 or level 4 data (combines steep and sip)
 
+clue: Python scripts supporting the proteomics-query app on clue.io
 utils: miscellanous other scripts 
 
 Data levels
