@@ -145,10 +145,10 @@ dry: level 2 &rarr; level 3 data; performs QC
 tear: level 3 &rarr; level 4 data; performs row median normalization or z-scoring  
 
 steep: computes similarities using level 3 or level 4 data  
-sip: computes connectivities using similarity matrices
-external_query: computes connectivities using level 3 or level 4 data (combines steep and sip)
+sip: computes connectivities using similarity matrices  
+external_query: computes connectivities using level 3 or level 4 data (combines steep and sip)  
 
-clue: Python scripts supporting the proteomics-query app on clue.io
+clue: Python scripts supporting the proteomics-query app on clue.io  
 utils: miscellanous other scripts 
 
 Data levels
