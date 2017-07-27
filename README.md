@@ -155,4 +155,4 @@ Data levels
 -----------
 ![alt text][logo]
 
-[logo]: https://github.com/cmap/proteomics-signature-pipeline/blob/ea03fc6f133e5c2af1ec5bf27144222780e8d732/broadinstitute_psp/misc/2016-07-29_proteomics_data_levels.png "Proteomics Data Levels"
+[logo]: https://github.com/cmap/psp/blob/a9a5e590757143f09f919e956fbaa206f2be7f52/broadinstitute_psp/misc/2017-07-27_proteomics_data_levels.png "Proteomics Data Levels"
