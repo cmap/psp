@@ -4,6 +4,8 @@ PSP is a collection of Python scripts that enable data processing and analysis o
 
 In addition to the scripts available here, you can get quick access to these using web apps that we have built. Check them out at [clue.io/proteomics](https://clue.io/proteomics "Proteomics on Clue").
 
+[![Build Status](https://jenkins.clue.io/buildStatus/icon?job=TEST-PSP)](https://jenkins.clue.io/job/TEST-PSP)
+
 ## Maintainer
 
 Lev Litichevskiy  
