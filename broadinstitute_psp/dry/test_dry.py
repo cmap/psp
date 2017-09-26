@@ -129,44 +129,86 @@ class TestDry(unittest.TestCase):
                          "\nActual output:\n{}").format(e_df, out_df))
 
     def test_gcp_histone_normalize_if_needed(self):
-        data = pd.DataFrame([[1, 2], [3, 4], [5, 6]],
-                            index=["a", "b", "c"],
+        data = pd.DataFrame([[1, 2], [3, 4], [5, 6], [7, 8], [8, 9]],
+                            index=["a", "b", "c", "k", "g"],
                             columns=["d", "e"])
-        e_data = pd.DataFrame([[-2, -2], [2, 2]],
-                            index=["a", "c"],
-                            columns=["d", "e"])
-        row_meta = pd.DataFrame([["rm1", "rm2"],["rm3", "rm4"],["rm5", "rm6"]],
-                                index=["a", "b", "c"],
-                                columns=["row_field1", "row_field2"])
-        e_row_meta = pd.DataFrame([["rm1", "rm2"],["rm5", "rm6"]],
-                                index=["a", "c"],
-                                columns=["row_field1", "row_field2"])
-        col_meta = pd.DataFrame([["cm1", "cm2"],["cm3", "cm4"]],
-                                index=["d", "e"],
-                                columns=["col_field1", "col_field2"])
-        in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
-        assay_type = "gcp"
-        norm_peptide = "b"
+        col_meta = pd.DataFrame({"col_field1":["C"]*2, "col_field2":["D"]*2},
+                                index=["d", "e"])
         prov_code = ["GR1", "L2X"]
-        e_prov_code = ["GR1", "L2X", "H3N"]
+        e_prov_code = ["GR1", "L2X", "HPN"]
 
-        # Happy path
+        # Same norm peptide for all probes
+        row_meta = pd.DataFrame({"row_field1":["A"]*5, "row_field2":["B"]*5,
+                                 "norm_field":["b"]*5}, index=["a", "b", "c", "k", "g"])
+        in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
+
+        # Different norm peptides for different probes
+        row_meta2 = pd.DataFrame({"row_field1":["A"]*5, "row_field2":["B"]*5,
+                                  "norm_field":["b", "b", "c", "c", "c"]},
+                                 index=["a", "b", "c", "k", "g"])
+        in_gct2 = GCToo.GCToo(data_df=data, row_metadata_df=row_meta2, col_metadata_df=col_meta)
+
+        # Messed up row_meta
+        row_meta3 = pd.DataFrame({"row_field1":["A"]*5, "row_field2":["B"]*5,
+                                  "norm_field":["b", "c", "b", "c", "c"]},
+                                 index=["a", "b", "c", "k", "g"])
+        in_gct3 = GCToo.GCToo(data_df=data, row_metadata_df=row_meta3, col_metadata_df=col_meta)
+
+
+        # b is norm peptide
+        e_data = pd.DataFrame([[-2, -2], [2, 2], [5, 5], [4, 4]],
+                            index=["a", "c", "g", "k"],
+                            columns=["d", "e"])
+        e_row_meta = pd.DataFrame({"row_field1":["A"]*4, "row_field2":["B"]*4,
+                                   "norm_field":["b"]*4},
+                                  index=["a", "c", "g", "k"])
+        e_row_meta["other"] = "b"
+
+        # Different norm peptide for each probe
+        e_data2 = pd.DataFrame([[-2, -2], [3, 3], [2, 2]],
+                            index=["a", "g", "k"],
+                            columns=["d", "e"])
+        e_row_meta2 = pd.DataFrame({"row_field1":["A"]*3, "row_field2":["B"]*3,
+                                    "norm_field":["b", "c", "c"]}, index=["a", "g", "k"])
+
+        # Norm_field not in row metadata and no norm_peptide should throw an error
+        with self.assertRaises(AssertionError) as e:
+            dry.gcp_histone_normalize_if_needed(in_gct, "gcp", "other", None, prov_code, "HPN")
+        self.assertIn("must not be None", str(e.exception))
+        logger.debug(str(e.exception))
+
+        # Norm_field not in row metadata
         (out_gct, out_prov_code) = dry.gcp_histone_normalize_if_needed(
-            in_gct, assay_type, norm_peptide, prov_code, "H3N")
+            in_gct, "gcp", "other", "b", prov_code, "HPN")
 
-        self.assertTrue(np.allclose(out_gct.data_df, e_data, atol=1e-3))
-        self.assertTrue(np.array_equal(out_gct.row_metadata_df, e_row_meta))
-        self.assertTrue(np.array_equal(out_gct.col_metadata_df, in_gct.col_metadata_df))
+        pd.util.testing.assert_frame_equal(out_gct.data_df, e_data, check_less_precise=True)
+        pd.util.testing.assert_frame_equal(out_gct.row_metadata_df, e_row_meta)
+        pd.util.testing.assert_frame_equal(out_gct.col_metadata_df, in_gct.col_metadata_df)
         self.assertEqual(out_prov_code, e_prov_code)
 
-        # GCP but no peptide ID
+        # Single norm peptide in norm_field
         (out_gct2, out_prov_code2) = dry.gcp_histone_normalize_if_needed(
-            in_gct, assay_type, None, prov_code, "H3N")
+            in_gct, "gcp", "norm_field", None, prov_code, "HPN")
 
-        self.assertTrue(np.allclose(out_gct2.data_df, data, atol=1e-3))
-        self.assertTrue(np.array_equal(out_gct2.row_metadata_df, row_meta))
-        self.assertTrue(np.array_equal(out_gct2.col_metadata_df, col_meta))
-        self.assertEqual(out_prov_code2, prov_code)
+        pd.util.testing.assert_frame_equal(out_gct2.data_df, e_data, check_less_precise=True)
+        pd.util.testing.assert_frame_equal(out_gct2.row_metadata_df, e_row_meta)
+        pd.util.testing.assert_frame_equal(out_gct2.col_metadata_df, in_gct.col_metadata_df)
+        self.assertEqual(out_prov_code2, e_prov_code)
+
+        # Different norm peptides in norm_field
+        (out_gct3, out_prov_code3) = dry.gcp_histone_normalize_if_needed(
+            in_gct2, "gcp", "norm_field", None, prov_code, "HPN")
+
+        pd.util.testing.assert_frame_equal(out_gct3.data_df, e_data2, check_less_precise=True)
+        pd.util.testing.assert_frame_equal(out_gct3.row_metadata_df, e_row_meta2)
+        pd.util.testing.assert_frame_equal(out_gct3.col_metadata_df, in_gct2.col_metadata_df)
+        self.assertEqual(out_prov_code3, e_prov_code)
+
+        # Norm_field not in row metadata and no norm_peptide should throw an error
+        with self.assertRaises(AssertionError) as e:
+            dry.gcp_histone_normalize_if_needed(in_gct3, "gcp", "norm_field", None, prov_code, "HPN")
+        self.assertIn("Each normalization", str(e.exception))
+        logger.debug(str(e.exception))
 
     def test_gcp_histone_normalize(self):
         df = pd.DataFrame([[1.1, 2.0, 3.3], [4.1, 5.8, 6.0]],
@@ -183,6 +225,21 @@ class TestDry(unittest.TestCase):
         self.assertTrue(np.allclose(out_df, e_df, atol=1e-3, equal_nan=True),
                         ("\nExpected output:\n{} " +
                          "\nActual output:\n{}").format(e_df, out_df))
+
+
+    def test_create_norm_peptide_column_if_needed(self):
+        row_meta = pd.DataFrame(np.nan, index=['a', 'c', 'd'],
+                                columns=['x', 'y', 'z'])
+        e_meta = row_meta.copy(deep=True)
+        e_meta["new_col"] = "x"
+
+        with self.assertRaises(AssertionError) as e:
+            dry.create_norm_peptide_column_if_needed(row_meta, "new_col", None)
+        self.assertIn("peptide_id must not be None if gcp", str(e.exception))
+
+        dry.create_norm_peptide_column_if_needed(row_meta, "new_col", "x")
+        pd.util.testing.assert_frame_equal(row_meta, e_meta)
+
 
     def test_initial_filtering(self):
         sample_frac_cutoff = 0.3

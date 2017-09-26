@@ -19,6 +19,7 @@ import sys
 import cmapPy.pandasGEXpress.GCToo as GCToo
 import cmapPy.pandasGEXpress.write_gct as wg
 import broadinstitute_psp.utils.qc_gct2pw as gct2pw
+import broadinstitute_psp.utils.separate_gct as sg
 import broadinstitute_psp.utils.psp_utils as psp_utils
 import broadinstitute_psp.utils.setup_logger as setup_logger
 
@@ -112,9 +113,11 @@ def main(args):
         config_metadata["probe_filter_prov_code_entry"])
 
     ### HISTONE NORMALIZE (if GCP)
+    # TODO(LL): should be able to normalize each row to its own norm_peptide
     (hist_norm_gct, prov_code) = gcp_histone_normalize_if_needed(
-        filt_gct, assay_type, config_metadata["gcp_normalization_peptide_id"],
-        prov_code, config_metadata["gcp_histone_prov_code_entry"])
+        filt_gct, assay_type, config_metadata["gcp_normalization_peptide_field"],
+        prov_code, config_metadata["gcp_histone_prov_code_entry"],
+        config_metadata["gcp_normalization_peptide_id"])
 
     ### APPLY OFFSETS IF NEEDED (if P100)
     (offset_gct, dists, offsets, prov_code) = p100_calculate_dists_and_apply_offsets_if_needed(
@@ -309,27 +312,58 @@ def log_transform(data_df, log_base):
     return out_df
 
 # tested #
-def gcp_histone_normalize_if_needed(gct, assay_type, gcp_normalization_peptide_id, prov_code, prov_code_entry):
-    """If GCP and gcp_normalization_peptide_id is not None, perform
-     histone normalization. This subtracts the normalization probe row
-     from all the other probe rows. It also removes the normalization probe
-     from the data going forward.
+def gcp_histone_normalize_if_needed(gct, assay_type, gcp_normalization_peptide_field,
+                                    gcp_normalization_peptide_id, prov_code, prov_code_entry):
+    """If GCP, normalize to an invariant probe. With the
+    addition of H4 probes, we need to use different normalization peptides
+    for different rows. This script splits the data_df up according to norm
+    peptide and then concats the results together.
+
+    If gcp_normalization_peptide_field is present, extract normalization
+    peptides from metadata. If not present, a new column called
+    gcp_normalization_peptide_field will be made and populated with
+    gcp_normalization_peptide_id.
 
     Args:
         gct (GCToo object)
         assay_type (string)
-        gcp_normalization_peptide_id (string, or None)
+        gcp_normalization_peptide_field (string, or None): metadata field in
+            GCT that indicates which norm peptide to use for each row
+        gcp_normalization_peptide_id (string, or None): if
+            gcp_normalization_peptide_field not provided, this peptide_id
+            should be used for all rows
         prov_code (list of strings)
         prov_code_entry (string)
 
     Returns:
-        out_gct (GCToo object): updated data and metadata dfs;
-            one row removed from each if normalization occurred
+        out_gct (GCToo object): data_df and row_metadata_df updated; norm
+            peptides have been removed
         updated_prov_code (list of strings)
     """
-    if assay_type == "gcp" and (gcp_normalization_peptide_id is not None):
-        # Perform normalization
-        out_df = gcp_histone_normalize(gct.data_df, gcp_normalization_peptide_id)
+    if assay_type == "gcp":
+
+        # If needed, create a new column indicating the norm peptide for each probe
+        create_norm_peptide_column_if_needed(
+            gct.row_metadata_df, gcp_normalization_peptide_field,
+            gcp_normalization_peptide_id)
+
+        # Split gct according to norm_peptide
+        (split_gcts, list_of_norm_peptides) = sg.separate(gct, gcp_normalization_peptide_field, "row")
+
+        # Make sure that each norm_peptide is assigned to itself
+        tmp = gct.row_metadata_df.loc[list_of_norm_peptides, gcp_normalization_peptide_field]
+        assert np.array_equal(tmp.index, tmp.values), (
+            ("Each normalization peptide must be assigned to itself.\n" +
+             "index\t{}\n{}").format(gcp_normalization_peptide_field, tmp))
+
+        # Perform normalization for each subsetted GCT
+        list_of_out_dfs = []
+        for g, norm_pep in zip(split_gcts, list_of_norm_peptides):
+            small_out_df = gcp_histone_normalize(g.data_df, norm_pep)
+            list_of_out_dfs.append(small_out_df)
+
+        # Reconcatenate the split up GCTs; note that rows are sorted in output
+        out_df = pd.concat(list_of_out_dfs, axis=0).sort_index(axis=0)
 
         # Update gct object and provenance code
         (out_gct, updated_prov_code) = update_metadata_and_prov_code(
@@ -342,19 +376,56 @@ def gcp_histone_normalize_if_needed(gct, assay_type, gcp_normalization_peptide_i
     return out_gct, updated_prov_code
 
 
+def create_norm_peptide_column_if_needed(row_meta_df, gcp_normalization_peptide_field, gcp_normalization_peptide_id):
+    """If it doesn't already exist, create a new column indicating the norm
+    peptide for each probe.
+
+    Modifies row_meta_df in-place.
+
+    Args:
+        row_meta_df (pandas df):
+        gcp_normalization_peptide_field (string): metadata field in
+            GCT that indicates which norm peptide to use for each probe
+        gcp_normalization_peptide_id (string): if
+            gcp_normalization_peptide_field not in the GCT, a new column will
+            be created and filled with just this peptide_id
+
+    Returns:
+        None
+
+    """
+    # If gcp_normalization_peptide_field is already in the row metadata, we'll
+    # just use it
+    if gcp_normalization_peptide_field not in row_meta_df.columns.values:
+
+        assert gcp_normalization_peptide_id is not None, (
+            "gcp_normalization_peptide_field not present in metadata headers, " +
+            "so gcp_normalization_peptide_id must not be None. " +
+            "gcp_normalization_peptide_field: {}, " +
+            "gcp_normalization_peptide_id: {}").format(
+            gcp_normalization_peptide_field, gcp_normalization_peptide_id)
+
+        # Otherwise, create a new column and fill it with gcp_normalization_peptide_id
+        row_meta_df[gcp_normalization_peptide_field] = gcp_normalization_peptide_id
+
+    return None
+
+
 # tested #
 def gcp_histone_normalize(data_df, gcp_normalization_peptide_id):
     """Subtract values of gcp_normalization_peptide_id from all the other probes.
     Remove the row of data corresponding to the normalization histone.
 
+    Assumes that all probes should be normalized to the same peptide id.
+
     Args:
         data_df (pandas df)
-        gcp_normalization_peptide_id (string)
+        gcp_normalization_peptide_id (string): id
 
     Returns:
-        out_df (pandas df): one row removed
+        out_df (pandas df): one or more rows removed
     """
-    # Verify that normalization peptide is in the data
+    # Verify that norm peptide is in the data
     assert gcp_normalization_peptide_id in data_df.index, (
         ("The normalization peptide is not in this dataset. " +
          "gcp_normalization_peptide_id: {}".format(gcp_normalization_peptide_id)))
@@ -367,8 +438,6 @@ def gcp_histone_normalize(data_df, gcp_normalization_peptide_id):
 
     # Subtract the normalization values from all rows
     out_df = out_df - norm_values
-
-    # TODO(LL): if the norm peptide was not detected, should the sample be dropped?
 
     return out_df
 
