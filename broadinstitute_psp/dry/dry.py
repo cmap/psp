@@ -113,11 +113,10 @@ def main(args):
         config_metadata["probe_filter_prov_code_entry"])
 
     ### HISTONE NORMALIZE (if GCP)
-    # TODO(LL): should be able to normalize each row to its own norm_peptide
     (hist_norm_gct, prov_code) = gcp_histone_normalize_if_needed(
         filt_gct, assay_type, config_metadata["gcp_normalization_peptide_field"],
-        prov_code, config_metadata["gcp_histone_prov_code_entry"],
-        config_metadata["gcp_normalization_peptide_id"])
+        config_metadata["gcp_normalization_peptide_id"], prov_code,
+        config_metadata["gcp_histone_prov_code_entry"])
 
     ### APPLY OFFSETS IF NEEDED (if P100)
     (offset_gct, dists, offsets, prov_code) = p100_calculate_dists_and_apply_offsets_if_needed(

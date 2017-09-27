@@ -235,7 +235,7 @@ class TestDry(unittest.TestCase):
 
         with self.assertRaises(AssertionError) as e:
             dry.create_norm_peptide_column_if_needed(row_meta, "new_col", None)
-        self.assertIn("peptide_id must not be None if gcp", str(e.exception))
+        self.assertIn("peptide_id must not be None", str(e.exception))
 
         dry.create_norm_peptide_column_if_needed(row_meta, "new_col", "x")
         pd.util.testing.assert_frame_equal(row_meta, e_meta)
