@@ -15,6 +15,7 @@ import broadinstitute_psp.utils.setup_logger as setup_logger
 import cmapPy.pandasGEXpress.slice_gct as slice_gct
 import cmapPy.pandasGEXpress.parse as parse
 import cmapPy.pandasGEXpress.write_gct as wg
+import cmapPy.pandasGEXpress.write_gctx as wgx
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
@@ -58,7 +59,15 @@ def main(args):
     # Save the returned gcts
     for gct, name in zip(out_gcts, out_gct_prefixes):
         full_out_name = os.path.join(args.out_dir, args.out_name_prefix + str(name) + args.out_name_suffix)
-        wg.write(gct, full_out_name, data_null="NaN", metadata_null="NA", filler_null="NA")
+
+        # Write to GCT or GCTX depending on extension
+        if str.lower(os.path.splitext(full_out_name)[1]) == ".gct":
+            wg.write(gct, full_out_name, data_null="NaN", metadata_null="NA", filler_null="NA")
+        elif str.lower(os.path.splitext(full_out_name)[1]) == ".gctx":
+            wgx.write(gct, full_out_name)
+	else:
+	    raise(Exception("out_name_suffix must end in either .gct or .gctx. out_name_suffix: {}".format(
+	         (args.out_name_suffix))))
 
 
 def separate(in_gct, separate_field, row_or_col):
