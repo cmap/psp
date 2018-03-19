@@ -2,13 +2,13 @@
 
 PSP is a collection of Python scripts that enable data processing and analysis of GCP and P100 proteomic data produced by the LINCS Proteomic Characterization Center for Signaling and Epigenetics (PCCSE) at the Broad Institute. You can download the raw data from the [Panorama Repository](https://panoramaweb.org/labkey/project/LINCS/begin.view? "Panorama Repository"). (You will want the unprocessed gcts.)
 
-In addition to the scripts available here, you can get quick access to these using web apps that we have built. Check them out at [clue.io/proteomics](https://clue.io/proteomics "Proteomics on Clue").
+In addition to the scripts available here, you can get quick access to these data with a suite of web apps. Check them out at [clue.io/proteomics](https://clue.io/proteomics "Proteomics on Clue").
 
 ## Maintainer
 
 Lev Litichevskiy  
 lev@broadinstitute.org  
-July 2017
+March 2018
 
 ## Setting up your environment
 
@@ -128,7 +128,7 @@ One output file will be saved to your current directory: the GCT file containing
 
 ### Use Case 3: sip
 
-You have the similarity matrix from Use Case 2. Now, you want to know how these similarities compare to all the other stuff that old_data.gct has been compared to before; in other words, you want to compare your similarity to the similarity matrix of the "build" or the "corpus." You need to use sip.py for this. Navigate to the `broadinstitute_psp` directory of the PSP repository, and type the following in your command line:
+You have the similarity matrix from Use Case 2. Now, you want to know how these similarities compare to all the other stuff that old_data.gct has been compared to before; in other words, you want to compare your similarities to similarities within a reference dataset. You need to use sip.py for this. Navigate to the `broadinstitute_psp` directory of the PSP repository, and type the following in your command line:
 
 ```
 python sip/sip.py --test_gct_path ./steep_output.gct --bg_gct_path /Users/lev/build_similarity_matrix.gct
@@ -136,20 +136,18 @@ python sip/sip.py --test_gct_path ./steep_output.gct --bg_gct_path /Users/lev/bu
 
 One output file will be saved to your current directory: the GCT file containing the _connectivities_ between the samples of new_data.gct and the samples of old_data.gct.
 
-Note that an alternative to these command line tools is to use a webapp that we have created. To query your own P100 or GCP data against Touchstone-P (our reference dataset), visit  [clue.io/proteomics-query](https://clue.io/proteomics-query "Proteomics Query").
+Note that an alternative to running steep and sip from the command line is to use the "proteomics-query" web app available on Clue. To query your own P100 or GCP data against Touchstone-P (our reference dataset), visit  [clue.io/proteomics-query](https://clue.io/proteomics-query "Proteomics Query").
 
 Components
 ----------
-harvest: pushing and pulling data from Panorama (coming soon)  
-dry: level 2 &rarr; level 3 data; performs QC  
-tear: level 3 &rarr; level 4 data; performs row median normalization or z-scoring  
-
-steep: computes similarities using level 3 or level 4 data  
-sip: computes connectivities using similarity matrices  
-external_query: computes connectivities using level 3 or level 4 data (combines steep and sip)  
-
-clue: Python scripts supporting the proteomics-query app on clue.io  
-utils: miscellanous other scripts 
+- harvest: pushing and pulling data from Panorama (coming soon)
+- dry: level 2 &rarr; level 3 data; performs QC
+- tear: level 3 &rarr; level 4 data; performs row median normalization or z-scoring    
+- steep: computes similarities using level 3 or level 4 data
+- sip: computes connectivities using similarity matrices
+- external_query: computes connectivities using level 3 or level 4 data (combines steep and sip)
+- clue: Python scripts supporting the proteomics-query app on Clue.io
+- utils: miscellanous other scripts
 
 Data levels
 -----------
