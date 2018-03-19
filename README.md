@@ -30,17 +30,17 @@ March 2018
   5. We will now create an environment with conda that will allow us to use PSP. If on OSX or Linux, type the following in your Terminal:
 
       ```
-      conda create --name psp_env --channel bioconda python=2 pandas scipy h5py cmapPy
+      conda create --name psp_env --channel bioconda python=2 pandas scipy h5py cmappy=2.0.1
       ```
       
-      'psp_env' will be the name of your conda environment, and the things after it are the packages that our environment will contain. Note that we are using python2, not python3. We also have to specify that we should also look in the `bioconda` channel in order to find the [cmapPy](https://github.com/cmap/cmappy "cmapPy Github") package (tools for interacting with .gct and .gctx files) You'll have to type 'yes' to proceed through the installation.
+      'psp_env' will be the name of your conda environment, and the things after it are the packages that our environment will contain. Note that we are using python2, not python3. We also have to specify that we should also look in the `bioconda` channel in order to find the [cmapPy](https://github.com/cmap/cmappy "cmapPy Github") package (tools for interacting with .gct and .gctx files), namely the 2.0.1 version. You'll have to type 'yes' to proceed through the installation.
       
       If on PC, type the following in your terminal:
       
       ```
       conda create --name psp_env --channel bioconda python=2 pandas scipy h5py
       activate psp_env
-      pip install cmapPy
+      pip install cmappy==2.0.1
       ```
       
       Unfortunately, bioconda (which is where [cmapPy](https://github.com/cmap/cmappy "cmapPy Github") is hosted) does not support Windows, so we have to use pip to install it.

@@ -47,10 +47,8 @@ def build_parser():
     # Optional args
     parser.add_argument("--out_dir", "-o", default=".",
                         help="path to save directory")
-    parser.add_argument("--out_gct_name", "-og", default=None,
-                        help="name of output gct file (default is <INPUT_GCT>.dry.processed.gct")
-    parser.add_argument("--out_pw_name", "-op", default=None,
-                        help="name of output pw file (default is <INPUT_GCT>.dry.processed.pw")
+    parser.add_argument("--out_base_name", "-ob", default=None,
+                        help="base name of output pw and gct files (default is <INPUT_GCT>.dry.processed.pw")
     parser.add_argument("--psp_config_path", "-p", default="~/psp_production.cfg",
                         help="filepath to PSP config file")
     parser.add_argument("--force_assay", "-f",
@@ -137,7 +135,7 @@ def main(args):
 
     ### CONFIGURE OUT NAMES
     (out_gct_name, out_pw_name) = configure_out_names(
-        args.in_gct_path, args.out_gct_name, args.out_pw_name)
+        args.in_gct_path, args.out_base_name)
 
     ### WRITE PW FILE OF SAMPLES FILTERED
     write_output_pw(in_gct, post_sample_nan_remaining,
@@ -222,39 +220,30 @@ def check_assay_type(assay_type, p100_assays, gcp_assays):
 
 
 # tested #
-def configure_out_names(in_gct_path, out_gct_name_from_args, out_pw_name_from_args):
-    """If out_gct_name_from_args is None, append DEFAULT_GCT_SUFFIX to the input
-    gct name. If out_pw_name_from_args is None, append DEFAULT_PW_SUFFIX to the
-    input gct name.
+def configure_out_names(in_gct_path, out_base_name_from_args):
+    """If out_base_name_from_args is None, append DEFAULT_GCT_SUFFIX and 
+    DEFAULT_PW_SUFFIX to the input gct name to generate the gct and pw file
+    respectively.
 
     Args:
         in_gct_path:
-        out_gct_name_from_args:
-        out_pw_name_from_args:
+        out_base_name_from_args:
 
     Returns:
         out_gct_name (file path)
         out_pw_name (file path)
 
-    """
-    input_basename = os.path.basename(in_gct_path)
+    """    
 
-    if out_gct_name_from_args is None:
+    if out_base_name_from_args is None:
+        input_basename = os.path.basename(in_gct_path)        
         out_gct_name = input_basename + DEFAULT_GCT_SUFFIX
-    else:
-        out_gct_name = out_gct_name_from_args
-        assert os.path.splitext(out_gct_name)[1] == ".gct", (
-            "The output gct name must end with .gct; out_gct_name: {}".format(
-                out_gct_name))
-
-    if out_pw_name_from_args is None:
         out_pw_name = input_basename + DEFAULT_PW_SUFFIX
     else:
-        out_pw_name = out_pw_name_from_args
-        assert os.path.splitext(out_pw_name)[1] == ".pw", (
-            "The output pw name must end with .pw; out_pw_name: {}".format(
-                out_pw_name))
-
+        input_basename = os.path.basename(out_base_name_from_args)
+        out_gct_name = input_basename + DEFAULT_GCT_SUFFIX
+        out_pw_name = input_basename + DEFAULT_PW_SUFFIX
+        
     return out_gct_name, out_pw_name
 
 

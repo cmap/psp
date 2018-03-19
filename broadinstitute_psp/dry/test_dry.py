@@ -21,29 +21,35 @@ import dry
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
 # Functional tests dir lives within the dry directory
-FUNCTIONAL_TESTS_DIR = "dry/functional_tests"
+FUNCTIONAL_TESTS_DIR = os.path.join("dry", "functional_tests")
 
 # Set to false if you want to see what output is created
 CLEANUP = True
+
+# Default output suffixes
+DEFAULT_GCT_SUFFIX = ".dry.processed.gct"
+DEFAULT_PW_SUFFIX = ".dry.processed.pw"
 
 
 class TestDry(unittest.TestCase):
 
     def test_main(self):
         psp_config_path = "psp_production.cfg"
-        input_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_dry_main_p100.gct")
-        out_gct_name = "dry_test_main_output.gct"
-        out_pw_name = "dry_test_main_output.pw"
+        input_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR,
+                                      "test_dry_main_p100.gct")
+        out_base_name = "dry_test_main_output"
 
         # Happy path
-        args_string = "-i {} -o {} -og {} -op {} -p {}".format(
-            input_gct_path, FUNCTIONAL_TESTS_DIR, out_gct_name, out_pw_name, psp_config_path)
+        args_string = "-i {} -o {} -ob {} -p {}".format(
+            input_gct_path, FUNCTIONAL_TESTS_DIR, out_base_name, psp_config_path)
         args = dry.build_parser().parse_args(args_string.split())
         dry.main(args)
 
         if CLEANUP:
-            os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, out_gct_name))
-            os.remove(os.path.join(FUNCTIONAL_TESTS_DIR, out_pw_name))
+            os.remove(os.path.join(FUNCTIONAL_TESTS_DIR,
+                                   out_base_name + DEFAULT_GCT_SUFFIX))
+            os.remove(os.path.join(FUNCTIONAL_TESTS_DIR,
+                                   out_base_name + DEFAULT_PW_SUFFIX))
 
     def test_read_dry_gct_and_config_file(self):
         psp_config_path = "psp_production.cfg"
@@ -565,20 +571,21 @@ class TestDry(unittest.TestCase):
         self.assertTrue(np.array_equal(out_gct.col_metadata_df, e_col_meta))
 
     def test_configure_out_names(self):
-        gct_path = "/cmap/location/somewhere/input.gct"
-        out_name_from_args = "super_output.gct"
-        out_pw_name_from_args = "super_duper.pw"
-
+        gct_path = os.path.join("cmap", "location", "somewhere", "input.gct")
+        out_base_name_from_args = "super_output"
+        
         # Using given args
         (out_gct_name, out_pw_name) = dry.configure_out_names(
-            gct_path, out_name_from_args, out_pw_name_from_args)
+            gct_path, out_base_name_from_args)
 
-        self.assertEqual(out_gct_name, out_name_from_args)
-        self.assertEqual(out_pw_name, out_pw_name_from_args)
+        self.assertEqual(out_gct_name,
+                         out_base_name_from_args + DEFAULT_GCT_SUFFIX)
+        self.assertEqual(out_pw_name,
+                         out_base_name_from_args + DEFAULT_PW_SUFFIX)
 
         # None provided
         (out_gct_name2, out_pw_name2) = dry.configure_out_names(
-            gct_path, None, None)
+            gct_path, None)
 
         self.assertEqual(out_gct_name2, "input.gct.dry.processed.gct")
         self.assertEqual(out_pw_name2, "input.gct.dry.processed.pw")
@@ -594,7 +601,9 @@ class TestDry(unittest.TestCase):
                                  ["plate1", "A4"], ["plate1", "A5"]],
                                 index=["c", "d", "e", "f", "g"],
                                 columns=["det_plate", "det_well"])
-        in_gct = GCToo.GCToo(data_df=data, row_metadata_df=row_meta, col_metadata_df=col_meta)
+        in_gct = GCToo.GCToo(data_df=data,
+                             row_metadata_df=row_meta,
+                             col_metadata_df=col_meta)
 
         post_sample_nan_remaining = ["c", "e", "f", "g"]
         post_sample_dist_remaining = ["c", "f", "g"]
