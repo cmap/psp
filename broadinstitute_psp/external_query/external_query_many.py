@@ -86,7 +86,7 @@ def main(args):
          connectivity_metric) = read_config_file(args.psp_on_clue_config_path)
 
         # Read in the external profiles only once
-        external_gct = parse(args.external_gct_path, convert_neg_666=False, make_multiindex=True)
+        external_gct = parse(args.external_gct_path)
 
         # If requested, do introspect
         (_, introspect_gct) = introspect.do_steep_and_sip(
@@ -106,12 +106,12 @@ def main(args):
             # Import gct with the internal profiles for this cell line
             internal_gct_path = os.path.join(internal_gct_dir, INTERNAL_GCT_FORMAT.format(
                 assay=args.assay, cell=cell))
-            internal_gct = parse(internal_gct_path, convert_neg_666=False, make_multiindex=True)
+            internal_gct = parse(internal_gct_path)
 
             # Import gct with the similarity matrix for this cell line
             bg_gct_path = os.path.join(bg_gct_dir, BG_GCT_FORMAT.format(
                 assay=args.assay, cell=cell))
-            bg_gct = parse(bg_gct_path, convert_neg_666=False, make_multiindex=True)
+            bg_gct = parse(bg_gct_path)
 
             (sim_gct, conn_gct) = eq.do_steep_and_sip(
                 external_gct, internal_gct, bg_gct, "spearman",

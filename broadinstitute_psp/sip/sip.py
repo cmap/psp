@@ -84,10 +84,10 @@ def main(args):
     """ The main method. """
 
     # Read test gct
-    test_gct = parse(args.test_gct_path, convert_neg_666=False)
+    test_gct = parse(args.test_gct_path)
 
     # Read bg_gct
-    bg_gct = parse(args.bg_gct_path, convert_neg_666=False)
+    bg_gct = parse(args.bg_gct_path)
 
     # Check symmetry
     (is_test_df_sym, _) = check_symmetry(test_gct.data_df, bg_gct.data_df)
