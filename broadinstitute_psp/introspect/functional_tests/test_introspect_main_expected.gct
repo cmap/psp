@@ -1,9 +1,11 @@
 #1.3						
-4	4	2	2			
-id	chd1	connectivity_metric	drugA	drugB	drugC	drugD
-chd1	NA	NA	drugA	drugB	drugC	drugD
-connectivity_metric	NA	NA	ks_test	ks_test	ks_test	ks_test
-drugA	drugA	ks_test	NaN	0.666	0.333	-0.666
-drugB	drugB	ks_test	0.666	NaN	0.333	-0.666
-drugC	drugC	ks_test	0.666	0.333	NaN	-0.666
-drugD	drugD	ks_test	-0.666	0.333	0.666	NaN
+4	4	4	4			
+id	chd1	moa	similarity_metric	connectivity_metric	drugA	drugB	drugC	drugD
+chd1	NA	NA	NA	NA	drugA	drugB	drugC	drugD
+moa	NA	NA	NA	NA	moa1	moa2	moa1	moa2
+similarity_metric	NA	NA	NA	NA	spearman	spearman	spearman	spearman
+connectivity_metric	NA	NA	NA	NA	ks_test	ks_test	ks_test	ks_test
+drugA	drugA	moa1	spearman	ks_test	NaN	0.666	0.333	-0.666
+drugB	drugB	moa2	spearman	ks_test	0.666	NaN	0.333	-0.666
+drugC	drugC	moa1	spearman	ks_test	0.666	0.333	NaN	-0.666
+drugD	drugD	moa2	spearman	ks_test	-0.666	0.333	0.666	NaN

@@ -159,6 +159,13 @@ class TestSip(unittest.TestCase):
         logger.debug("e_df:\n{}".format(e_df))
         pd.util.testing.assert_frame_equal(e_df, out_df, check_names=False)
 
+        # Test a dataframe with just one sample
+        e_df2 = pd.DataFrame([["A", "a", "24"]], index=["Y"],
+                             columns=["pert_id", "pert_name", "pert_time"])
+        out_df = sip.aggregate_metadata(df.iloc[[0], :], "AGG", "|")
+        logger.debug("out_df:\n{}".format(out_df))
+        pd.util.testing.assert_frame_equal(e_df2, out_df, check_names=False)
+
     def test_aggregate_one_series_uniquely(self):
 
         my_ser = pd.Series(["a", 3, 11])

@@ -14,7 +14,6 @@ import datetime
 import logging
 import os
 import sys
-import time
 import traceback
 
 import cmapPy.pandasGEXpress.parse as parse

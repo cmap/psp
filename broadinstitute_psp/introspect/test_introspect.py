@@ -11,7 +11,8 @@ FUNCTIONAL_TESTS_DIR = "introspect/functional_tests"
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
-class MyTestCase(unittest.TestCase):
+
+class TestIntrospect(unittest.TestCase):
 
 	def test_main1(self):
 		input_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR,
@@ -45,7 +46,8 @@ class MyTestCase(unittest.TestCase):
 		expected_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR,
 		                                 "test_introspect_main_expected2.gct")
 
-		args_string = "-i {} -o {} -fa moa".format(input_gct_path, output_gct_path)
+		args_string = "-i {} -o {} -fa moa".format(
+			input_gct_path, output_gct_path)
 		args = introspect.build_parser().parse_args(args_string.split())
 
 		introspect.main(args)
@@ -63,4 +65,6 @@ class MyTestCase(unittest.TestCase):
 
 
 if __name__ == '__main__':
+	setup_logger.setup(verbose=True)
 	unittest.main()
+

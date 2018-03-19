@@ -40,7 +40,7 @@ class TestExternalQueryMany(unittest.TestCase):
         self.assertTrue(os.path.exists(out_file))
         os.remove(out_file)
 
-    # Slow (~30 sec.)
+    # Slow (~30 sec on server, a few minutes on local machine)
     @unittest.skipUnless(os.path.exists("/cmap/"), "/cmap/ needs to exist to run TestExternalQueryMany.test_main")
     def test_main(self):
 
