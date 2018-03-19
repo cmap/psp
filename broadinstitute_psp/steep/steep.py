@@ -11,6 +11,7 @@ Required input is a path to a gct file. Output is a gct file containing a
 similarity matrix.
 
 """
+import os
 import sys
 import logging
 import pandas as pd
@@ -20,6 +21,7 @@ import broadinstitute_psp.utils.setup_logger as setup_logger
 import cmapPy.pandasGEXpress.GCToo as GCToo
 import cmapPy.pandasGEXpress.parse as parse
 import cmapPy.pandasGEXpress.write_gct as wg
+import cmapPy.pandasGEXpress.write_gctx as wgx
 
 __author__ = "Lev Litichevskiy"
 __email__ = "lev@broadinstitute.org"
@@ -92,7 +94,13 @@ def main(args):
         out_gct = GCToo.GCToo(out_df, metadata_df, metadata_df)
 
     # Write output gct
-    wg.write(out_gct, args.out_name, data_null="NaN", metadata_null="NA", filler_null="NA")
+    if os.path.splitext(args.out_name)[1] == ".gct":
+        wg.write(out_gct, args.out_name, data_null="NaN", metadata_null="NA", filler_null="NA")
+    elif os.path.splitext(args.out_name)[1] == ".gctx":
+        wgx.write(out_gct, args.out_name)
+    else:
+        raise(Exception("out_name must end in .gct or .gctx. out_name: {}".format(
+            args.out_name)))
 
 
 def compute_similarity_bw_two_dfs(df1, df2, similarity_metric):
