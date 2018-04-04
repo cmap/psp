@@ -48,7 +48,7 @@ def build_parser():
     parser.add_argument("--out_dir", "-o", default=".",
                         help="path to save directory")
     parser.add_argument("--out_base_name", "-ob", default=None,
-                        help="base name of output pw and gct files (default is <INPUT_GCT>.dry.processed.pw")
+                        help="base name of output pw and gct files (default is <INPUT_GCT>.dry.processed")
     parser.add_argument("--psp_config_path", "-p", default="~/psp_production.cfg",
                         help="filepath to PSP config file")
     parser.add_argument("--force_assay", "-f",
