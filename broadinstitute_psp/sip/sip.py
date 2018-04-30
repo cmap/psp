@@ -404,7 +404,7 @@ def compute_connectivities(test_gct, bg_gct, test_gct_query_field,
         "row_meta_df aggregated entries are not the same as the " +
         "aggregated entries in data_df. row_meta_df.index: {}\n" +
         "signed_conn_df_sorted.index: {}".format(
-            out_row_meta_df.index, signed_conn_df_sorted.index))
+            row_meta_df.index, signed_conn_df_sorted.index))
 
     # Create output GCTs
     conn_gct = GCToo.GCToo(data_df=conn_df_sorted,
