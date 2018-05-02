@@ -33,12 +33,13 @@ class TestSip(unittest.TestCase):
 
         # Compare the output of main with the expected output
         e_out_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_sip_expected_conn.gct")
-        e_out_gct = parse(e_out_path)
-        out_gct = parse(out_path)
+        e_out_gct = parse.parse(e_out_path)
+        out_gct = parse.parse(out_path)
 
         logger.debug("e_out_gct.data_df:\n{}".format(e_out_gct.data_df))
         logger.debug("out_gct.data_df:\n{}".format(out_gct.data_df))
-        pd.util.testing.assert_frame_equal(e_out_gct.data_df, out_gct.data_df)
+        pd.util.testing.assert_frame_equal(e_out_gct.data_df, out_gct.data_df,
+                                           check_less_precise=3)
 
         logger.debug("e_out_gct.row_metadata_df:\n{}".format(e_out_gct.row_metadata_df))
         logger.debug("out_gct.row_metadata_df:\n{}".format(out_gct.row_metadata_df))

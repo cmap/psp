@@ -41,7 +41,7 @@ def main(args):
 
     # Parse input gct
     print("gct_path: {}".format(args.in_gct_path))
-    in_gct = parse(args.in_gct_path)
+    in_gct = parse.parse(args.in_gct_path)
 
     # Extract target_id row
     target_s = in_gct.data_df.loc[args.target_id, :]

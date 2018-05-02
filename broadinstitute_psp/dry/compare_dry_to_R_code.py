@@ -56,8 +56,8 @@ failed_row_metadata = []
 mean_diffs = []
 for dry_file, r_file in zip(dry_files, r_files):
 
-    dry_gct = parse(dry_file)
-    r_gct = parse(r_file)
+    dry_gct = parse.parse(dry_file)
+    r_gct = parse.parse(r_file)
 
     logger.debug("dry_file: {}".format(dry_file))
     logger.debug("r_file: {}".format(r_file))

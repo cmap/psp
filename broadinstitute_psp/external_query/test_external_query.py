@@ -17,13 +17,13 @@ class TestExternalQuery(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         external_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_external_query_external.gct")
-        cls.external_gct = parse(external_gct_path)
+        cls.external_gct = parse.parse(external_gct_path)
 
         internal_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_external_query_internal.gct")
-        cls.internal_gct = parse(internal_gct_path)
+        cls.internal_gct = parse.parse(internal_gct_path)
 
         bg_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_external_query_bg.gct")
-        cls.bg_gct = parse(bg_gct_path)
+        cls.bg_gct = parse.parse(bg_gct_path)
 
     def test_replicates_in_external(self):
         # Test what happens when the external dataset has replicates

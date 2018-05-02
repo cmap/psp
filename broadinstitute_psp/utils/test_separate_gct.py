@@ -18,12 +18,12 @@ a375_gct_path = functional_tests_dir + "test_separate_expected_A375.gct"
 ht29_gct_path = functional_tests_dir + "test_separate_expected_HT29.gct"
 a549_gct_path = functional_tests_dir + "test_separate_expected_A549.gct"
 
-in_gct = parse(in_gct_path)
-thing1_gct = parse(thing1_gct_path)
-thing2_gct = parse(thing2_gct_path)
-a375_gct = parse(a375_gct_path)
-ht29_gct = parse(ht29_gct_path)
-a549_gct = parse(a549_gct_path)
+in_gct = parse.parse(in_gct_path)
+thing1_gct = parse.parse(thing1_gct_path)
+thing2_gct = parse.parse(thing2_gct_path)
+a375_gct = parse.parse(a375_gct_path)
+ht29_gct = parse.parse(ht29_gct_path)
+a549_gct = parse.parse(a549_gct_path)
 
 
 class TestSeparateGct(unittest.TestCase):

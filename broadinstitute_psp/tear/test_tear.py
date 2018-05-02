@@ -27,7 +27,7 @@ class TestTear(unittest.TestCase):
         tear.main(args)
 
         # Read in result
-        out_gct = parse(out_name)
+        out_gct = parse.parse(out_name)
 
         e_values = np.array(
             [[0., 4.07, -1.48, -10.71, 0.],

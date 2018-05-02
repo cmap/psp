@@ -103,7 +103,7 @@ def build_parser():
 def main(args):
 
     # Parse gct
-    gct = parse(args.input_gct_path)
+    gct = parse.parse(args.input_gct_path)
 
     # TODO(LL): better integrate main_sym and main_asym
 

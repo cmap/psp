@@ -76,9 +76,9 @@ def build_parser():
 def main(args):
 
     # Parse input gcts
-    external_gct = parse(args.external_gct_path)
-    internal_gct = parse(args.internal_gct_path)
-    bg_gct = parse(args.bg_gct_path)
+    external_gct = parse.parse(args.external_gct_path)
+    internal_gct = parse.parse(args.internal_gct_path)
+    bg_gct = parse.parse(args.bg_gct_path)
 
     # Meat of the script
     (sim_gct, conn_gct) = do_steep_and_sip(

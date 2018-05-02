@@ -56,7 +56,7 @@ def build_parser():
 def main(args):
 
     # Read in the first gct
-    gct1 = parse(args.in_gct_path)
+    gct1 = parse.parse(args.in_gct_path)
 
     # If second gct provided, compute similarity between 2 gcts
     if args.in_gct2_path is not None:
@@ -64,7 +64,7 @@ def main(args):
                     "between the columns of in_gct and in_gct2.")
 
         # Read in the second gct
-        gct2 = parse(args.in_gct2_path)
+        gct2 = parse.parse(args.in_gct2_path)
 
         # Compute similarities between gct1 and gct2
         out_df = compute_similarity_bw_two_dfs(gct1.data_df, gct2.data_df, args.similarity_metric)

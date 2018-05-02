@@ -4,15 +4,13 @@ separate_gct.py
 Separates a gct into several gcts.
 
 """
-
 import logging
 import sys
 import os
 import argparse
-import pandas as pd
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import cmapPy.pandasGEXpress.slice_gct as slice_gct
+import cmapPy.pandasGEXpress.subset_gctoo as sg
 import cmapPy.pandasGEXpress.parse as parse
 import cmapPy.pandasGEXpress.write_gct as wg
 import cmapPy.pandasGEXpress.write_gctx as wgx
@@ -51,7 +49,7 @@ def main(args):
     """ The main method. """
 
     # Import gct
-    in_gct = parse(args.in_gct_path)
+    in_gct = parse.parse(args.in_gct_path)
 
     # Create the separated gcts
     (out_gcts, out_gct_prefixes) = separate(in_gct, args.separate_field, args.row_or_col)
@@ -95,7 +93,7 @@ def separate(in_gct, separate_field, row_or_col):
         for val in unique_values_in_field:
             bool_array = in_gct.row_metadata_df.loc[:, separate_field].values == val
 
-            new_gct = slice_gct.slice_gctoo(in_gct, row_bool=bool_array)
+            new_gct = sg.subset_gctoo(in_gct, row_bool=bool_array)
             gcts.append(new_gct)
 
     elif row_or_col == "col":
@@ -109,7 +107,7 @@ def separate(in_gct, separate_field, row_or_col):
         gcts = []
         for val in unique_values_in_field:
             bool_array = in_gct.col_metadata_df.loc[:, separate_field].values == val
-            new_gct = slice_gct.slice_gctoo(in_gct, col_bool=bool_array)
+            new_gct = sg.subset_gctoo(in_gct, col_bool=bool_array)
             gcts.append(new_gct)
 
     else:

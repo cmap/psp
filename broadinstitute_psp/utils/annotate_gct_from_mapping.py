@@ -61,7 +61,7 @@ def build_parser():
 def main(args):
 
     # Parse gct file
-    gct = parse(args.path_to_gct)
+    gct = parse.parse(args.path_to_gct)
 
     # Parse mapping tsv file
     mapping = pd.read_csv(args.path_to_mapping_tsv, sep="\t", index_col=0)

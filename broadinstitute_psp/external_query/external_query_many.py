@@ -18,7 +18,7 @@ import traceback
 
 import cmapPy.pandasGEXpress.parse as parse
 import cmapPy.pandasGEXpress.write_gct as wg
-import cmapPy.pandasGEXpress.concat_gctoo as cg
+import cmapPy.pandasGEXpress.concat as cg
 
 import broadinstitute_psp.external_query.external_query as eq
 import broadinstitute_psp.introspect.introspect as introspect
@@ -86,7 +86,7 @@ def main(args):
          connectivity_metric) = read_config_file(args.psp_on_clue_config_path)
 
         # Read in the external profiles only once
-        external_gct = parse(args.external_gct_path)
+        external_gct = parse.parse(args.external_gct_path)
 
         # If requested, do introspect
         (_, introspect_gct) = introspect.do_steep_and_sip(
@@ -106,12 +106,12 @@ def main(args):
             # Import gct with the internal profiles for this cell line
             internal_gct_path = os.path.join(internal_gct_dir, INTERNAL_GCT_FORMAT.format(
                 assay=args.assay, cell=cell))
-            internal_gct = parse(internal_gct_path)
+            internal_gct = parse.parse(internal_gct_path)
 
             # Import gct with the similarity matrix for this cell line
             bg_gct_path = os.path.join(bg_gct_dir, BG_GCT_FORMAT.format(
                 assay=args.assay, cell=cell))
-            bg_gct = parse(bg_gct_path)
+            bg_gct = parse.parse(bg_gct_path)
 
             (sim_gct, conn_gct) = eq.do_steep_and_sip(
                 external_gct, internal_gct, bg_gct, "spearman",

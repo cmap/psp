@@ -38,7 +38,7 @@ def build_parser():
 def main(args):
 
     # Import data
-    in_gct = parse(args.in_gct_path)
+    in_gct = parse.parse(args.in_gct_path)
 
     # Compute distance df
     dist_df = 1 - in_gct.data_df

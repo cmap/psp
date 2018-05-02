@@ -13,7 +13,7 @@ In addition to the scripts available here, you can get quick access to these dat
 
 Lev Litichevskiy  
 lev@broadinstitute.org  
-March 2018
+May 2018
 
 ## Setting up your environment
 
@@ -30,17 +30,17 @@ March 2018
   5. We will now create an environment with conda that will allow us to use PSP. If on OSX or Linux, type the following in your Terminal:
 
       ```
-      conda create --name psp_env --channel bioconda python=2 pandas scipy h5py cmappy=2.0.1
+      conda create --name psp_env --channel bioconda python=2 pandas scipy h5py cmappy=3.2.0
       ```
       
-      'psp_env' will be the name of your conda environment, and the things after it are the packages that our environment will contain. Note that we are using python2, not python3. We also have to specify that we should also look in the `bioconda` channel in order to find the [cmapPy](https://github.com/cmap/cmappy "cmapPy Github") package (tools for interacting with .gct and .gctx files), namely the 2.0.1 version. You'll have to type 'yes' to proceed through the installation.
+      'psp_env' will be the name of your conda environment, and the things after it are the packages that our environment will contain. Note that we are using python2, not python3. We also have to specify that we should also look in the `bioconda` channel in order to find the [cmapPy](https://github.com/cmap/cmappy "cmapPy Github") package (tools for interacting with .gct and .gctx files), namely the 3.2.0 version. You'll have to type 'yes' to proceed through the installation.
       
       If on PC, type the following in your terminal:
       
       ```
       conda create --name psp_env --channel bioconda python=2 pandas scipy h5py
       activate psp_env
-      pip install cmappy==2.0.1
+      pip install cmappy==3.2.0
       ```
       
       Unfortunately, bioconda (which is where [cmapPy](https://github.com/cmap/cmappy "cmapPy Github") is hosted) does not support Windows, so we have to use pip to install it.
@@ -98,11 +98,11 @@ March 2018
 
 ## cmapPy
 
-cmapPy is the repository of Python tools for interacting with .gct and .gctx files. This repo relies heavily on it. We install it using conda or pip above. Note that you also get several command line tools for free, such as gct2gctx, gctx2gct, slice_gct, and concat_gctoo. For example, type the following in your terminal:
+cmapPy is the repository of Python tools for interacting with .gct and .gctx files. This repo relies heavily on it. We install it using conda or pip above. Note that you also get several command line tools for free, such as gct2gctx, gctx2gct, subset, and concat. For example, type the following in your terminal:
 
-`concat_gctoo -h` 
+`concat -h` 
 
-If you see the help page for concat_gctoo, you can use this tool directly from the command line. See the [cmapPy repo](https://github.com/cmap/cmappy "cmapPy Github")  for more information.
+If you see the help page for concat, you can use this tool directly from the command line. See the [cmapPy repo](https://github.com/cmap/cmappy "cmapPy Github")  for more information.
 
 
 ## Configuration file

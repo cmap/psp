@@ -51,7 +51,7 @@ def build_parser():
 
 def main(args):
     # Import gct
-    gct = parse(args.gct_file_path)
+    gct = parse.parse(args.gct_file_path)
 
     # Get plate and well names
     (plate_names, well_names) = extract_plate_and_well_names(

@@ -1054,7 +1054,7 @@ def update_metadata_and_prov_code(data_df, row_meta_df, col_meta_df, prov_code_e
 
 
 # tested #
-# TODO(lev): refactor to use ds_slice
+# TODO(lev): refactor to use subset_gctoo
 def slice_metadata_using_already_sliced_data_df(data_df, row_meta_df, col_meta_df):
     """Slice row_meta_df and col_meta_df to only contain the row_ids and col_ids
     in data_df.

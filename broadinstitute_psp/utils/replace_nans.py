@@ -12,7 +12,7 @@ import os
 import sys
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import cmapPy.pandasGEXpress.slice_gct as sg
+import cmapPy.pandasGEXpress.subset_gctoo as sg
 import cmapPy.pandasGEXpress.parse as parse
 import cmapPy.pandasGEXpress.write_gct as wg
 
@@ -39,12 +39,12 @@ def main(args):
     # Import data
     assert os.path.exists(args.in_gct_path), (
         "in_gct_path could not be found: {}").format(args.in_gct_path)
-    in_gct = parse(args.in_gct_path)
+    in_gct = parse.parse(args.in_gct_path)
 
     # First, check if any rows are all NaN; if so, remove them
     dropped_df = in_gct.data_df.dropna(how="all")
     bools_of_remaining = in_gct.data_df.index.isin(dropped_df.index.values)
-    in_gct = sg.slice_gctoo(in_gct, row_bool=bools_of_remaining)
+    in_gct = sg.subset_gctoo(in_gct, row_bool=bools_of_remaining)
 
     if args.replace_with == "zero":
         in_gct.data_df.fillna(0, inplace=True)

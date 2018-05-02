@@ -58,7 +58,7 @@ def build_parser():
 
 def main(args):
 
-	gct = parse(args.in_gct_path)
+	gct = parse.parse(args.in_gct_path)
 
 	(_, conn_gct) = do_steep_and_sip(
 		gct, args.similarity_metric,

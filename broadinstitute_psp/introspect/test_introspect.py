@@ -28,8 +28,8 @@ class TestIntrospect(unittest.TestCase):
 		introspect.main(args)
 
 		# Read in output and expected gcts and confirm that they're equal
-		output_gct = parse(output_gct_path)
-		expected_gct = parse(expected_gct_path)
+		output_gct = parse.parse(output_gct_path)
+		expected_gct = parse.parse(expected_gct_path)
 
 		pd.util.testing.assert_almost_equal(expected_gct.data_df, output_gct.data_df, check_less_precise=2)
 		pd.testing.assert_frame_equal(expected_gct.row_metadata_df, output_gct.row_metadata_df)
@@ -53,8 +53,8 @@ class TestIntrospect(unittest.TestCase):
 		introspect.main(args)
 
 		# Read in output and expected gcts and confirm that they're equal
-		output_gct = parse(output_gct_path)
-		expected_gct = parse(expected_gct_path)
+		output_gct = parse.parse(output_gct_path)
+		expected_gct = parse.parse(expected_gct_path)
 
 		pd.util.testing.assert_almost_equal(expected_gct.data_df, output_gct.data_df, check_less_precise=True)
 		pd.util.testing.assert_frame_equal(expected_gct.row_metadata_df, output_gct.row_metadata_df)

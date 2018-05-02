@@ -27,8 +27,8 @@ class TestAnnotate(unittest.TestCase):
         agfm.main(args)
 
         # Read in expected and actual outputs
-        e_gct = parse(expected_gct_path)
-        out_gct = parse(out_path)
+        e_gct = parse.parse(expected_gct_path)
+        out_gct = parse.parse(out_path)
 
         pd.util.testing.assert_frame_equal(e_gct.data_df, out_gct.data_df)
         pd.util.testing.assert_frame_equal(e_gct.row_metadata_df, out_gct.row_metadata_df)
