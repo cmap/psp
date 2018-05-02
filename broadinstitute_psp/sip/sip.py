@@ -72,7 +72,7 @@ def build_parser():
     parser.add_argument("--fields_to_aggregate_in_bg_gct", "-bf",
                         nargs="*", default=["pert_id", "cell_id", "pert_time"],
                         help="metadata fields in the background gct rows AND columns identifying replicates")
-    parser.add_argument("--separator", "-s", type=str, default=":",
+    parser.add_argument("--separator", "-s", type=str, default="|",
                         help="string separator for aggregating fields together")
     parser.add_argument("--verbose", "-v", action="store_true", default=False,
                         help="whether to increase the # of messages reported")
