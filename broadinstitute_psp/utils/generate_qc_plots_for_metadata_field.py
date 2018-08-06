@@ -35,22 +35,13 @@ def build_parser():
 
 def main(args):
     # Read GCTs into a list
-    gctoo_list = read_gcts(args.list_of_gcts)
+    gctoo_list = [parse.parse(gct) for gct in args.list_of_gcts]
 
     # Create superset of all probes in GCTs
     probe_superset = create_probe_superset(gctoo_list)
 
     # Create pdf in which each page is a probe of the superset
     create_output_pdf(probe_superset, gctoo_list, args.metadata_field, args.output_name)
-
-
-def read_gcts(list_of_gcts):
-    # TODO : consider turning into list comprehension
-    list_of_gctoo = list()
-    for gct_path in list_of_gcts:
-        gct = parse.parse(gct_path)
-        list_of_gctoo.append(gct)
-    return list_of_gctoo
 
 
 def create_probe_superset(gctoo_list):
@@ -84,31 +75,47 @@ def plotify(probe, gctoo_list, metadata_field):
         figure (plot)
     """
 
-    plt.figure()
-    fig, axes = plt.subplots(1, len(gctoo_list), sharey=True, sharex=True)
-    plt.suptitle(probe, fontsize=16)
-    plt.xlabel(metadata_field)
+    if len(gctoo_list) > 1:
+        plt.figure()
+        fig, axes = plt.subplots(1, len(gctoo_list), sharey=True, sharex=True)
+        plt.suptitle(probe, fontsize=16)
+        plt.xlabel(metadata_field)
 
-    for i in range(len(gctoo_list)):
-        gct = gctoo_list[i]
-        x_vals = gct.col_metadata_df.loc[:, metadata_field]
+        for i in range(len(gctoo_list)):
+            gct = gctoo_list[i]
+            x_vals = gct.col_metadata_df.loc[:, metadata_field]
 
-        # Account for GCTs in which probe field may have been filtered
+            # Account for GCTs in which probe field may have been filtered
+            try:
+                y_vals = gct.data_df.loc[probe, :]
+            except KeyError as error:
+                # If probe does not exist in GCT y values are null
+                y_vals = pd.Series(index=gct.data_df.columns)
+
+            # Set up plot sizing
+            axes[i].tick_params(axis='both', which='major', labelsize=8)
+            axes[i].set_title(gct.src, fontsize=5)
+
+            axes[i].scatter(x_vals, y_vals)
+
+            # Set y axis label on first / left-most plot only
+            if i == 0:
+                axes[i].set_ylabel("Probe Quant Value")
+    else:
+
+        fig = plt.figure()
+        plt.title(probe)
+        plt.xlabel(metadata_field)
+        plt.ylabel("Probe Quant Value")
+        x_vals = gctoo_list[0].col_metadata_df.loc[:, metadata_field]
+
         try:
-            y_vals = gct.data_df.loc[probe, :]
+            y_vals = gctoo_list[0].data_df.loc[probe, :]
         except KeyError as error:
             # If probe does not exist in GCT y values are null
-            y_vals = pd.Series(index=gct.data_df.columns)
+            y_vals = pd.Series(index=gctoo_list[0].data_df.columns)
 
-        # Set up plot sizing
-        axes[i].tick_params(axis='both', which='major', labelsize=8)
-        axes[i].set_title(gct.src, fontsize=5)
-
-        axes[i].scatter(x_vals, y_vals)
-
-        # Set y axis label on first / left-most plot only
-        if i == 0:
-            axes[i].set_ylabel("Probe Quant Value")
+        plt.scatter(x_vals, y_vals)
 
     plt.close()
     return fig
