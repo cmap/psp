@@ -35,18 +35,36 @@ class TestConfigConverter(unittest.TestCase):
         self.assertEqual(differential_params, expected_params)
 
     def test_convert_gct_to_config(self):
+        # Differential params
         config_dir = tempfile.mkdtemp()
         save_file_path = os.path.join(config_dir, "test.cfg")
 
         gct_path = "functional_tests/test_pr_processing_params.gct"
         assay = "p100"
-        config_converter.convert_gct_to_config(assay, gct_path, save_file_path)
+        diff_params = config_converter.convert_gct_to_config(assay, gct_path, save_file_path)
+        self.assertIsNotNone(diff_params)
 
         (_, _, custom_parameters_from_read) = psp_utils.read_config_file(save_file_path)
         differential_params = config_converter.check_custom_parameters_against_defaults(assay, custom_parameters_from_read)
 
         expected_params = {"p100_dist_sd_cutoff": "6"}
         self.assertEqual(differential_params, expected_params)
+
+        # No differential params, pr_processing_params empty {}
+        gct_path = "functional_tests/test_pr_processing_params_empty.gct"
+        diff_params = config_converter.convert_gct_to_config(assay, gct_path, save_file_path)
+        self.assertIsNone(diff_params)
+
+        # No differential params, pr_processing_params column DNE
+        gct_path = "functional_tests/test_no_pr_processing_params.gct"
+        diff_params = config_converter.convert_gct_to_config(assay, gct_path, save_file_path)
+        self.assertIsNone(diff_params)
+
+        # No differential params, pr_processing_params contains base_histone_normalization_mapping only
+        gct_path = "functional_tests/test_pr_processing_params_base_histone_normalization_mapping.gct"
+        diff_params = config_converter.convert_gct_to_config(assay, gct_path, save_file_path)
+        self.assertIsNone(diff_params)
+
 
     def test_create_dict_from_pseudojson(self):
         pseudoJSON = '""{""samplePctCutoff"":0.7,""probePctCutoff"":0.5}""'

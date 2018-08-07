@@ -1,7 +1,5 @@
 import sys
 import argparse
-import ast
-import json
 import re
 import os
 import ConfigParser
@@ -9,14 +7,6 @@ import psp_utils
 import cmapPy.pandasGEXpress.parse as parse
 
 
-'''
-TODO: 
-
-* add argument to pass in GCT, parse and return config
-['pr_processing_params']
-
-
-'''
 DEFAULT_CONFIG_PATH = "../psp_production.cfg"
 
 def build_parser():
@@ -45,7 +35,6 @@ def build_parser():
                             "production config (see NB above) requires output path")
 
     return parser
-
 
 
 def main(args):
@@ -96,11 +85,22 @@ def convert_gct_to_config(assay_type, gct_path, output_path):
     gct = parse.parse(gct_path)
 
     # All rows have same parameters embedded, choose any
-    custom_params = gct.row_metadata_df.loc[:,"pr_processing_params"].any()
-    custom_params = create_dict_from_pseudojson(custom_params)
+    try :
+        custom_params = gct.row_metadata_df.loc[:,"pr_processing_params"].any()
+    except Exception as error:
+        print "GCT does not contain pr_processing_params field"
+        return None
 
+    if custom_params == "{}":
+        print "GCT contains pr_processing_params field, but it is empty"
+        return None
+
+    custom_params = create_dict_from_pseudojson(custom_params)
     differential_parameters = check_custom_parameters_against_defaults(assay_type, custom_params, json=True)
-    write_config(differential_parameters, output_path)
+    if differential_parameters is not None:
+        write_config(differential_parameters, output_path)
+
+    return differential_parameters
 
 def create_dict_from_pseudojson(pseudoJSONString):
     """
@@ -115,6 +115,21 @@ def create_dict_from_pseudojson(pseudoJSONString):
 
     """
     list = re.split(r'[{,}]', pseudoJSONString)
+    start = None
+
+    # Removes "base_histone_normalization_mapping" which has a list as its value
+    # and will fail to parse correctly. This is utilized on Panorama during GCT creation.
+    # Used to populate "pr_normalization_peptide_id" field
+
+    for i, entry in enumerate(list):
+        if "[" in entry :
+            start = i
+        elif "]" in entry :
+            end = i + 1
+
+    if start is not None :
+        del list[start:end]
+
     key_value_pairs = []
     dict = {}
     for token in list:
@@ -127,10 +142,10 @@ def create_dict_from_pseudojson(pseudoJSONString):
         # Strip any whitespace and remove any extra quotations
         key = key.translate(None, '"').strip()
         dict[key] = value
-
     return dict
 
 def populate_background_parameters(json_parameters_dict):
+
     (_, _, default_config_parameters) = psp_utils.read_config_file(DEFAULT_CONFIG_PATH)
     for param in default_config_parameters:
         if param not in json_parameters_dict:
@@ -196,13 +211,18 @@ def map_R_params(assay_type, parameters):
         "probeSDCutoff"     : "probe_sd_cutoff",
         "distSDcutoff"      : "dist_sd_cutoff"
     }
-
-    output = {}
+    output_params = {}
     for param in parameters.keys():
+
+        #TODO : see about adding this to psp_production.cfg
+
+        if param == "base_histone_normalization_mapping":
+            continue
+
         # Does not have prepended assay_type
-        if param == "offset_bounds":
+        elif param == "offset_bounds":
             key = param
-        # elif param == "base"
+
         # Convert from R parameter to Py parameter
         elif param in R_conversion_mapping.keys():
             key = assay_type + "_" + R_conversion_mapping[param]
@@ -219,14 +239,14 @@ def map_R_params(assay_type, parameters):
                 print "The following is not a valid parameter: {}".format(param)
                 return None
 
-        output[key.lower()] = parameters[param]
+        output_params[key.lower()] = parameters[param]
 
-    return output
+    return output_params
 
 def write_config(custom_config_parameters, output_path):
-    print custom_config_parameters
     config_parser = ConfigParser.RawConfigParser()
     config_parser.read(os.path.expanduser(DEFAULT_CONFIG_PATH))
+
     for param in custom_config_parameters:
         config_parser.set("parameters", param, custom_config_parameters[param])
 

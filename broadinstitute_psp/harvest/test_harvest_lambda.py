@@ -31,10 +31,16 @@ class TestHarvestLambda(unittest.TestCase):
             "assay": "P100",
             "status": "Waiting_To_Download",
             "id": req_id,
-            "level 2": {
+            "level2": {
                 "panorama": {
                     "method": "GET",
                     "url": "https://panoramaweb.org/lincs/LINCS-DCIC/P100/runGCTReport.view?runId=32201&reportName=GCT%20File%20P100"
+                }
+            },
+            "config": {
+                "panorama": {
+                    "method": "GET",
+                    "url" : ""
                 }
             }
         }
@@ -63,11 +69,18 @@ class TestHarvestLambda(unittest.TestCase):
         h.post_update_to_proteomics_clue = mock.Mock()
 
         # happy path, should post twice: s3 location of lvl2, status update
-        h.harvest(panorama_req, "fake_bucket", "psp/level2/fake_plate_name.json")
+        h.harvest(panorama_req["level2"]["panorama"]["url"], req_id, "fake_bucket", "psp/level2/" + name + "_LVL2.gct", "/level2")
         post_update_mock_calls = h.post_update_to_proteomics_clue.call_args_list
         expected_calls = [mock.call("/level2", req_id, {"s3":{"url":"s3://fake_bucket/psp/level2/"+ name +"_LVL2.gct" }}),
                           mock.call("", req_id, {"status":"created LVL2 GCT"})]
         self.assertEqual(expected_calls, post_update_mock_calls)
+
+        h.post_update_to_proteomics_clue.reset_mock()
+        h.harvest(panorama_req["config"]["panorama"]["url"], req_id, "fake_bucket", "psp/config/" + name + ".cfg", "/config")
+        post_update_mock_calls = h.post_update_to_proteomics_clue.call_args_list
+        expected_calls = [mock.call("/config", req_id, {"s3": {"url": "s3://fake_bucket/psp/config/" + name + ".cfg"}})]
+        self.assertEqual(expected_calls, post_update_mock_calls)
+
 
     def test_harvest_unhappy_urlopen(self):
         #test setup
@@ -79,9 +92,9 @@ class TestHarvestLambda(unittest.TestCase):
 
         #unhappy url to panorama should call to urllib.urlopen, fail, and post failure to clue
         with self.assertRaises(Exception) as context:
-            h.harvest(panorama_req, "fake_bucket", "psp/level2/fake_panorama_key.json")
+            h.harvest(panorama_req["level2"]["panorama"]["url"], req_id, "fake_bucket", "psp/level2/fake_panorama_key.gct", "/level2")
         self.assertEqual(str(context.exception), "failure")
-        self.assertEqual(panorama_req["level 2"]["panorama"]["url"], h.urllib.urlopen.call_args[0][0])
+        self.assertEqual(panorama_req["level2"]["panorama"]["url"], h.urllib.urlopen.call_args[0][0])
 
         clue_post_args = h.post_update_to_proteomics_clue.call_args[0]
         self.assertEqual("/level2", clue_post_args[0], "unhappy path, urllib Exception, post to clue does not contain API URL suffix")
@@ -102,7 +115,7 @@ class TestHarvestLambda(unittest.TestCase):
 
         #unhappy s3 upload should post "s3 upload error"
         with self.assertRaises(Exception) as context:
-            h.harvest(panorama_req, "fake_bucket", "psp/level2/fake_panorama_key.json")
+            h.harvest(panorama_req["level2"]["panorama"]["url"],req_id, "fake_bucket", "psp/level2/fake_panorama_key.gct", "/level2" )
         self.assertEqual(boto3.exceptions.S3UploadFailedError, type(context.exception[0]))
         h.post_update_to_proteomics_clue.assert_called_once()
 
@@ -116,10 +129,12 @@ class TestHarvestLambda(unittest.TestCase):
         (req_id, name, panorama_req) = TestHarvestLambda.setup_panorama_request()
         key = "psp/level2/request.json"
 
-        (request_id, aws_key) = h.extract_data_from_panorama_request(panorama_request=panorama_req, key=key)
+        gct_key = "psp/level2/" + name + "_LVL2" + h.FILE_EXTENSION
+
+        (request_id, aws_gct_key) = h.extract_data_from_panorama_request(panorama_request=panorama_req, key=key)
 
         self.assertEqual(req_id, request_id)
-        self.assertEqual(aws_key, "psp/level2/" + name + "_LVL2" + h.FILE_EXTENSION)
+        self.assertEqual(aws_gct_key, gct_key)
 
     ## post_update_to_proteomics_clue not explicitly tested here, see utils.lambda_utils
 

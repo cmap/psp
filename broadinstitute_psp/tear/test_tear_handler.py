@@ -25,15 +25,15 @@ class TestTearHandler(unittest.TestCase):
     @staticmethod
     def setup_args():
         args = mock.Mock(bucket_name = "test_bucket",
-                        file_key = "psp/level2/test_file_key.gct",
+                        file_key = "psp/level3/test_file_key.gct",
                         config_dir = "/this/dir",
                         plate_api_id = "test_api_id",
                         plate_name = "test_plate_name")
 
         return args
 
-    def test_download_gct_from_s3(self):
-        #setup
+    def test_download_file_from_s3(self):
+        # Setup, testing GCT only, but usage is same for config
         args = TestTearHandler.setup_args()
         th.utils.post_update_to_proteomics_clue.reset_mock()
         s3 = mock.MagicMock()
@@ -42,11 +42,11 @@ class TestTearHandler(unittest.TestCase):
 
         #unhappy path ClientError ErrorCode 404
         with self.assertRaises(Exception) as context:
-            th.download_gct_from_s3(s3, args, "/this/dir/level4.gct")
+            th.download_file_from_s3(s3, args, args.file_key, "/this/dir/level4.gct", "/level4")
         th.utils.post_update_to_proteomics_clue.assert_called_once()
 
         expected_call = mock.call(th.LEVEL_4_API_SUFFIX, args.plate_api_id,
-                                  {"s3":{"message":"The LVL3 GCT located at psp/level2/test_file_key.gct from bucket test_bucket does not exist" }})
+                                  {"s3":{"message":"Tear: The file located at psp/level3/test_file_key.gct from bucket test_bucket does not exist" }})
         self.assertEqual(expected_call, th.utils.post_update_to_proteomics_clue.call_args)
 
         #unhappy path ClientError ErrorCode !404
@@ -55,14 +55,14 @@ class TestTearHandler(unittest.TestCase):
             side_effect=ClientError({'Error': {'Code': '500', 'Message': 'Oops'}}, 'GetObject'))
 
         with self.assertRaises(Exception) as context:
-            th.download_gct_from_s3(s3, args, "/this/dir/level4.gct")
+            th.download_file_from_s3(s3, args, args.file_key, "/this/dir/level4.gct", "/level4")
 
         expected_call = mock.call(th.LEVEL_4_API_SUFFIX, args.plate_api_id,
-                                  {"s3": {"message": "failed to download LVL3 GCT located at psp/level2/test_file_key.gct from bucket test_bucket"}})
+                                  {"s3": {"message": "Tear: failed to download file located at psp/level3/test_file_key.gct from bucket test_bucket"}})
         self.assertEqual(expected_call, th.utils.post_update_to_proteomics_clue.call_args)
 
-    @mock.patch("tear_handler.download_gct_from_s3")
-    def test_call_tear_happy_path(self, download_gct):
+    @mock.patch("tear_handler.download_file_from_s3")
+    def test_call_tear_happy_path(self, download_file):
         #setup
         args = TestTearHandler.setup_args()
         th.s3 = mock.Mock()
@@ -76,7 +76,12 @@ class TestTearHandler(unittest.TestCase):
         th.call_tear(args)
 
         th.boto3.resource.assert_called_once()
-        download_gct.assert_called_once()
+        download_file_calls = download_file.call_args_list
+        expected_download_file_calls = [
+            mock.call(th.s3, args, "psp/level3/test_file_key.gct", "/this/dir/level3.gct", "/level4"),
+            mock.call(th.s3, args, "psp/config/test_plate_name.cfg", "/this/dir/test_plate_name.cfg", "/config")]
+        self.assertEqual(download_file_calls, expected_download_file_calls)
+
         th.tear.main.assert_called_once()
 
         # vars() turns the call_args into a dictionary, removing from Namespace()
@@ -84,7 +89,7 @@ class TestTearHandler(unittest.TestCase):
 
         out_name = args.config_dir + "/" + th.LOCAL_LEVEL_4_GCT_NAME
         self.assertEqual(out_name, tear_call["out_name"])
-        self.assertEqual("/this/dir/psp_production.cfg", tear_call["psp_config_path"])
+        self.assertEqual("/this/dir/test_plate_name.cfg", tear_call["psp_config_path"])
         self.assertEqual("/this/dir/level3.gct",tear_call["in_gct_path"])
 
         th.open.assert_called_once()
@@ -99,8 +104,8 @@ class TestTearHandler(unittest.TestCase):
                         mock.call("", args.plate_api_id, {"status":"created LVL 4 GCT"})]
         self.assertEqual(clue_posts, expected_posts)
 
-    @mock.patch("tear_handler.download_gct_from_s3")
-    def test_call_tear_unhappy_path_tear_failure(self, download_gct):
+    @mock.patch("tear_handler.download_file_from_s3")
+    def test_call_tear_unhappy_path_tear_failure(self, download_file):
         #setup
         args = TestTearHandler.setup_args()
         th.s3 = mock.Mock()
@@ -113,14 +118,20 @@ class TestTearHandler(unittest.TestCase):
             th.call_tear(args)
         self.assertEqual(str(context.exception[0]), "failure")
         th.boto3.resource.assert_called_once()
-        download_gct.assert_called_once()
+
+        download_file_calls = download_file.call_args_list
+        expected_download_file_calls = [
+            mock.call(th.s3, args, "psp/level3/test_file_key.gct", "/this/dir/level3.gct", "/level4"),
+            mock.call(th.s3, args, "psp/config/test_plate_name.cfg", "/this/dir/test_plate_name.cfg", "/config")]
+        self.assertEqual(download_file_calls, expected_download_file_calls)
+
         th.tear.main.assert_called_once()
 
         tear_call = vars(th.tear.main.call_args[0][0])
 
         out_name = args.config_dir + "/" + th.LOCAL_LEVEL_4_GCT_NAME
         self.assertEqual(out_name, tear_call["out_name"])
-        self.assertEqual("/this/dir/psp_production.cfg", tear_call["psp_config_path"])
+        self.assertEqual("/this/dir/test_plate_name.cfg", tear_call["psp_config_path"])
         self.assertEqual("/this/dir/level3.gct", tear_call["in_gct_path"])
 
         post = th.utils.post_update_to_proteomics_clue.call_args_list[0]
@@ -128,8 +139,8 @@ class TestTearHandler(unittest.TestCase):
 
         self.assertEqual(expected_post, post)
 
-    @mock.patch("tear_handler.download_gct_from_s3")
-    def test_call_tear_unhappy_path_s3_upload_failure(self, download_gct):
+    @mock.patch("tear_handler.download_file_from_s3")
+    def test_call_tear_unhappy_path_s3_upload_failure(self, download_file):
         # setup
         args = TestTearHandler.setup_args()
         th.s3 = mock.Mock(name="s3 mock")
@@ -143,17 +154,22 @@ class TestTearHandler(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             th.call_tear(args)
         # exception itself is empty
-        self.assertEqual(S3UploadFailedError, type(context.exception[0][0]))
+        self.assertEqual(S3UploadFailedError, type(context.exception[0]))
 
         th.boto3.resource.assert_called_once()
-        download_gct.assert_called_once()
+        download_file_calls = download_file.call_args_list
+
+        expected_download_file_calls = [mock.call(th.s3, args, "psp/level3/test_file_key.gct", "/this/dir/level3.gct", "/level4"),
+                                        mock.call(th.s3, args, "psp/config/test_plate_name.cfg", "/this/dir/test_plate_name.cfg", "/config")]
+        self.assertEqual(download_file_calls, expected_download_file_calls)
+
         th.tear.main.assert_called_once()
 
         tear_call = vars(th.tear.main.call_args[0][0])
 
         out_name = args.config_dir + "/" + th.LOCAL_LEVEL_4_GCT_NAME
         self.assertEqual(out_name, tear_call["out_name"])
-        self.assertEqual("/this/dir/psp_production.cfg", tear_call["psp_config_path"])
+        self.assertEqual("/this/dir/test_plate_name.cfg", tear_call["psp_config_path"])
         self.assertEqual("/this/dir/level3.gct", tear_call["in_gct_path"])
 
 
@@ -171,10 +187,12 @@ class TestTearHandler(unittest.TestCase):
         self.assertEqual(expected_post, post)
 
 
-    def test_create_level_3_key(self):
+    def test_create_s3_keys(self):
         args = TestTearHandler.setup_args()
-        level_4_key = th.create_level_4_key(args)
-        self.assertEqual("psp/level4/" + args.plate_name +"_LVL4" + th.FILE_EXTENSION, level_4_key)
+        s3_keys = th.create_s3keys(args)
+        expected_s3_keys = ("psp/level4/" + args.plate_name +"_LVL4" + th.FILE_EXTENSION,
+                            "psp/config/" + args.plate_name + ".cfg")
+        self.assertEqual(s3_keys, expected_s3_keys)
 
 
 if __name__ == "__main__":
