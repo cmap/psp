@@ -97,6 +97,7 @@ class TestConfigConverter(unittest.TestCase):
         no_diff_dict = config_converter.create_dict_from_pseudojson(pseudoJSON)
         differential_parameters = config_converter.check_custom_parameters_against_defaults(assay,no_diff_dict, json=True)
         self.assertIsNone(differential_parameters)
+
         # Differential params from pseudoJSON
         pseudoJSON = '""{""samplePctCutoff"":0.7,""probePctCutoff"":0.5}""'
         diff_dict = config_converter.create_dict_from_pseudojson(pseudoJSON)

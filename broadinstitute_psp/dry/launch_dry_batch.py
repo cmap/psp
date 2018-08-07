@@ -2,18 +2,17 @@ import boto3
 import json
 import os
 
-
 def lambda_handler(event, context):
     s3 = boto3.resource('s3')
     bucket_name = event['Records'][0]['s3']['bucket']['name']
-    file_key = event['Records'][0]['s3']['object']['key']
-    (request_id, plate_name) = get_panorama_request_and_parse(s3, bucket_name, file_key)
-    send_to_Batch(bucket_name, file_key, request_id, plate_name)
+    gct_file_key = event['Records'][0]['s3']['object']['key']
+    (request_id, plate_name) = get_panorama_request_and_parse(s3, bucket_name, gct_file_key)
+    send_to_Batch(bucket_name, gct_file_key, request_id, plate_name)
 
 
-def send_to_Batch(bucket_name, file_key, request_id, plate_name):
+def send_to_Batch(bucket_name, gct_file_key, request_id, plate_name):
     client = boto3.client('batch')
-    job = plate_name
+    job = plate_name + " dry"
     res = client.submit_job(
         jobName=job,
         jobQueue='Macchiato-misc',
@@ -21,7 +20,7 @@ def send_to_Batch(bucket_name, file_key, request_id, plate_name):
         jobDefinition='psp-dry',
         containerOverrides={
             'command': [
-                '/cmap/bin/dry', '--bucket_name', bucket_name, '--file_key', file_key,
+                '/cmap/bin/dry', '--bucket_name', bucket_name, '--file_key', gct_file_key,
                 '--config_dir', 'broadinstitute_psp', '--plate_api_id', request_id,
                 '--plate_name', plate_name
             ],

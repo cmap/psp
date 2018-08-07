@@ -35,7 +35,7 @@ def get_panorama_request_and_parse(s3, bucket_name, current_gct_key):
 
 def send_to_Batch(bucket_name, file_key, request_id, plate_name):
     client = boto3.client('batch')
-    job = plate_name
+    job = plate_name + " tear"
     res = client.submit_job(
         jobName=job,
         jobQueue='Macchiato-misc',

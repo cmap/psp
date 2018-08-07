@@ -26,8 +26,8 @@ def handler(event, context):
     api_entry = get_api_entry_from_proteomics_clue(request_id)
 
     if api_entry is not None:
-        levels = ["level 3", "level 4"]
-        for level in levels:
+
+        for level in ["level 3", "level 4", "config"]:
             panorama_location = api_entry[level]["panorama"]["url"]
             s3_location = api_entry[level]["s3"]["url"]
             pour(s3, bucket_name, s3_location, panorama_location, request_id)
@@ -55,12 +55,17 @@ def get_panorama_request_and_parse(s3, bucket_name, current_gct_key):
     Returns:
         request_id (string)
     """
+    # Extract top level directory from key, which is first '/'-separated token
     s3_dir = current_gct_key.split("/", 1)[0] + "/level2"
+
+    # Extract GCT file name, which is last '/'-separated token
     gct_file_name = current_gct_key.rsplit("/", 1)[1]
 
+    # Extract plate_name which has _LVLX.gct appended to file name
     plate_name = gct_file_name.rsplit("_", 1)[0]
 
     panorama_file_key = s3_dir + "/" + plate_name  + ".json"
+
     try:
         print "Reading file_key {} from bucket {}".format(panorama_file_key, bucket_name)
         s3obj = s3.Object(bucket_name, panorama_file_key)
@@ -71,13 +76,13 @@ def get_panorama_request_and_parse(s3, bucket_name, current_gct_key):
 
     panorama_json = json.loads(file)
     request_id = panorama_json["id"]
+
     return request_id
 
 
 def get_api_entry_from_proteomics_clue(id):
-    """ Call /psp API with id to get full entry
+    """ Call /psp API with id to get full entry"""
 
-    """
     api_url = BASE_API_URL + "/" + id
 
     headers = {'user_key': API_KEY}
@@ -104,8 +109,7 @@ def pour(s3, bucket_name, s3_location, panorama_location, request_id):
         panorama_location (url) - location on Panorama to put GCT
         request_id (string) - /psp API id for status update
     """
-    #TODO: make this more clear
-    file_key = s3_location.split("/", 3)[3]
+    file_key = s3_location.rsplit("/", 1)[1]
     file = download_gct_from_s3(s3, bucket_name, file_key, request_id)
     try:
         r = requests.put(panorama_location, auth=(PANORAMA_USER,PANORAMA_AUTH), data=file)
@@ -124,8 +128,8 @@ def pour(s3, bucket_name, s3_location, panorama_location, request_id):
 
 
 def download_gct_from_s3(s3, bucket_name, file_key, request_id):
-    """ Download GCT from s3; update /psp API upon error
-    """
+    """ Download GCT from s3; update /psp API upon error"""
+
     try:
         print 'Reading file {} from bucket {}'.format(file_key, bucket_name)
         file = s3.Object(bucket_name, file_key)
