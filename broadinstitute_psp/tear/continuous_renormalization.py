@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import argparse
