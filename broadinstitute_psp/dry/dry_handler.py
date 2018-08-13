@@ -11,7 +11,7 @@ LOCAL_LEVEL_3_GCT_NAME = "level3"
 DRY_OUT_NAME = LOCAL_LEVEL_3_GCT_NAME + dry.DEFAULT_GCT_SUFFIX
 LOCAL_LEVEL_2_GCT_NAME = "level2.gct"
 LEVEL_3_API_SUFFIX = "/level3"
-CONFIG_API_SUFFIX = "/config"
+CONFIG_API_SUFFIX = "/configObj"
 
 def build_parser():
     parser = argparse.ArgumentParser(

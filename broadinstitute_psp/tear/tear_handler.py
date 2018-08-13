@@ -9,7 +9,7 @@ FILE_EXTENSION = ".gct"
 LOCAL_LEVEL_4_GCT_NAME = "level4.gct"
 LOCAL_LEVEL_3_GCT_NAME = "level3.gct"
 LEVEL_4_API_SUFFIX = "/level4"
-CONFIG_API_SUFFIX = "/config"
+CONFIG_API_SUFFIX = "/configObj"
 
 def build_tear_handler_parser():
     parser = argparse.ArgumentParser(
