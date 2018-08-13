@@ -36,7 +36,7 @@ PROV_CODE_FIELD = "provenance"
 CONSTANT_FOR_MAD = 0.6745
 MINIMUM_MAD = 1e-6
 
-@staticmethod
+
 def build_parser():
     """Build argument parser."""
 
