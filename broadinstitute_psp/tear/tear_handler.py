@@ -11,7 +11,7 @@ LOCAL_LEVEL_3_GCT_NAME = "level3.gct"
 LEVEL_4_API_SUFFIX = "/level4"
 CONFIG_API_SUFFIX = "/config"
 
-def build_parser():
+def build_tear_handler_parser():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -107,5 +107,5 @@ def create_s3keys(args):
 
 
 if __name__ == "__main__":
-    args = build_parser().parse_args(sys.argv[1:])
+    args = build_tear_handler_parser().parse_args(sys.argv[1:])
     call_tear(args)
