@@ -37,7 +37,7 @@ CONSTANT_FOR_MAD = 0.6745
 MINIMUM_MAD = 1e-6
 
 
-def build_parser():
+def build_parser(args):
     """Build argument parser."""
 
     parser = argparse.ArgumentParser(
@@ -61,7 +61,7 @@ def build_parser():
     parser.add_argument("-verbose", "-v", action="store_true", default=False,
                         help="increase the number of messages reported")
 
-    return parser
+    return parser.parse_args(args)
 
 
 def main(args):
@@ -429,7 +429,7 @@ def write_output_gct(out_gct, out_gct_name, data_null, filler_null):
 
 
 if __name__ == "__main__":
-    args = build_parser().parse_args(sys.argv[1:])
+    args = build_parser(sys.argv[1:])
     setup_logger.setup(verbose=args.verbose)
     logger.debug("args: {}".format(args))
 
