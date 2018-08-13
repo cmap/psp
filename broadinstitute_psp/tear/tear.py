@@ -94,8 +94,9 @@ def main(args):
     write_output_gct(out_gct, out_gct_name, config_io["data_null"], config_io["filler_null"])
 
     # Apply continuous renormalization to GCT
-    continuous_renormalization_args = c.build_parser().parse_args(["-i", out_gct_name, "-gct", "-o", out_gct_name])
-    out_gct = c.continuous_renormalization(continuous_renormalization_args)
+    if ("det_well_enrichment_score" in out_gct.col_metadata_df.columns):
+        continuous_renormalization_args = c.build_parser().parse_args(["-i", out_gct_name, "-gct", "-o", out_gct_name])
+        out_gct = c.continuous_renormalization(continuous_renormalization_args)
 
     return out_gct
 
