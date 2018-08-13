@@ -3,7 +3,7 @@ import argparse
 import boto3
 import botocore
 import broadinstitute_psp.utils.lambda_utils as utils
-import broadinstitute_psp.tear.tear.build_parser as tear_parser
+from broadinstitute_psp.tear.tear import build_parser as tear_parser
 import broadinstitute_psp.tear.tear as tear
 
 FILE_EXTENSION = ".gct"
