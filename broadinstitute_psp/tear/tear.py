@@ -89,7 +89,7 @@ def main(args):
         config_metadata["prov_code_field"])
 
     # Apply continuous renormalization to GCT
-    continuous_renormalization_args = c.build_parser.parse_args(["--in_gct", out_gct])
+    continuous_renormalization_args = c.build_parser().parse_args(["--in_gct", out_gct])
     out_gct = c.continuous_renormalization(continuous_renormalization_args)
 
     # Write output gct
@@ -429,7 +429,7 @@ def write_output_gct(out_gct, out_gct_name, data_null, filler_null):
 
 
 if __name__ == "__main__":
-    args = build_parser.parse_args(sys.argv[1:])
+    args = build_parser().parse_args(sys.argv[1:])
     setup_logger.setup(verbose=args.verbose)
     logger.debug("args: {}".format(args))
 
