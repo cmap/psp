@@ -45,7 +45,8 @@ def call_tear(args):
     download_file_from_s3(s3, args, args.file_key, local_level_3_gct_path, LEVEL_4_API_SUFFIX)
     download_file_from_s3(s3, args, config_key, local_config_path, CONFIG_API_SUFFIX)
 
-    tear_args = tear.build_parser().parse_args(["-i", local_level_3_gct_path, "-psp_config_path", local_config_path, "-o",local_level_4_gct_path , "-v"])
+    tear_parser = tear.build_parser()
+    tear_args = tear_parser.parse_args(["-i", local_level_3_gct_path, "-psp_config_path", local_config_path, "-o",local_level_4_gct_path , "-v"])
 
     try:
         level_4_gct = tear.main(tear_args)
