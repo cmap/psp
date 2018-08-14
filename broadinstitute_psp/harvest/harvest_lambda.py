@@ -23,7 +23,7 @@ def handler(event, context):
     (id, gct_s3key) = extract_data_from_panorama_request(panorama_request, file_key)
 
     harvest(panorama_request["level 2"]["panorama"]["url"], id, bucket_name, gct_s3key, "/level2")
-
+    return "Success!"
 
 def read_panorama_request_from_s3(bucket_name, file_key):
     """ Reads panorama request from s3, loads JSON,

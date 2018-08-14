@@ -43,7 +43,15 @@ def call_dry(args):
 
     download_gct_from_s3(s3, args, local_gct_path)
 
-    config_path = check_gct_for_custom_parameters_and_set_config_path(args, local_gct_path)
+    try:
+        config_path = check_gct_for_custom_parameters_and_set_config_path(args, local_gct_path)
+
+    except Exception as error:
+        level_3_message = "dry error: {}".format(error)
+        print level_3_message
+        payload = {"s3": {"message": level_3_message}}
+        utils.post_update_to_proteomics_clue(LEVEL_3_API_SUFFIX, args.plate_api_id, payload)
+        raise Exception(error)
 
     dry_args = dry.build_parser().parse_args(["-i", local_gct_path, "-p", config_path, "-o", args.config_dir, "-ob", LOCAL_LEVEL_3_GCT_NAME])
     (level_3_key, config_key) = create_s3_keys(args)
@@ -67,7 +75,7 @@ def call_dry(args):
 
     dry_success_payload = {"status": "created LVL 3 GCT"}
     utils.post_update_to_proteomics_clue("", args.plate_api_id, dry_success_payload)
-
+    return "Success!"
 
 def download_gct_from_s3(s3, args, local_level_2_path):
     try:

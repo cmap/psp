@@ -7,8 +7,6 @@ import psp_utils
 import cmapPy.pandasGEXpress.parse as parse
 
 
-DEFAULT_CONFIG_PATH = "../psp_production.cfg"
-
 def build_parser():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -37,6 +35,15 @@ def build_parser():
     return parser
 
 
+def find_psp_production_config():
+    current_location = os.getcwd()
+    for root, dirs, files in os.walk(current_location):
+        if "psp_production.cfg" in files:
+            return os.path.join(root, "psp_production.cfg")
+
+DEFAULT_CONFIG_PATH = find_psp_production_config()
+
+
 def main(args):
     if args.config2json:
         if os.path.exists(args.input_path):
@@ -48,6 +55,7 @@ def main(args):
     if args.gct2config:
         if os.path.exists(args.input_path):
             convert_gct_to_config(args.assay_type, args.input_path, args.output_path)
+
 
 def convert_config_to_json(assay, config_path):
     (_, _, custom_config_parameters) = psp_utils.read_config_file(config_path)
@@ -65,11 +73,13 @@ def convert_config_to_json(assay, config_path):
     else:
         return None
 
+
 def convert_json_to_config(assay_type, json_string, output_path):
     custom_parameters = create_dict_from_pseudojson(json_string)
 
     differential_parameters = check_custom_parameters_against_defaults(assay_type, custom_parameters, json=True)
     write_config(differential_parameters, output_path)
+
 
 def convert_gct_to_config(assay_type, gct_path, output_path):
     """
@@ -101,6 +111,7 @@ def convert_gct_to_config(assay_type, gct_path, output_path):
         write_config(differential_parameters, output_path)
 
     return differential_parameters
+
 
 def create_dict_from_pseudojson(pseudoJSONString):
     """
@@ -144,6 +155,7 @@ def create_dict_from_pseudojson(pseudoJSONString):
         dict[key] = value
     return dict
 
+
 def populate_background_parameters(json_parameters_dict):
 
     (_, _, default_config_parameters) = psp_utils.read_config_file(DEFAULT_CONFIG_PATH)
@@ -151,6 +163,7 @@ def populate_background_parameters(json_parameters_dict):
         if param not in json_parameters_dict:
             json_parameters_dict[param] = default_config_parameters[param]
     return json_parameters_dict
+
 
 def check_custom_parameters_against_defaults(assay_type, custom_config_parameters, json=False):
     """
@@ -242,6 +255,7 @@ def map_R_params(assay_type, parameters):
         output_params[key.lower()] = parameters[param]
 
     return output_params
+
 
 def write_config(custom_config_parameters, output_path):
     config_parser = ConfigParser.RawConfigParser()

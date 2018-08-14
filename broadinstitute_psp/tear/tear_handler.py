@@ -75,6 +75,7 @@ def call_tear(args):
 
     tear_success_payload = {"status": "created LVL 4 GCT"}
     utils.post_update_to_proteomics_clue("", args.plate_api_id, tear_success_payload)
+    return "Success!"
 
 def download_file_from_s3(s3, args, s3key, local_path, api_suffix):
     try:
