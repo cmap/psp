@@ -22,6 +22,14 @@ def read_gct_and_config_file(gct_path, config_path):
         config_metadata (dictionary)
         config_parameters (dictionary)
     """
+    (config_io, config_metadata, config_parameters) = read_config_file(config_path)
+
+    # Parse the gct file and return GCToo object
+    gct = parse.parse(gct_path)
+
+    return gct, config_io, config_metadata, config_parameters
+
+def read_config_file(config_path):
     assert os.path.exists(os.path.expanduser(config_path))
 
     # Read config file
@@ -33,11 +41,7 @@ def read_gct_and_config_file(gct_path, config_path):
     config_metadata = dict(config_parser.items("metadata"))
     config_parameters = dict(config_parser.items("parameters"))
 
-    # Parse the gct file and return GCToo object
-    gct = parse.parse(gct_path)
-
-    return gct, config_io, config_metadata, config_parameters
-
+    return config_io, config_metadata, config_parameters
 
 def extract_prov_code(col_meta_df, prov_code_field, prov_code_delim):
     """Extract the provenance code from the column metadata.

@@ -7,7 +7,7 @@ import pandas as pd
 import cmapPy.pandasGEXpress as GCToo
 import cmapPy.pandasGEXpress.parse as parse
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import contin_renorm as renorm
+import continuous_renormalization as renorm
 
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
@@ -16,7 +16,7 @@ logger = logging.getLogger(setup_logger.LOGGER_NAME)
 FUNCTIONAL_TESTS_DIR = os.path.join("functional_tests")
 
 
-class test_contin_renorm(unittest.TestCase):
+class TestContinuousRenormalization(unittest.TestCase):
     def test_main(self):
         in_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_renorm_main.gct")
         out_name = os.path.join(FUNCTIONAL_TESTS_DIR, "test_renorm_out.gct")
@@ -24,7 +24,7 @@ class test_contin_renorm(unittest.TestCase):
         # update the args string
         args_string = ("-i {} -o {}").format(in_gct_path, out_name)
         args = renorm.build_parser().parse_args(args_string.split())
-        renorm.contin_renorm_main(args)
+        renorm.continuous_renormalization(args)
 
         # Read in result
         out_gct = parse.parse(out_name)
@@ -55,7 +55,7 @@ class test_contin_renorm(unittest.TestCase):
                               [2,      0,  -2, 2],
                               [0,      0,   0, 0],
                               [-0.5, 0.5, 0.5, 0]])
-        return_tot_samp_offsets = renorm.calc_tot_samp_offsets(df_in)
+        return_tot_samp_offsets = renorm.calculate_total_sample_offsets(df_in)
         expect_tot_samp_offsets = pd.Series([3.5, 1.5, 2.5, 3])
         
         self.assertTrue(np.allclose(return_tot_samp_offsets,
@@ -73,7 +73,7 @@ class test_contin_renorm(unittest.TestCase):
                                   [3, 2, 1, 0],
                                   [0, 1, 2, 3],
                                   [0, 0, 0, 0]])
-        return_out_df = renorm.calc_out_mat(df_in, offset_in)
+        return_out_df = renorm.calculate_out_matrix(df_in, offset_in)
         
         expect_out_df = pd.DataFrame([[1, 2, 3, 4],
                                       [1, 1, 1, 1],
@@ -97,9 +97,9 @@ class test_contin_renorm(unittest.TestCase):
                                       [(1, 1), (1, 1)]],
                                      columns = ["deg1", "log"])
 
-        func_return = renorm.calc_pep_samp_offsets(data_df_in, row_metadata_df_in,
-                                                   es_in, fit_params_in,
-                                                   pep_y_offsets_in)
+        func_return = renorm.calculate_peptide_sample_offsets(data_df_in, row_metadata_df_in,
+                                                              es_in, fit_params_in,
+                                                              pep_y_offsets_in)
         
         expected_return = pd.DataFrame([[0.85, 0.78, 0.75, 0.67],
                                         [0,    0,    0,    0]])
@@ -114,7 +114,7 @@ class test_contin_renorm(unittest.TestCase):
         es_in = pd.Series([0.2, 0.5, 0.6, 1.0])
         pep_y_offsets_in = pd.Series([0.1, 0.1])
         
-        func_return = renorm.calc_fit(data_df_in, es_in, pep_y_offsets_in)
+        func_return = renorm.calculate_fit(data_df_in, es_in, pep_y_offsets_in)
 
         expect_return = pd.DataFrame([[[-0.54, 0.88], (1.6, 1.66)],
                                       [[0.11, 0.91],  (1.8, 0.03)]],
@@ -151,13 +151,13 @@ class test_contin_renorm(unittest.TestCase):
                               [-1, -1, -1, -1, -1]])
         es = pd.Series([1, 0.2, 0.3, 0.4, 0.5])
         
-        return_y_offsets = renorm.calc_y_offsets(df_in, es)
+        return_y_offsets = renorm.calculate_y_offsets(df_in, es)
         expect_y_offsets = pd.Series([1, 4, 0, -1])
         
         self.assertTrue(np.allclose(return_y_offsets, expect_y_offsets,
                                             atol=1e-6))
         
-        return_y_offsets = renorm.calc_y_offsets(df_in, es, top_frac=1.0)
+        return_y_offsets = renorm.calculate_y_offsets(df_in, es, top_fraction=1.0)
         expect_y_offsets = pd.Series([3, 2, 0, -1])
         
         self.assertTrue(np.allclose(return_y_offsets, expect_y_offsets,

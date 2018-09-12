@@ -353,6 +353,9 @@ def gcp_histone_normalize_if_needed(gct, assay_type, gcp_normalization_peptide_f
         # Reconcatenate the split up GCTs; note that rows are sorted in output
         out_df = pd.concat(list_of_out_dfs, axis=0).sort_index(axis=0)
 
+        # Remove any cols that have been made all NaN
+        out_df = filter_samples_by_nan(out_df, 0)
+
         # Update gct object and provenance code
         (out_gct, updated_prov_code) = update_metadata_and_prov_code(
             out_df, gct.row_metadata_df, gct.col_metadata_df, prov_code_entry, prov_code)
