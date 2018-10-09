@@ -8,21 +8,29 @@ import broadinstitute_psp.utils.config_converter as config_converter
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
+
+if os.path.basename(os.getcwd()) == "utils":
+    FUNCTIONAL_TESTS_DIR = os.path.join("./functional_tests")
+elif os.path.basename(os.getcwd()) == "broadinstitute_psp":
+    FUNCTIONAL_TESTS_DIR = os.path.join("utils/functional_tests")
+
 class TestConfigConverter(unittest.TestCase):
 
     def test_convert_config_to_json(self):
         # Differential parameters, returns JSON
-        json = config_converter.convert_config_to_json("gcp", "functional_tests/test_config_converter_diff.cfg")
+        config_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_config_converter_diff.cfg")
+        json = config_converter.convert_config_to_json("gcp", config_path)
         expected_json = "{'gcp_sample_frac_cutoff':0.7,'gcp_probe_frac_cutoff':0.7}"
         self.assertEqual(json, expected_json)
 
         # No differential parameters, returns None
-        json = config_converter.convert_config_to_json("gcp", "functional_tests/test_config_converter_no_diff.cfg")
+        config_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_config_converter_no_diff.cfg")
+        json = config_converter.convert_config_to_json("gcp", config_path)
         self.assertIsNone(json)
 
     def test_convert_json_to_config(self):
-        config_dir = tempfile.mkdtemp()
-        save_file_path = os.path.join(config_dir, "test.cfg")
+
+        save_file_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_convert_json_to_config.cfg")
         assay = "gcp"
         # probe_frac_cutoff == default value
         json = '""{""samplePctCutoff"":0.7,""probePctCutoff"":0.5}""'
@@ -34,14 +42,16 @@ class TestConfigConverter(unittest.TestCase):
         expected_params = {"gcp_sample_frac_cutoff":"0.7"}
         self.assertEqual(differential_params, expected_params)
 
+        os.remove(save_file_path)
+
     def test_convert_gct_to_config(self):
         # Differential params
-        config_dir = tempfile.mkdtemp()
-        save_file_path = os.path.join(config_dir, "test.cfg")
+        save_file_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_convert_gct_to_config.cfg")
 
-        gct_path = "functional_tests/test_pr_processing_params.gct"
+        gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_pr_processing_params.gct")
         assay = "p100"
         diff_params = config_converter.convert_gct_to_config(assay, gct_path, save_file_path)
+        print diff_params
         self.assertIsNotNone(diff_params)
 
         (_, _, custom_parameters_from_read) = psp_utils.read_config_file(save_file_path)
@@ -51,19 +61,21 @@ class TestConfigConverter(unittest.TestCase):
         self.assertEqual(differential_params, expected_params)
 
         # No differential params, pr_processing_params empty {}
-        gct_path = "functional_tests/test_pr_processing_params_empty.gct"
+        gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_pr_processing_params_empty.gct")
         diff_params = config_converter.convert_gct_to_config(assay, gct_path, save_file_path)
         self.assertIsNone(diff_params)
 
         # No differential params, pr_processing_params column DNE
-        gct_path = "functional_tests/test_no_pr_processing_params.gct"
+        gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_no_pr_processing_params.gct")
         diff_params = config_converter.convert_gct_to_config(assay, gct_path, save_file_path)
         self.assertIsNone(diff_params)
 
         # No differential params, pr_processing_params contains base_histone_normalization_mapping only
-        gct_path = "functional_tests/test_pr_processing_params_base_histone_normalization_mapping.gct"
+        gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_pr_processing_params_base_histone_normalization_mapping.gct")
         diff_params = config_converter.convert_gct_to_config(assay, gct_path, save_file_path)
         self.assertIsNone(diff_params)
+
+        os.remove(save_file_path)
 
 
     def test_create_dict_from_pseudojson(self):
@@ -164,14 +176,15 @@ class TestConfigConverter(unittest.TestCase):
         self.assertIsNone(returned_params)
 
     def test_write_config(self):
-        config_dir = tempfile.mkdtemp()
-        save_file_path = os.path.join(config_dir, "test.cfg")
+        save_file_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_config_converter.cfg")
         custom_params = {"p100_sample_frac_cutoff":"0.1"}
         config_converter.write_config(custom_params, save_file_path)
 
         (_,_, custom_parameters_from_read) = psp_utils.read_config_file(save_file_path)
         differential_params = config_converter.check_custom_parameters_against_defaults("p100", custom_parameters_from_read)
         self.assertEqual(differential_params, custom_params)
+
+        os.remove(save_file_path)
 
 
 if __name__ == "__main__":

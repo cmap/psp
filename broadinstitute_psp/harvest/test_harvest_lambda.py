@@ -7,20 +7,29 @@ import broadinstitute_psp.utils.setup_logger as setup_logger
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
-
-h.requests.put = mock.Mock()
-
-# mock setup environment variables
-environDict = {"API_KEY": "API_KEY", "API_URL": "API_URL"}
-
-def get_environ_item(name):
-    return environDict[name]
-
-h.os.environ = mock.MagicMock()
-h.os.environ.__getitem__.side_effect = get_environ_item
+OG_requests = h.requests.put
+OG_os_environ = h.os.environ
 
 
 class TestHarvestLambda(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        h.requests.put = mock.Mock()
+
+        # mock setup environment variables
+        environDict = {"API_KEY": "API_KEY", "API_URL": "API_URL"}
+
+        def get_environ_item(name):
+            return environDict[name]
+
+        h.os.environ = mock.MagicMock()
+        h.os.environ.__getitem__.side_effect = get_environ_item
+
+    @classmethod
+    def tearDownClass(cls):
+        h.requests.put = OG_requests
+        h.os.environ = OG_os_environ
 
     @staticmethod
     def setup_panorama_request():

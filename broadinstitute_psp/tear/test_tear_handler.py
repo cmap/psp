@@ -2,25 +2,35 @@ import unittest
 import logging
 import mock
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import tear_handler as th
+import broadinstitute_psp.tear.tear_handler as th
 from boto3.exceptions import S3UploadFailedError
 from botocore.exceptions import ClientError
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
-#post_update_to_proteomics fully tested in lambda_utils
-th.utils.post_update_to_proteomics_clue = mock.Mock()
-
-# mock setup environment variables
-environDict = {"API_KEY": "API_KEY", "API_URL": "API_URL"}
-
-def get_environ_item(name):
-    return environDict[name]
-
-th.utils.os.environ = mock.MagicMock()
-th.utils.os.environ.__getitem__.side_effect = get_environ_item
+OG_post_updates = th.utils.post_update_to_proteomics_clue
+OG_os_environ = th.utils.os.environ
 
 class TestTearHandler(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        # post_update_to_proteomics fully tested in lambda_utils
+        th.utils.post_update_to_proteomics_clue = mock.Mock()
+
+        # mock setup environment variables
+        environDict = {"API_KEY": "API_KEY", "API_URL": "API_URL"}
+
+        def get_environ_item(name):
+            return environDict[name]
+
+        th.utils.os.environ = mock.MagicMock()
+        th.utils.os.environ.__getitem__.side_effect = get_environ_item
+
+    @classmethod
+    def tearDownClass(cls):
+        th.utils.post_update_to_proteomics_clue = OG_post_updates
+        th.utils.os.environ = OG_os_environ
 
     @staticmethod
     def setup_args():
@@ -61,7 +71,7 @@ class TestTearHandler(unittest.TestCase):
                                   {"s3": {"message": "Tear: failed to download file located at psp/level3/test_file_key.gct from bucket test_bucket"}})
         self.assertEqual(expected_call, th.utils.post_update_to_proteomics_clue.call_args)
 
-    @mock.patch("tear_handler.download_file_from_s3")
+    @mock.patch("broadinstitute_psp.tear.tear_handler.download_file_from_s3")
     def test_call_tear_happy_path(self, download_file):
         #setup
         args = TestTearHandler.setup_args()
@@ -79,7 +89,7 @@ class TestTearHandler(unittest.TestCase):
         download_file_calls = download_file.call_args_list
         expected_download_file_calls = [
             mock.call(th.s3, args, "psp/level3/test_file_key.gct", "/this/dir/level3.gct", "/level4"),
-            mock.call(th.s3, args, "psp/config/test_plate_name.cfg", "/this/dir/test_plate_name.cfg", "/config")]
+            mock.call(th.s3, args, "psp/config/test_plate_name.cfg", "/this/dir/test_plate_name.cfg", "/configObj")]
         self.assertEqual(download_file_calls, expected_download_file_calls)
 
         th.tear.main.assert_called_once()
@@ -104,7 +114,7 @@ class TestTearHandler(unittest.TestCase):
                         mock.call("", args.plate_api_id, {"status":"created LVL 4 GCT"})]
         self.assertEqual(clue_posts, expected_posts)
 
-    @mock.patch("tear_handler.download_file_from_s3")
+    @mock.patch("broadinstitute_psp.tear.tear_handler.download_file_from_s3")
     def test_call_tear_unhappy_path_tear_failure(self, download_file):
         #setup
         args = TestTearHandler.setup_args()
@@ -122,7 +132,7 @@ class TestTearHandler(unittest.TestCase):
         download_file_calls = download_file.call_args_list
         expected_download_file_calls = [
             mock.call(th.s3, args, "psp/level3/test_file_key.gct", "/this/dir/level3.gct", "/level4"),
-            mock.call(th.s3, args, "psp/config/test_plate_name.cfg", "/this/dir/test_plate_name.cfg", "/config")]
+            mock.call(th.s3, args, "psp/config/test_plate_name.cfg", "/this/dir/test_plate_name.cfg", "/configObj")]
         self.assertEqual(download_file_calls, expected_download_file_calls)
 
         th.tear.main.assert_called_once()
@@ -139,7 +149,7 @@ class TestTearHandler(unittest.TestCase):
 
         self.assertEqual(expected_post, post)
 
-    @mock.patch("tear_handler.download_file_from_s3")
+    @mock.patch("broadinstitute_psp.tear.tear_handler.download_file_from_s3")
     def test_call_tear_unhappy_path_s3_upload_failure(self, download_file):
         # setup
         args = TestTearHandler.setup_args()
@@ -160,7 +170,7 @@ class TestTearHandler(unittest.TestCase):
         download_file_calls = download_file.call_args_list
 
         expected_download_file_calls = [mock.call(th.s3, args, "psp/level3/test_file_key.gct", "/this/dir/level3.gct", "/level4"),
-                                        mock.call(th.s3, args, "psp/config/test_plate_name.cfg", "/this/dir/test_plate_name.cfg", "/config")]
+                                        mock.call(th.s3, args, "psp/config/test_plate_name.cfg", "/this/dir/test_plate_name.cfg", "/configObj")]
         self.assertEqual(download_file_calls, expected_download_file_calls)
 
         th.tear.main.assert_called_once()

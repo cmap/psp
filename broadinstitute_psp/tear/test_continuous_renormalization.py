@@ -7,22 +7,26 @@ import pandas as pd
 import cmapPy.pandasGEXpress as GCToo
 import cmapPy.pandasGEXpress.parse as parse
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import continuous_renormalization as renorm
+import broadinstitute_psp.tear.continuous_renormalization as renorm
 
 # Setup logger
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
 # Use functional tests assets from the tear directory
-FUNCTIONAL_TESTS_DIR = os.path.join("functional_tests")
-
+if os.path.basename(os.getcwd()) == "tear":
+    FUNCTIONAL_TESTS_DIR = os.path.join("./functional_tests")
+elif os.path.basename(os.getcwd()) == "broadinstitute_psp":
+    FUNCTIONAL_TESTS_DIR = os.path.join("tear/functional_tests")
 
 class TestContinuousRenormalization(unittest.TestCase):
+
+
     def test_main(self):
         in_gct_path = os.path.join(FUNCTIONAL_TESTS_DIR, "test_renorm_main.gct")
         out_name = os.path.join(FUNCTIONAL_TESTS_DIR, "test_renorm_out.gct")
 
         # update the args string
-        args_string = ("-i {} -o {}").format(in_gct_path, out_name)
+        args_string = ("-i {} -o {} -gct").format(in_gct_path, out_name)
         args = renorm.build_parser().parse_args(args_string.split())
         renorm.continuous_renormalization(args)
 

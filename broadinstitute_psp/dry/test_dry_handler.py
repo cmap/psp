@@ -2,25 +2,36 @@ import unittest
 import logging
 import mock
 import broadinstitute_psp.utils.setup_logger as setup_logger
-import dry_handler as dh
+import broadinstitute_psp.dry.dry_handler as dh
 from boto3.exceptions import S3UploadFailedError
 from botocore.exceptions import ClientError
 
 logger = logging.getLogger(setup_logger.LOGGER_NAME)
 
-dh.utils.post_update_to_proteomics_clue = mock.Mock()
-
-# mock setup environment variables
-environDict = {"API_KEY": "API_KEY", "API_URL": "API_URL"}
-
-def get_environ_item(name):
-    return environDict[name]
-
-
-dh.utils.os.environ = mock.MagicMock()
-dh.utils.os.environ.__getitem__.side_effect = get_environ_item
+OG_post_update = dh.utils.post_update_to_proteomics_clue
+OG_os_environ = dh.utils.os.environ
+OG_config_converter = dh.config_converter.convert_gct_to_config
 
 class TestDryHandler(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        dh.utils.post_update_to_proteomics_clue = mock.Mock()
+
+        # mock setup environment variables
+        environDict = {"API_KEY": "API_KEY", "API_URL": "API_URL"}
+
+        def get_environ_item(name):
+            return environDict[name]
+
+        dh.utils.os.environ = mock.MagicMock()
+        dh.utils.os.environ.__getitem__.side_effect = get_environ_item
+
+    @classmethod
+    def tearDownClass(cls):
+        dh.utils.post_update_to_proteomics_clue = OG_post_update
+        dh.utils.os.environ = OG_os_environ
+        dh.config_converter.convert_gct_to_config = OG_config_converter
 
     @staticmethod
     def setup_args():
@@ -60,7 +71,7 @@ class TestDryHandler(unittest.TestCase):
                                   {"s3": {"message": "failed to download LVL2 GCT located at psp/level2/test_file_key.gct from bucket test_bucket"}})
         self.assertEqual(expected_call, dh.utils.post_update_to_proteomics_clue.call_args)
 
-    @mock.patch("dry_handler.config_converter")
+    @mock.patch("broadinstitute_psp.dry.dry_handler.config_converter.convert_gct_to_config")
     def test_check_gct_for_custom_parameters_and_set_config_path(self, config_converter):
         # Setup
         args = TestDryHandler.setup_args()
@@ -68,12 +79,13 @@ class TestDryHandler(unittest.TestCase):
 
         # No differential params in GCT
         config_converter.return_value = None
-        diff_params = dh.check_gct_for_custom_parameters_and_set_config_path(args, local_gct_path)
-        self.assertIsNone(diff_params)
+        config_path = dh.check_gct_for_custom_parameters_and_set_config_path(args, local_gct_path)
+        expected_config_path = "/this/dir/psp_production.cfg"
+
+        self.assertEqual(config_path, expected_config_path)
 
 
-
-    @mock.patch("dry_handler.download_gct_from_s3")
+    @mock.patch("broadinstitute_psp.dry.dry_handler.download_gct_from_s3")
     def test_call_dry_happy_path(self, download_gct):
         #setup
         args = TestDryHandler.setup_args()
@@ -110,11 +122,11 @@ class TestDryHandler(unittest.TestCase):
 
         clue_posts = dh.utils.post_update_to_proteomics_clue.call_args_list
         expected_posts = [mock.call("/level3", args.plate_api_id, {"s3":{"url":"s3://test_bucket/psp/level3/test_plate_name_LVL3.gct"}}),
-                          mock.call("/config", args.plate_api_id, {"s3":{"url":"s3://test_bucket/psp/config/test_plate_name.cfg"}}),
+                          mock.call("/configObj", args.plate_api_id, {"s3":{"url":"s3://test_bucket/psp/config/test_plate_name.cfg"}}),
                           mock.call("", args.plate_api_id, {"status":"created LVL 3 GCT"})]
         self.assertEqual(clue_posts, expected_posts)
 
-    @mock.patch("dry_handler.download_gct_from_s3")
+    @mock.patch("broadinstitute_psp.dry.dry_handler.download_gct_from_s3")
     def test_call_dry_unhappy_path_dry_failure(self, download_gct):
         #setup
         args = TestDryHandler.setup_args()
@@ -142,7 +154,7 @@ class TestDryHandler(unittest.TestCase):
 
         self.assertEqual(expected_post, post)
 
-    @mock.patch("dry_handler.download_gct_from_s3")
+    @mock.patch("broadinstitute_psp.dry.dry_handler.download_gct_from_s3")
     def test_call_dry_unhappy_path_s3_upload_failure(self, download_gct):
         # setup
         args = TestDryHandler.setup_args()
