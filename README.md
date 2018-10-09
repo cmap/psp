@@ -26,11 +26,17 @@ May 2018
   3. Now, we will continue with the setup using the command line, so open the terminal or command prompt.
 
   4. Type `conda info` to verify that conda has been installed on your system. You should see some information about the "Current conda install." If you don't, then conda has not been installed properly.
+  
+  5. Before you create your environment you will need to add a channel to the conda configuration so it can install all of the required packages.  
+  
+    ```
+    conda config --add channels conda-forge
+    ```
 
-  5. We will now create an environment with conda that will allow us to use PSP. If on OSX or Linux, type the following in your Terminal:
+  6. We will now create an environment with conda that will allow us to use PSP. If on OSX or Linux, type the following in your Terminal:
 
       ```
-      conda create --name psp_env --channel bioconda python=2 pandas scipy h5py cmappy=3.2.0
+      conda create --name psp_env --channel bioconda python=2 pandas scipy h5py cmappy=3.2.0 requests=2.18.4 argparse=1.4.0 matplotlib
       ```
       
       'psp_env' will be the name of your conda environment, and the things after it are the packages that our environment will contain. Note that we are using python2, not python3. We also have to specify that we should also look in the `bioconda` channel in order to find the [cmapPy](https://github.com/cmap/cmappy "cmapPy Github") package (tools for interacting with .gct and .gctx files), namely the 3.2.0 version. You'll have to type 'yes' to proceed through the installation.
@@ -38,34 +44,34 @@ May 2018
       If on PC, type the following in your terminal:
       
       ```
-      conda create --name psp_env --channel bioconda python=2 pandas scipy h5py
+      conda create --name psp_env --channel bioconda python=2 pandas scipy h5py requests=2.18.4 argparse=1.4.0 matplotlib
       activate psp_env
       pip install cmappy==3.2.0
       ```
       
       Unfortunately, bioconda (which is where [cmapPy](https://github.com/cmap/cmappy "cmapPy Github") is hosted) does not support Windows, so we have to use pip to install it.
       
-  6. OPTIONAL: There are additional dependencies that you will need in order to use the tasseography scripts (i.e. showing connections as graphs):
+  7. OPTIONAL: There are additional dependencies that you will need in order to use the tasseography scripts (i.e. showing connections as graphs):
     
       ```
-      conda install --channel conda-forge python-igraph matplotlib
+      conda install --channel conda-forge python-igraph
       ```
       
-      igraph is a package for manipulating graphs, and you'll need matplotlib to produce output figures.
+      igraph is a package for manipulating graphs.
 
-  7. To activate your environment, type `source activate psp_env`, or if you are on a PC, `activate psp_env`. You should now see `[psp_env]` or `(psp_env)` prepended to the start of your command prompt. For example:
+  8. To activate your environment, type `source activate psp_env`, or if you are on a PC, `activate psp_env`. You should now see `[psp_env]` or `(psp_env)` prepended to the start of your command prompt. For example:
 
       ```
       (psp_env) /Users/lev/code/psp $
       ```
 
-  8. We will now run a script to make our environment aware of the contents of the PSP repository that we cloned. Move to the top directory of your cloned repository (e.g. `/Users/lev/code/psp`), and then type:
+  9. We will now run a script to make our environment aware of the contents of the PSP repository that we cloned. Move to the top directory of your cloned repository (e.g. `/Users/lev/code/psp`), and then type:
 
       ```
       python setup_psp.py develop
       ```   
   
-  9. That's it! To make sure that everything has been set up correctly, navigate to the `broadinstitute_psp` directory of PSP and try executing one of the Python test scripts:
+  10. That's it! To make sure that everything has been set up correctly, navigate to the `broadinstitute_psp` directory of PSP and try executing one of the Python test scripts:
 
       ```
       cd /Users/lev/code/psp/broadinstitute_psp/
@@ -145,7 +151,7 @@ Note that an alternative to running steep and sip from the command line is to us
 
 Components
 ----------
-- harvest: pushing and pulling data from Panorama (coming soon)
+- harvest: pushing and pulling data from Panorama
 - dry: level 2 &rarr; level 3 data; performs QC
 - tear: level 3 &rarr; level 4 data; performs row median normalization or z-scoring    
 - steep: computes similarities using level 3 or level 4 data
