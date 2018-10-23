@@ -233,7 +233,7 @@ def map_R_params(assay_type, parameters):
             continue
 
         # Does not have prepended assay_type
-        elif param == "offset_bounds":
+        elif param == "offset_bounds" or param == "apply_continuous_renormalization" :
             key = param
 
         # Convert from R parameter to Py parameter
@@ -249,6 +249,7 @@ def map_R_params(assay_type, parameters):
             if (assay_type == param.split("_")[0]) & (param.split("_",1)[1] in R_conversion_mapping.values()):
                 key = param
             else :
+                #todo: think about if this is the proper error handling
                 print "The following is not a valid parameter: {}".format(param)
                 return None
 

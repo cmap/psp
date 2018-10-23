@@ -58,6 +58,8 @@ def build_parser():
     parser.add_argument("-psp_config_path", type=str,
                         default="~/psp_production.cfg",
                         help="filepath to PSP config file")
+    parser.add_argument("--apply_continuous_renormalization", "-acr", default=False, action="store_true",
+                        help="flag to apply continuous renormalization on GCP. N.B. Will not run on P100 plates")
     parser.add_argument("-verbose", "-v", action="store_true", default=False,
                         help="increase the number of messages reported")
 
@@ -66,7 +68,7 @@ def build_parser():
 
 def main(args):
     # Read gct and config file
-    (in_gct, config_io, config_metadata, _) = (
+    (in_gct, config_io, config_metadata, config_parameters) = (
         psp_utils.read_gct_and_config_file(args.in_gct_path, args.psp_config_path))
 
     # Extract provenance code
@@ -88,13 +90,14 @@ def main(args):
         config_metadata["prov_code_delimiter"],
         config_metadata["prov_code_field"])
 
-
-
     # Write output gct
     write_output_gct(out_gct, out_gct_name, config_io["data_null"], config_io["filler_null"])
 
     # Apply continuous renormalization to GCT
-    if ("det_well_enrichment_score" in out_gct.col_metadata_df.columns):
+    # argparse throws "GCToo object does not support indexing" error when passed a GCT, read it in and overwrite
+    if (("det_well_enrichment_score" in out_gct.col_metadata_df.columns) and
+            (args.apply_continuous_renormalization or config_parameters["apply_continuous_renormalization"])):
+        print "Applying continuous renormalization"
         continuous_renormalization_args = c.build_parser().parse_args(["-i", out_gct_name, "-gct", "-o", out_gct_name])
         out_gct = c.continuous_renormalization(continuous_renormalization_args)
 
