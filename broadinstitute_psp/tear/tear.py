@@ -96,7 +96,7 @@ def main(args):
     # Apply continuous renormalization to GCT
     # argparse throws "GCToo object does not support indexing" error when passed a GCT, read it in and overwrite
     if (("det_well_enrichment_score" in out_gct.col_metadata_df.columns) and
-            (args.apply_continuous_renormalization or config_parameters["apply_continuous_renormalization"])):
+            (args.apply_continuous_renormalization or config_parameters["apply_continuous_renormalization"] == "True" )):
         print "Applying continuous renormalization"
         continuous_renormalization_args = c.build_parser().parse_args(["-i", out_gct_name, "-gct", "-o", out_gct_name])
         out_gct = c.continuous_renormalization(continuous_renormalization_args)
