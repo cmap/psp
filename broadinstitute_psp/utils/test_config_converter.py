@@ -98,7 +98,8 @@ class TestConfigConverter(unittest.TestCase):
             'gcp_sample_frac_cutoff': '0.5',
             'p100_sample_frac_cutoff': '0.8',
             'gcp_probe_sd_cutoff': '4',
-            'gcp_probe_frac_cutoff': '0.5'
+            'gcp_probe_frac_cutoff': '0.5',
+            'apply_continuous_renormalization': 'False'
         }
         self.assertEqual(returned_full_dict, full_dict)
 
@@ -125,9 +126,11 @@ class TestConfigConverter(unittest.TestCase):
             'gcp_sample_frac_cutoff': '0.5',
             'p100_sample_frac_cutoff': '0.8',
             'gcp_probe_sd_cutoff': '4',
-            'gcp_probe_frac_cutoff': '0.5'
+            'gcp_probe_frac_cutoff': '0.5',
+            'apply_continuous_renormalization': 'False'
         }
         assay = "p100"
+
         differential_parameters = config_converter.check_custom_parameters_against_defaults(assay, no_diff_dict)
         self.assertIsNone(differential_parameters)
 
@@ -139,7 +142,8 @@ class TestConfigConverter(unittest.TestCase):
             'gcp_sample_frac_cutoff': '0.5',
             'p100_sample_frac_cutoff': '0.8',
             'gcp_probe_sd_cutoff': '4',
-            'gcp_probe_frac_cutoff': '0.5'
+            'gcp_probe_frac_cutoff': '0.5',
+            'apply_continuous_renormalization': 'False'
         }
         assay = "p100"
         differential_parameters = config_converter.check_custom_parameters_against_defaults(assay, diff_dict)
