@@ -109,7 +109,7 @@ def pour(s3, bucket_name, s3_location, panorama_location, request_id):
         panorama_location (url) - location on Panorama to put GCT
         request_id (string) - /psp API id for status update
     """
-    file_key = s3_location.rsplit("/", 1)[1]
+    file_key = s3_location.split("/", 3)[3]
     file = download_gct_from_s3(s3, bucket_name, file_key, request_id)
     try:
         r = requests.put(panorama_location, auth=(PANORAMA_USER,PANORAMA_AUTH), data=file)
