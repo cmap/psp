@@ -44,7 +44,7 @@ May 2018
       If on PC, type the following in your terminal:
       
       ```
-      conda create --name psp_env --channel bioconda python=2 pandas scipy h5py requests=2.18.4 argparse=1.4.0 matplotlib
+      conda create --name psp_env --channel bioconda python=2 pandas scipy h5py requests=2.18.4 argparse=1.4.0 matplotlib statsmodels
       activate psp_env
       pip install cmappy==3.2.0
       ```
