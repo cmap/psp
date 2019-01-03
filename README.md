@@ -151,13 +151,17 @@ Note that an alternative to running steep and sip from the command line is to us
 
 Components
 ----------
-- harvest: pushing and pulling data from Panorama
+- harvest: pulling data from Panorama (refer to AWS_Lambda_pipeline.md for more information)
 - dry: level 2 &rarr; level 3 data; performs QC
 - tear: level 3 &rarr; level 4 data; performs row median normalization or z-scoring    
+- pour: pushing data to Panorama (refer to AWS_Lambda_pipeline.md for more information)
 - steep: computes similarities using level 3 or level 4 data
 - sip: computes connectivities using similarity matrices
 - external_query: computes connectivities using level 3 or level 4 data (combines steep and sip)
 - clue: Python scripts supporting the proteomics-query app on Clue.io
+- tasseography: visualize connectivitites as graphs
+- tools: evaluate sets in a similarity matrix 
+- plot: scripts for generating standardized plots
 - utils: miscellanous other scripts
 
 Data levels
