@@ -126,7 +126,96 @@ class TestTear(unittest.TestCase):
                         ("\nExpected out_df:\n{} " +
                          "\nActual out_df:\n{}").format(e_df_mad, out_df_mad))
 
-    def test_subset_normalize(self):
+    def test_precheck_subset_normalization_parameters(self):
+        ROW_SUBSET_FIELD = "pr_probe_normalization_group"
+        COL_SUBSET_FIELD = "det_normalization_group_vector"
+        row_df = pd.DataFrame(np.array([["8350", "1"], ["8350", "1"],
+                                        ["8350", "2"], ["8350", "2"]]),
+                              index=["r1", "r2", "r3", "r4"],
+                              columns=["pr_gene_id", "pr_probe_normalization_group"])
+        col_df = pd.DataFrame(np.array([["G-0022", "1,1"], ["G-0022", "1,1"], ["G-0022", "1,2"],
+                                        ["G-0022", "2,2"], ["G-0022", "2,2"]]),
+                              index=["c1", "c2", "c3", "c4", "c5"],
+                              columns=["det_plate", "det_normalization_group_vector"])
+
+        e_sga = np.array([[1, 1],
+                          [1, 1],
+                          [1, 2],
+                          [2, 2],
+                          [2, 2]])
+
+        e_pg = np.array([1, 1, 2, 2])
+
+        e_upg = np.array([1, 2])
+
+        (sample_grp_ndarray, probe_grps, unique_probe_grps, multipass_normalization) = \
+            tear.precheck_subset_normalization_parameters(row_df, col_df, ROW_SUBSET_FIELD, COL_SUBSET_FIELD)
+
+        self.assertTrue(np.array_equal(e_sga, sample_grp_ndarray))
+        self.assertTrue(np.array_equal(e_pg, probe_grps))
+        self.assertTrue(np.array_equal(e_upg, unique_probe_grps))
+        self.assertFalse(multipass_normalization)
+
+    def test_precheck_subset_normalization_parameters_special(self):
+        ROW_SUBSET_FIELD = "pr_probe_normalization_group"
+        COL_SUBSET_FIELD = "det_normalization_group_vector"
+        row_df = pd.DataFrame(np.array([["8350", "1"], ["8350", "1"],
+                                        ["8350", "1"], ["8350", "1"]]),
+                              index=["r1", "r2", "r3", "r4"],
+                              columns=["pr_gene_id", "pr_probe_normalization_group"])
+        col_df = pd.DataFrame(np.array([["G-0022", "1,1"], ["G-0022", "1,1"], ["G-0022", "1,2"],
+                                        ["G-0022", "2,2"], ["G-0022", "2,2"]]),
+                              index=["c1", "c2", "c3", "c4", "c5"],
+                              columns=["det_plate", "det_normalization_group_vector"])
+
+        e_sga = np.array([[1, 1],
+                          [1, 1],
+                          [1, 2],
+                          [2, 2],
+                          [2, 2]])
+
+        e_pg = np.array([1, 1, 1, 1])
+
+        e_upg = np.array([1])
+
+        (sample_grp_ndarray, probe_grps, unique_probe_grps, multipass_normalization) = \
+            tear.precheck_subset_normalization_parameters(row_df, col_df, ROW_SUBSET_FIELD, COL_SUBSET_FIELD)
+
+        self.assertTrue(np.array_equal(e_sga, sample_grp_ndarray))
+        self.assertTrue(np.array_equal(e_pg, probe_grps))
+        self.assertTrue(np.array_equal(e_upg, unique_probe_grps))
+        self.assertTrue(multipass_normalization)
+
+    def test_make_norm_ndarray_from_precheck(self):
+        row_df = pd.DataFrame(np.array([["8350", "1"], ["8350", "1"],
+                                        ["8350", "2"], ["8350", "2"]]),
+                              index=["r1", "r2", "r3", "r4"],
+                              columns=["pr_gene_id", "pr_probe_normalization_group"])
+        col_df = pd.DataFrame(np.array([["G-0022", "1,1"], ["G-0022", "1,1"], ["G-0022", "1,2"],
+                                        ["G-0022", "2,2"], ["G-0022", "2,2"]]),
+                              index=["c1", "c2", "c3", "c4", "c5"],
+                              columns=["det_plate", "det_normalization_group_vector"])
+
+        sga = np.array([[1, 1],
+                        [1, 1],
+                        [1, 2],
+                        [2, 2],
+                        [2, 2]])
+
+        pg = np.array([1, 1, 2, 2])
+
+        upg = np.array([1, 2])
+
+        e_norm_ndarray = np.array([[1, 1, 1, 2, 2],
+                                   [1, 1, 1, 2, 2],
+                                   [1, 1, 2, 2, 2],
+                                   [1, 1, 2, 2, 2]])
+
+        ndarray_result = tear.make_norm_ndarray_from_precheck(row_df, col_df, sga, pg, upg)
+
+        self.assertTrue(np.array_equal(e_norm_ndarray, ndarray_result))
+
+    def test_subset_normalize_typical(self):
         ROW_SUBSET_FIELD = "pr_probe_normalization_group"
         COL_SUBSET_FIELD = "det_normalization_group_vector"
         row_df = pd.DataFrame(np.array([["8350", "1"], ["8350", "1"],
@@ -149,6 +238,34 @@ class TestTear(unittest.TestCase):
                                       [2, 0, -3, 3.5, -3.5],
                                       [1, -1, 0, 1, -5],
                                       [-2, 2, 0, 0, 2]], dtype=float))
+        out_df = tear.subset_normalize(in_gct, False, ROW_SUBSET_FIELD, COL_SUBSET_FIELD)
+        self.assertTrue(np.array_equal(out_df, e_df),
+                        ("\nExpected out:\n{} " +
+                         "\nActual out:\n{}").format(e_df, out_df))
+
+    def test_subset_normalize_multipass(self):
+        ROW_SUBSET_FIELD = "pr_probe_normalization_group"
+        COL_SUBSET_FIELD = "det_normalization_group_vector"
+        row_df = pd.DataFrame(np.array([["8350", "1"], ["8350", "1"],
+                                        ["8350", "1"], ["8350", "1"]]),
+                              index=["r1", "r2", "r3", "r4"],
+                              columns=["pr_gene_id", "pr_probe_normalization_group"])
+        col_df = pd.DataFrame(np.array([["G-0022", "1,1"], ["G-0022", "1,1"], ["G-0022", "1,2"],
+                                        ["G-0022", "2,2"], ["G-0022", "2,2"]]),
+                              index=["c1", "c2", "c3", "c4", "c5"],
+                              columns=["det_plate", "det_normalization_group_vector"])
+        data_df = pd.DataFrame([[7, 8, 3, 8, 9],
+                                [9, 7, 4, 9, 2],
+                                [8, 6, 7, 8, 2],
+                                [4, 8, 5, 5, 7]],
+                               index=["r1", "r2", "r3", "r4"],
+                               columns=["c1", "c2", "c3", "c4", "c5"],
+                               dtype=float)
+        in_gct = GCToo.GCToo.GCToo(data_df=data_df, row_metadata_df=row_df, col_metadata_df=col_df)
+        e_df = pd.DataFrame(np.array([[-0.5, 0.5, -3.5, 0, 1],
+                                      [1, -1, 0, 6.5, -0.5],
+                                      [1, -1, 0, 3, -3],
+                                      [-2, 2, 0, -1, 1]], dtype="float"))
         out_df = tear.subset_normalize(in_gct, False, ROW_SUBSET_FIELD, COL_SUBSET_FIELD)
         self.assertTrue(np.array_equal(out_df, e_df),
                         ("\nExpected out:\n{} " +

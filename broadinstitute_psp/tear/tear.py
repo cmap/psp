@@ -20,7 +20,7 @@ import sys
 
 import broadinstitute_psp.utils.setup_logger as setup_logger
 import broadinstitute_psp.utils.psp_utils as psp_utils
-import broadinstitute_psp.tear.continuous_renormalization as c
+import broadinstitute_psp.dry.dry as dry
 import cmapPy.pandasGEXpress.GCToo as GCToo
 import cmapPy.pandasGEXpress.write_gct as wg
 
@@ -58,8 +58,6 @@ def build_parser():
     parser.add_argument("-psp_config_path", type=str,
                         default="~/psp_production.cfg",
                         help="filepath to PSP config file")
-    parser.add_argument("--apply_continuous_renormalization", "-acr", default=False, action="store_true",
-                        help="flag to apply continuous renormalization on GCP. N.B. Will not run on P100 plates")
     parser.add_argument("-verbose", "-v", action="store_true", default=False,
                         help="increase the number of messages reported")
 
@@ -68,7 +66,7 @@ def build_parser():
 
 def main(args):
     # Read gct and config file
-    (in_gct, config_io, config_metadata, config_parameters) = (
+    (in_gct, config_io, config_metadata, _) = (
         psp_utils.read_gct_and_config_file(args.in_gct_path, args.psp_config_path))
 
     # Extract provenance code
@@ -92,15 +90,6 @@ def main(args):
 
     # Write output gct
     write_output_gct(out_gct, out_gct_name, config_io["data_null"], config_io["filler_null"])
-
-    # Apply continuous renormalization to GCT
-    # argparse throws "GCToo object does not support indexing" error when passed a GCT, read it in and overwrite
-    if (("det_well_enrichment_score" in out_gct.col_metadata_df.columns) and
-            (args.apply_continuous_renormalization or config_parameters["apply_continuous_renormalization"] == "True" )):
-        print "Applying continuous renormalization"
-        continuous_renormalization_args = c.build_parser().parse_args(["-i", out_gct_name, "-gct", "-o", out_gct_name])
-        out_gct = c.continuous_renormalization(continuous_renormalization_args)
-
     return out_gct
 
 
@@ -232,13 +221,86 @@ def subset_normalize(gct, divide_by_mad, row_subset_field, col_subset_field):
     Returns:
         out_df (pandas df): with normalized data
     """
-    # Create normalization ndarray
-    norm_ndarray = make_norm_ndarray(gct.row_metadata_df, gct.col_metadata_df, row_subset_field, col_subset_field)
+    # Pre-check subset normalization parameters and type
+    (sample_grp_ndarray, probe_grps, unique_probe_grps, multipass_normalization) = \
+        precheck_subset_normalization_parameters(gct.row_metadata_df, gct.col_metadata_df,
+                                                 row_subset_field, col_subset_field)
 
-    # Iterate over norm ndarray and actually perform normalization
-    out_df = iterate_over_norm_ndarray_and_normalize(gct.data_df, norm_ndarray, divide_by_mad)
+    if multipass_normalization:
+        # copy out the original probe normalization vector metadata
+        copy_of_gct_df = gct.data_df
+
+        # loop replace of the metadata with the simple vectors and do normalization
+        for norm_pass in range(sample_grp_ndarray.shape[1]):
+            # Create normalization ndarray
+            current_sample_grp_ndarray = np.atleast_2d(sample_grp_ndarray[:, norm_pass]).T
+            norm_ndarray = make_norm_ndarray_from_precheck(gct.row_metadata_df, gct.col_metadata_df,
+                                                           current_sample_grp_ndarray,
+                                                           probe_grps, unique_probe_grps)
+
+            # Iterate over norm ndarray and actually perform normalization
+            copy_of_gct_df = iterate_over_norm_ndarray_and_normalize(copy_of_gct_df, norm_ndarray, divide_by_mad)
+
+        out_df = copy_of_gct_df
+    else:
+        # Create normalization ndarray
+        norm_ndarray = make_norm_ndarray_from_precheck(gct.row_metadata_df, gct.col_metadata_df,
+                                                       sample_grp_ndarray, probe_grps, unique_probe_grps)
+
+        # Iterate over norm ndarray and actually perform normalization
+        out_df = iterate_over_norm_ndarray_and_normalize(gct.data_df, norm_ndarray, divide_by_mad)
 
     return out_df
+
+
+def precheck_subset_normalization_parameters(row_metadata_df, col_metadata_df, row_subset_field, col_subset_field):
+    """Determines which type of subset normalization is required
+    and returns relevant parameters for computation
+
+    :param row_metadata_df: (Pandas dataframe) of gct row metadata
+    :param col_metadata_df: (Pandas dataframe) of gct column metadata
+    :param row_subset_field: (string) row metadata field indicating the row subset group
+    :param col_subset_field: (string) column metadata field indicating the column subset group
+    :return: (sample_grp_ndarray, probe_grps, unique_probe_grps, multipass_normalization)
+    """
+    # Verfiy that metadata fields of interest exist
+    assert row_subset_field in row_metadata_df.columns
+    assert col_subset_field in col_metadata_df.columns
+
+    # Get sample group vectors
+    sample_grps_strs = col_metadata_df[col_subset_field].values
+
+    # Vectors could be strings, or could have been converted to integers if
+    # the vector had length 1; so convert to str just in case
+    sample_grps_strs = sample_grps_strs.astype(str)
+
+    # Convert sample group vectors from strs to lists of strings
+    sample_grps_lists = [sample_str.split(",") for sample_str in sample_grps_strs]
+
+    # Verify that all lists have same length
+    length_of_first_list = len(sample_grps_lists[0])
+    assert all([len(sample_list) == length_of_first_list for sample_list in sample_grps_lists])
+
+    # Convert from lists of strings to ndarray of ints
+    sample_grp_ndarray = np.array(sample_grps_lists, dtype="float").astype("int")
+
+    # Get probe groups and unique probe groups; convert to ints
+    probe_grps = row_metadata_df[row_subset_field].values.astype("int")
+    unique_probe_grps = np.unique(probe_grps)
+
+    multipass_normalization = False
+
+    if length_of_first_list > len(unique_probe_grps) and len(unique_probe_grps) == 1:
+        # special 2 pass normalization!
+        logger.info("Special multipass normalization will be performed.")
+        multipass_normalization = True
+        # find total number of passes ( = length of first list )
+        # find max of each list member?
+        # or, make into an np.ndarray?
+        # normalization_passes_descriptor = np.apply_along_axis(max, 0, sample_grp_ndarray)
+
+    return sample_grp_ndarray, probe_grps, unique_probe_grps, multipass_normalization
+
 
 # tested #
 def make_norm_ndarray(row_metadata_df, col_metadata_df, row_subset_field, col_subset_field):
@@ -288,6 +350,31 @@ def make_norm_ndarray(row_metadata_df, col_metadata_df, row_subset_field, col_su
         "probe groups. len(sample_grps_lists[0]): {} \n " +
         "len(unique_probe_grps): {}".format(len(sample_grps_lists[0]), len(unique_probe_grps)))
 
+    # Initialize norm_ndarray
+    norm_ndarray = np.zeros((row_metadata_df.shape[0], col_metadata_df.shape[0]), dtype="int")
+
+    # Each col of sample_grp_ndarray corresponds to a UNIQUE probe_grp;
+    # create norm_ndarray by expanding sample_grp_ndarray so that each column
+    # corresponds to a probe
+    for unique_probe_grp_idx in range(len(unique_probe_grps)):
+        # Row to insert is the column from sample_grp_ndarray
+        row_to_insert = sample_grp_ndarray[:, unique_probe_grp_idx]
+
+        # Select probe indices for which this row should be inserted
+        probe_bool_vec = (probe_grps == unique_probe_grps[unique_probe_grp_idx])
+
+        # Insert into norm_ndarray
+        norm_ndarray[probe_bool_vec, :] = row_to_insert
+
+    # Check that there are no zeros in norm_ndarray anymore
+    assert ~np.any(norm_ndarray == 0), (
+        "There should not be any zeros in norm_ndarray anymore.")
+
+    return norm_ndarray
+
+
+def make_norm_ndarray_from_precheck(row_metadata_df,
+                                    col_metadata_df, sample_grp_ndarray, probe_grps, unique_probe_grps):
     # Initialize norm_ndarray
     norm_ndarray = np.zeros((row_metadata_df.shape[0], col_metadata_df.shape[0]), dtype="int")
 
