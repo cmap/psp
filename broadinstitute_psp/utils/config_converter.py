@@ -144,7 +144,7 @@ def create_dict_from_pseudojson(pseudoJSONString):
     key_value_pairs = []
     dict = {}
     for token in list:
-        if (token != "") & (token != '""'):
+        if (token.strip() != "") & (token.strip() != '""'):
             key_value_pairs.append(token)
 
     for pair in key_value_pairs:
