@@ -53,7 +53,13 @@ def build_parser():
 def main(args):
 
     # Grab user_input_yml from S3 and store as a string
-    user_input_yml_as_string = get_yml_from_s3(args.user_input_yml)
+    user_input_yml_as_string =''
+    if args.user_input_yml.lower().startswith("http"):
+        user_input_yml_as_string = get_yml_from_s3(args.user_input_yml)
+    else:
+        user_input_yml_as_string = get_yml_file_local(args.user_input_yml)
+
+
 
     # Extract what I need from the config file string
     (assay, introspect, s3_gct_path, fae, out_dir, psp_on_clue_config_path) = (
@@ -91,6 +97,10 @@ def main(args):
 
     eqm.main(eqm_args)
 
+def get_yml_file_local(local_file):
+    with open(local_file, 'r') as file:
+        data = file.read()
+    return data
 
 def get_yml_from_s3(s3_path):
 
