@@ -51,7 +51,6 @@ def build_parser():
 
 
 def main(args):
-
     # Grab user_input_yml from S3 and store as a string
     user_input_yml_as_string =''
     if args.user_input_yml.lower().startswith("http"):
@@ -62,8 +61,7 @@ def main(args):
 
 
     # Extract what I need from the config file string
-    (assay, introspect, s3_gct_path, fae, out_dir, psp_on_clue_config_path) = (
-        read_config_file(user_input_yml_as_string))
+    (assay, introspect, s3_gct_path, fae, out_dir, psp_on_clue_config_path) = (read_config_file(user_input_yml_as_string))
 
     # Override user-provided inputs
     if args.out_dir:
@@ -142,17 +140,19 @@ def save_yml_to_file(yml_string, out_path):
 
 def get_gct_from_s3(s3_path, out_dir):
 
+    if s3_path.lower().startswith("http"):
+        name_of_gct_file = s3_path.split("/")[-1]
+        # Configure the output filename
+        local_gct_path = os.path.join(out_dir, name_of_gct_file)
+
+        # Read file in as a string
+        file_as_string = requests.get(s3_path).text
+
+        with open(local_gct_path, "w") as f:
+            f.write(file_as_string)
+    else:
+        local_gct_path = s3_path
     # Get the last part of the S3 name
-    name_of_gct_file = s3_path.split("/")[-1]
-
-    # Configure the output filename
-    local_gct_path = os.path.join(out_dir, name_of_gct_file)
-
-    # Read file in as a string
-    file_as_string = requests.get(s3_path).text
-
-    with open(local_gct_path, "w") as f:
-        f.write(file_as_string)
 
     return local_gct_path
 
