@@ -6,7 +6,7 @@ RUN mkdir -p /cmap/bin && \
 #mkdir -p /cmap/psp/broadinstitute_psp && \
 mkdir -p ~/.aws && \
 #cd /cmap/ && \
-conda create -y -n psp -c bioconda pandas=0.20.3 scipy>=0.19.0 h5py=2.7.0 cmapPy=3.2.0 requests=2.18.4 argparse=1.4.0 urllib3=1.25.10 boto3 urllib3=1.25.10 matplotlib && \
+conda create -y -n psp -c bioconda pandas=0.20.3 scipy>=0.19.0 h5py=2.7.0 cmapPy=3.2.0 requests=2.18.4 argparse=1.4.0 boto3=1.16.0 matplotlib && \
 cd /cmap && \
 git clone https://github.com/cmap/psp.git && \
 cp /cmap/psp/broadinstitute_psp/dry/dry.sh /cmap/bin/dry && \
